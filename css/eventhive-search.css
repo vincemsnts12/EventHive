@@ -2,12 +2,13 @@
 
 /* ===== SEARCH SECTION ===== */
 .search-section {
+  margin-top: 50px;
   padding: 80px 0;
   text-align: center;
 }
 
 .search-section h1 {
-  font-size: 2.2rem;
+  font-size: 2.3rem;
   color: #222;
   margin-bottom: 10px;
   letter-spacing: 1.5px;
@@ -15,7 +16,7 @@
 
 .search-section p {
   color: #666;
-  font-size: 1rem;
+  font-size: 1.2rem;
   margin-bottom: 45px;
 }
 

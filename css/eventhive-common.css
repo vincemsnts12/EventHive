@@ -246,7 +246,9 @@ body {
 /* ===== EVENT CARD SHARED STYLES ===== */
 .events-section {
   width: 90%;
-  margin: 80px auto;
+  margin: 30px auto;
+  margin-left: 85px;
+  
 }
 
 .events-section h2 {
@@ -262,9 +264,9 @@ body {
 .events-container {
   margin-left: 30px;
   display: flex;
-  justify-content: center;
+  justify-content: row;
   flex-wrap: wrap;
-  gap: 50px;
+  gap: 80px;
 }
 
 .event-card {
