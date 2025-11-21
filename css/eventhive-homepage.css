@@ -129,3 +129,87 @@
 .events-section h2 {
   width: 210px;
 }
+
+/* RESPONSIVENESS FOR TABLET */
+@media (max-width: 768px) {
+
+  .hero {
+    height: 60vh;
+  }
+
+  .slides {
+    background-size: cover; /* mas ok sa mobile */
+  }
+
+  .hero-content h1 {
+    font-size: 2rem;
+  }
+
+  .hero-content p {
+    font-size: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  #hero-btn {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9rem;
+  }
+
+  .nav-btn {
+    font-size: 1.5rem;
+    padding: 8px;
+  }
+
+  .dots {
+    bottom: 10px;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+
+/* RESPONSIVENESS FOR MOBILE*/
+@media (max-width: 576px) {
+
+  .hero {
+    height: 55vh;
+  }
+
+  .hero-content {
+    top: 50%;
+  }
+
+  .hero-content h1 {
+    font-size: 1.6rem;
+  }
+
+  .hero-content p {
+    font-size: 0.9rem;
+    margin-bottom: 1.6rem;
+  }
+
+  #hero-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .nav-btn {
+    font-size: 1.2rem;
+    padding: 6px;
+  }
+
+  .dots {
+    bottom: 8px;
+    gap: 5px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+  }
+}
+

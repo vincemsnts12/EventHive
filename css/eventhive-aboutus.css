@@ -288,3 +288,83 @@
 .footer-container {
   margin-top: 0px;
 }
+
+/* RESPONSIVENESS FOR TABLET */
+@media (max-width: 768px) {
+
+  /* HERO SECTION */
+  .hero-banner {
+      height: 400px;
+      padding: 0 40px;
+  }
+  .hero-content h1 {
+      font-size: 2.4rem;
+  }
+  .hero-content p {
+      font-size: 1.1rem;
+  }
+
+  /* MISSION & VISION — remove absolute positioning */
+  .mission-box,
+  .vision-box {
+      flex-direction: column;
+      text-align: center;
+      padding: 40px 40px;
+  }
+
+  .m-bg-container,
+  .v-bg-container {
+      width: 100%;
+      padding: 40px;
+  }
+
+  .m-text-content p,
+  .v-text-content p {
+      width: 100%;
+      margin: 0 auto;
+      text-align: center;
+  }
+
+  .m-image-content,
+  .v-image-content {
+      position: static;
+      margin: 20px auto;
+      width: 250px;
+  }
+}
+
+/* RESPONSIVENESS FOR MOBILE */
+@media (max-width: 576px) {
+
+  /* HERO */
+  .hero-banner {
+      height: 300px;
+      padding: 0 20px;
+  }
+  .hero-content h1 {
+      font-size: 1.8rem;
+  }
+  .hero-content p {
+      font-size: 1rem;
+  }
+
+  /* GROUP MEMBERS */
+  .gm-container {
+      width: 150px;
+      padding: 20px 10px;
+  }
+
+  .gm-image1-placeholder,
+  .gm-image2-placeholder,
+  .gm-image3-placeholder,
+  .gm-image4-placeholder,
+  .gm-image5-placeholder {
+      width: 110px;
+      height: 110px;
+  }
+
+  /* STORY SECTION */
+  .s-bg-container {
+      padding: 0 20px;
+  }
+}

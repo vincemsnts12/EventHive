@@ -584,3 +584,180 @@ body {
   font-style: italic;
   flex: 1;
 }
+
+/* RESPONSIVENESS FOR TABLET */
+@media (max-width: 768px) {
+
+  /* HEADER */
+  .header {
+    height: 75px;
+  }
+
+  .titlelogo {
+    font-size: 32px;
+    margin-left: 0;
+  }
+
+  .navbar {
+    padding: 0 1rem;
+  }
+
+  /* NAV LIST */
+  .navlist ul {
+    gap: 20px;
+  }
+
+  .navlist a {
+    font-size: 16px;
+    padding: 10px;
+  }
+
+  /* ICONS */
+  .icons a {
+    width: 35px;
+    height: 35px;
+    padding: 7px;
+  }
+
+  /* EVENT SECTION */
+  .events-section {
+    margin-left: 0;
+    width: 95%;
+  }
+
+  .events-section h2 {
+    margin-left: 10px;
+  }
+
+  .events-container {
+    margin-left: 10px;
+    gap: 40px;
+  }
+
+  .event-card {
+    width: 320px;
+  }
+
+  /* FOOTER */
+  .footer-nav {
+    gap: 40px;
+    align-items: center;
+  }
+
+  .footer-social {
+    gap: 20px;
+  }
+}
+
+/* RESPONSIVENESS FOR MOBILE */
+@media (max-width: 576px) {
+
+  /* HEADER */
+  .header {
+    height: 65px;
+  }
+
+  .navbar {
+    padding: 0 0.5rem;
+  }
+
+  .titlelogo {
+    font-size: 26px;
+  }
+
+  /* NAV LIST → Convert to column or hide (optional) */
+  .navlist ul {
+    display: none; /* if you want a hamburger menu */
+  }
+
+  /* ICONS */
+  .icons {
+    gap: 6px;
+  }
+
+  .icons a {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+  }
+
+  /* EVENTS */
+  .events-section {
+    margin-left: 0;
+    margin-top: 20px;
+    width: 100%;
+  }
+
+  .events-section h2 {
+    font-size: 20px;
+    margin-left: 15px;
+    width: auto;
+  }
+
+  .events-container {
+    margin-left: 0;
+    justify-content: center;
+    gap: 30px;
+  }
+
+  .event-card {
+    width: 90%;
+  }
+
+  .event-image {
+    height: 180px;
+  }
+
+  .event-title {
+    font-size: 14px;
+  }
+
+  .details-btn {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  /* FOOTER */
+  .footer-container {
+    padding: 25px;
+  }
+
+  .footer-logo {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .footer-nav {
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .footer-social {
+    gap: 15px;
+  }
+
+  .footer-social__icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .footer-copyright__text {
+    font-size: 14px;
+  }
+
+  /* MODALS */
+  .auth-modal-container {
+    width: 85%;
+    padding: 20px;
+  }
+
+  .contact-modal-container {
+    width: 90%;
+  }
+
+  .contact-step__text {
+    font-size: 14px;
+  }
+}
+
