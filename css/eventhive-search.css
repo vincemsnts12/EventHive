@@ -2,7 +2,7 @@
 
 /* ===== SEARCH SECTION ===== */
 .search-section {
-  margin-top: 50px;
+  margin-top: 2.5%;
   padding: 80px 0;
   text-align: center;
 }
@@ -17,7 +17,7 @@
 .search-section p {
   color: #666;
   font-size: 1.2rem;
-  margin-bottom: 45px;
+  margin-bottom: 60px;
 }
 
 /* ===== SEARCH BAR (main container) ===== */
@@ -31,6 +31,7 @@
   gap: 25px;
   width: 60%;
   margin: 0 auto;
+  margin-bottom: 50px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
