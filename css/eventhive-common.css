@@ -467,7 +467,7 @@ body {
 }
 
 /* ===== CONTACT POP UP ===== */
-.contact-modal-overlay {
+.join-us-modal-overlay {
   display: none;
   position: fixed;
   top: 0;
@@ -480,11 +480,11 @@ body {
   z-index: 1000;
 }
 
-.contact-modal-overlay.active {
+.join-us-modal-overlay.active {
   display: flex;
 }
 
-.contact-modal-container {
+.join-us-modal-container {
   background-color: #fff;
   border-radius: 20px;
   max-width: 500px;
@@ -506,7 +506,7 @@ body {
   }
 }
 
-.contact-modal-header {
+.join-us-modal-header {
   background-color: #c4342e;
   color: white;
   padding: 20px;
@@ -514,15 +514,15 @@ body {
   position: relative;
 }
 
-.contact-modal-header h2 {
+.join-us-modal-header h2 {
   font-size: 14px;
   font-weight: lighter;
   line-height: 1.4;
   margin: 0;
-  margin-right: 15px;
+  margin-right: 30px;
 }
 
-.contact-modal__closebtn {
+.join-us-modal__closebtn {
   position: absolute;
   top: 15px;
   right: 15px;
@@ -540,31 +540,31 @@ body {
   transition: background-color 0.2s;
 }
 
-.contact-modal__closebtn:hover {
+.join-us-modal__closebtn:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-.contact-yellow-stripe {
+.join-us-yellow-stripe {
   height: 8px;
   background: linear-gradient(to right, #f4c542, #e6a81f);
 }
 
-.contact-modal-body {
+.join-us-modal-body {
   padding: 30px 25px;
 }
 
-.contact-step {
+.join-us-step {
   display: flex;
   align-items: center;
   margin-bottom: 20px;
   gap: 15px;
 }
 
-.contact-step:last-child {
+.join-us-step:last-child {
   margin-bottom: 0;
 }
 
-.contact-step__number {
+.join-us-step__number {
   background-color: #c4342e;
   color: white;
   width: 45px;
@@ -578,7 +578,7 @@ body {
   flex-shrink: 0;
 }
 
-.contact-step__text {
+.join-us-step__text {
   color: #666;
   font-size: 16px;
   font-style: italic;
