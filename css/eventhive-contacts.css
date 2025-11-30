@@ -1,0 +1,352 @@
+@import url('eventhive-common.css');
+
+.master-contact-box{
+    margin-top: 100px;
+    width: 100%;
+    text-align: center;
+}
+
+.section-header h2{
+    font-size: 64px;
+    color: #B81E20;
+    margin-bottom: 20px;
+    font-weight: bold;
+    letter-spacing: -0.5px;
+}
+
+.section-header p{
+    color: black;
+    font-size: 1.3rem;
+    max-width: 800px;
+    margin: 0 auto;
+    line-height: 1.5;
+}
+
+.master-card {
+    background-color: white;
+    border: 3px solid #F2C21F; 
+    border-radius: 15px;      
+    margin: 25px auto;
+    margin-top: 75px; 
+    padding: 50px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 1000px;
+    gap: 40px;
+}
+
+.master-item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    
+    text-decoration: none; 
+    color: inherit;
+    cursor: pointer; 
+    
+    transition: transform 0.3s ease, background-color 0.3s ease;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+.master-icon-box {
+    background-color: #f0f0f0;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s;
+}
+
+.master-item:hover {
+    transform: translateY(-5px); 
+    background-color: #fffdf8; 
+}
+
+.master-text h3.cont-desc {
+    font-size: 18px;
+    color: #999;
+    text-transform: uppercase;
+    text-align: left;
+    letter-spacing: 1.2px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.master-text span.link-text {
+    font-size: 18px;
+    color: #222;
+    text-decoration: none;
+}
+
+.master-item:hover .master-text span.link-text{
+    color: #B81E20; 
+    font-weight: bold;
+}
+
+.master-item:hover .master-text h3.cont-desc{
+    color: #B81E20; 
+}
+
+.master-item:hover .master-icon-box svg {
+    fill: white; /* Magiging Red */
+    transition: fill 0.3s ease;
+}
+
+.master-item:hover .master-icon-box {
+    background-color: #B81E20; 
+}
+
+.member-contact-box {
+    margin: 0px;
+    width: 100%;
+    padding: 20px 20px 80px 20px;
+    display: flex;
+    flex-direction: column; 
+    gap: 50px; 
+    justify-content: center;
+    align-items: center;
+    min-height: 650px;
+}
+
+.mtheteam{
+    margin-top: 100px;
+    width: 100%;
+    text-align: center;
+}
+
+.mtheteam h4{
+    font-size: 42px;
+    color: #B81E20;
+    margin-bottom: 75px;
+    font-weight: bold;
+    letter-spacing: -0.5px;
+}
+
+
+.member-card {
+    display: flex;
+    width: 100%;
+    max-width: 1100px;
+    background-color: #fff;
+    overflow: hidden;
+}
+
+.left-pt {
+    flex: 1; /* 45% width */
+    background: linear-gradient(135deg, #dcdcdc 0%, #c0c0c0 100%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    min-height: 500px;
+}
+
+.img-container {
+    width: 100%;
+    height: 100%;
+}
+
+.img-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    display: block;
+}
+
+.right-pt {
+    flex: 1.5; 
+    background-color: #B81E20; 
+    padding: 70px 100px;
+    color: #dcdcdc; /* Off-white text */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.member-name {
+    color: #fff0be;
+    font-size: 36px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 50px;
+    font-weight: 500;
+}
+
+/* Contact List Container */
+.contact-list {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* Individual Contact Row */
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    text-decoration: none;
+    color: white;
+    font-size: 18px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+    transition: all 0.4s ease;
+}
+
+.icon-wrap {
+    width: 50px;
+    height: 50px;
+    background-color: rgba(212, 175, 55, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid white; 
+    transition: all 0.4s ease;
+    flex-shrink: 0;
+}
+
+.icon-wrap svg {
+    width: 24px;
+    height: 24px;
+    fill: white; 
+    transition: all 0.4s ease;
+}
+
+/* Hover Effects for Member Card */
+.contact-item:hover {
+    color: #fff0be; 
+    transform: translateX(15px); /* Slides right */
+    border-bottom: solid 3px rgba(250, 210, 80, 0.5);
+}
+
+.contact-item:hover .icon-wrap {
+    background-color: #D4AF37; 
+    box-shadow: 0 0 15px rgba(255, 218, 95, 0.4); 
+    border-color: #9b7b10;
+}
+
+.contact-item:hover .icon-wrap svg {
+    fill: #081621; 
+}
+
+
+/* --- TABLET / SMALL LAPTOP (max-width: 768px) --- */
+@media (max-width: 768px) {
+    .master-contact-box {
+        margin-top: 50px;
+    }
+
+    .section-header h2 {
+        font-size: 48px;
+    }
+
+    .master-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 30px;
+        padding: 40px;
+        margin-top: 40px;
+    }
+
+    .master-item {
+        width: 100%;
+    }
+
+    .member-card {
+        flex-direction: column !important;
+        max-width: 90%;
+        border-radius: 15px;
+    }
+
+    .left-pt, .right-pt {
+        flex: auto;
+        width: 100%;
+    }
+
+    .left-pt {
+        min-height: 400px;
+        order: 1;
+    }
+
+    .right-pt {
+        padding: 50px 40px;
+        order: 2;
+        text-align: center;
+    }
+
+    .contact-item {
+        justify-content: center;
+    }
+    
+    .member-name {
+        font-size: 32px;
+        margin-bottom: 30px;
+    }
+}
+
+
+/* --- MOBILE PHONES (max-width: 576px) --- */
+@media (max-width: 576px) {
+    .section-header h2 {
+        font-size: 36px;
+    }
+    
+    .section-header p {
+        font-size: 1rem;
+        padding: 0 15px;
+    }
+
+    .master-card {
+        padding: 30px 20px;
+        margin: 20px;
+        width: auto;
+    }
+
+    .master-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+
+    .master-text h3 {
+        text-align: center;
+    }
+
+    .member-contact-box {
+        padding: 40px 15px;
+        gap: 40px;
+    }
+
+    .member-card {
+        max-width: 100%;
+        border-radius: 10px;
+    }
+
+    .left-pt {
+        min-height: 300px;
+    }
+
+    .right-pt {
+        padding: 40px 20px;
+    }
+
+    .member-name {
+        font-size: 28px;
+        margin-bottom: 25px;
+    }
+
+    .contact-item {
+        font-size: 14px;
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+
+    .contact-item span {
+        word-break: break-all; 
+    }
+}
