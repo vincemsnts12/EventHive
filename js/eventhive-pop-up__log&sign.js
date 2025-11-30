@@ -1,48 +1,63 @@
-// ===== LOGIN & SIGN UP POPUP =====
+document.addEventListener('DOMContentLoaded', () => {
 
-// Elements
-const loginModal = document.getElementById('loginModal');
-const signupModal = document.getElementById('signupModal');
+  // ===== ELEMENTS =====
+  const loginModal = document.getElementById('loginModal');
+  const signupModal = document.getElementById('signupModal');
 
-const loginLink = document.querySelector('#dropdownMenu a:nth-child(2)');
-const signupLink = document.querySelector('#dropdownMenu a:nth-child(3)');
+  const loginLink = document.getElementById('navLoginBtn');
+  const signupLink = document.getElementById('navSignupBtn');
 
-const closeLoginBtn = document.getElementById('closeLoginBtn');
-const closeSignupBtn = document.getElementById('closeSignupBtn');
+  const closeLoginBtn = document.getElementById('closeLoginBtn');
+  const closeSignupBtn = document.getElementById('closeSignupBtn');
 
-const openSignupFromLogin = document.getElementById('openSignupFromLogin');
-const openLoginFromSignup = document.getElementById('openLoginFromSignup');
+  const openSignupFromLogin = document.getElementById('openSignupFromLogin');
+  const openLoginFromSignup = document.getElementById('openLoginFromSignup');
 
-// ===== OPEN POPUPS =====
-loginLink.addEventListener('click', (e) => {
-  e.preventDefault();
-  loginModal.style.display = 'flex';
-});
+  // ===== OPEN POPUPS =====
+  if (loginLink) {
+    loginLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginModal.style.display = 'flex';
+    });
+  }
 
-signupLink.addEventListener('click', (e) => {
-  e.preventDefault();
-  signupModal.style.display = 'flex';
-});
+  if (signupLink) {
+    signupLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      signupModal.style.display = 'flex';
+    });
+  }
 
-// ===== CLOSE POPUPS =====
-closeLoginBtn.addEventListener('click', () => loginModal.style.display = 'none');
-closeSignupBtn.addEventListener('click', () => signupModal.style.display = 'none');
+  // ===== CLOSE POPUPS =====
+  if (closeLoginBtn) {
+    closeLoginBtn.addEventListener('click', () => loginModal.style.display = 'none');
+  }
 
-// ===== SWITCH BETWEEN LOGIN & SIGNUP =====
-openSignupFromLogin.addEventListener('click', (e) => {
-  e.preventDefault();
-  loginModal.style.display = 'none';
-  signupModal.style.display = 'flex';
-});
+  if (closeSignupBtn) {
+    closeSignupBtn.addEventListener('click', () => signupModal.style.display = 'none');
+  }
 
-openLoginFromSignup.addEventListener('click', (e) => {
-  e.preventDefault();
-  signupModal.style.display = 'none';
-  loginModal.style.display = 'flex';
-});
+  // ===== SWITCH BETWEEN LOGIN & SIGNUP =====
+  if (openSignupFromLogin) {
+    openSignupFromLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginModal.style.display = 'none';
+      signupModal.style.display = 'flex';
+    });
+  }
 
-// ===== CLOSE WHEN CLICK OUTSIDE =====
-window.addEventListener('click', (e) => {
-  if (e.target === loginModal) loginModal.style.display = 'none';
-  if (e.target === signupModal) signupModal.style.display = 'none';
+  if (openLoginFromSignup) {
+    openLoginFromSignup.addEventListener('click', (e) => {
+      e.preventDefault();
+      signupModal.style.display = 'none';
+      loginModal.style.display = 'flex';
+    });
+  }
+
+  // ===== CLOSE WHEN CLICK OUTSIDE =====
+  window.addEventListener('click', (e) => {
+    if (e.target === loginModal) loginModal.style.display = 'none';
+    if (e.target === signupModal) signupModal.style.display = 'none';
+  });
+
 });
