@@ -482,8 +482,29 @@ body {
 .footer-copyright {
   background-color: #c92a2a;
   border-top: 5px solid #f4b41a;
-  padding: 25px;
-  text-align: center;
+  padding: 15px 40px; 
+  display: flex;
+  justify-content: space-between;
+  align-items: center; 
+}
+
+.tup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tup img {
+  height: 40px; 
+  width: auto;
+}
+
+.tup p {
+  color: white;
+  font-size: 14px; 
+  margin: 0;
+  font-weight: 500;
+  text-align: left;
 }
 
 .footer-copyright__text {
