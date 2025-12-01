@@ -34,7 +34,7 @@
 }
 
 .hero-content h1 {
-    font-size: 3rem;
+    font-size: 4rem;
     font-weight: bold;
     margin-bottom: 15px;
     text-shadow: 0px 1px 0.5px rgba(0, 0, 0, 0.7);
@@ -68,14 +68,14 @@
 
 .m-text-content h2 {
   color: #c41e3a;
-  font-size: 36px;
+  font-size: 2.5rem;
   margin: 0 0 20px 0;
   font-weight: bold;
 }
 
 .m-text-content p {
   color: #333;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   line-height: 1.6;
   width: 70%;
   margin: 0;
@@ -128,7 +128,7 @@
 
 .v-text-content h2 {
   color: #c41e3a;
-  font-size: 36px;
+  font-size: 2.5rem;
   margin: 0 0 20px 0;
   font-weight: bold;
   text-align: right;
@@ -136,7 +136,7 @@
 
 .v-text-content p {
   color: #333;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   line-height: 1.6;
   width: 70%;
   margin: 0 0 0 auto;
@@ -178,23 +178,32 @@
 
 .s-bg-container {
   text-align: center;
-  max-width: 800px;
+  max-width: 1000px;
   padding: 0 40px;
 }
 
 .s-bg-container h2 {
   color: #c41e3a;
-  font-size: 36px;
+  font-size: 2.5rem;
   font-weight: bold;
   margin: 0 0 20px 0;
   letter-spacing: 2px;
 }
 
 .s-bg-container p {
-  color: #333;
-  font-size: 1.1rem;
+  color: black;
+  font-size: 1.2rem;
   line-height: 1.6;
   margin: 0;
+}
+
+.ktheteam{
+  text-align: center;
+  color: #c41e3a;
+  font-size: 30px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin-bottom: 40px;
 }
 
 /* GROUP MEMBERS PICS SECTION */

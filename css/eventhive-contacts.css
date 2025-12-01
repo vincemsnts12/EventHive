@@ -7,8 +7,8 @@
 }
 
 .section-header h2{
-    font-size: 64px;
-    color: #B81E20;
+    font-size: 4rem;
+    color: black;
     margin-bottom: 20px;
     font-weight: bold;
     letter-spacing: -0.5px;
@@ -121,7 +121,7 @@
 
 .mtheteam h4{
     font-size: 42px;
-    color: #B81E20;
+    color: black;
     margin-bottom: 75px;
     font-weight: bold;
     letter-spacing: -0.5px;
