@@ -4,7 +4,7 @@ const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
 // Change to true to simulate logged-in view
-let isLoggedIn = true; 
+let isLoggedIn = false; 
 
 profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
