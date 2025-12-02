@@ -4,19 +4,22 @@
   <meta charset="UTF-8">
   <title>EventHive Homepage</title>
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
 
+  <link rel="stylesheet" href="css/eventhive-common.css">
   <link rel="stylesheet" href="css/eventhive-profile.css">
 
-</head>
 
+</head>
 <body>
-  <!-- ===== HEADER ===== -->
+
+    <!-- ===== HEADER ===== -->
   <div class="header">
     <nav class="navbar">
-      <h1><a class="titlelogo" href="eventhive.html">EventHive</a></h1>
+      <h1><a class="titlelogo" href="eventhive-homepage.html">EventHive</a></h1>
 
       <div class="navlist">
         <ul>
@@ -28,7 +31,7 @@
 
       <div class="icons">
 
-        <a href="/eventhive-search.html">
+        <a title="eventhive-search" href="eventhive-search.html">
          <svg width="25" height="26" viewBox="0 0 25 26" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M18.2965 16.6861C19.7962 14.6074 20.4679 12.03 20.1773 9.46977C19.8866 6.90951 18.6549 4.55515 16.7288 2.87771C14.8026 1.20027 12.324 0.323458 9.78869 0.42269C7.25343 0.521921 4.84854 1.58988 3.05515 3.41291C1.26177 5.23593 0.21214 7.67958 0.116266 10.255C0.0203925 12.8304 0.885342 15.3475 2.53807 17.3029C4.1908 19.2583 6.50942 20.5077 9.03006 20.8012C11.5507 21.0946 14.0875 20.4105 16.1329 18.8856H16.1313C16.1767 18.9485 16.2273 19.0088 16.2831 19.0665L22.246 25.1236C22.5364 25.4188 22.9304 25.5848 23.3412 25.5849C23.7521 25.5851 24.1462 25.4194 24.4368 25.1244C24.7274 24.8294 24.8907 24.4292 24.8909 24.0119C24.891 23.5945 24.728 23.1942 24.4375 22.899L18.4746 16.8419C18.4193 16.7849 18.3598 16.7339 18.2965 16.6861ZM18.6961 10.6385C18.6961 11.7748 18.4758 12.9 18.0477 13.9498C17.6196 14.9997 16.9921 15.9536 16.2011 16.7571C15.4101 17.5606 14.4711 18.198 13.4376 18.6328C12.4041 19.0677 11.2964 19.2915 10.1777 19.2915C9.05904 19.2915 7.95134 19.0677 6.91783 18.6328C5.88433 18.198 4.94527 17.5606 4.15426 16.7571C3.36325 15.9536 2.73578 14.9997 2.30769 13.9498C1.8796 12.9 1.65927 11.7748 1.65927 10.6385C1.65927 8.34355 2.55674 6.14263 4.15426 4.51987C5.75177 2.89712 7.91847 1.98546 10.1777 1.98546C12.4369 1.98546 14.6036 2.89712 16.2011 4.51987C17.7987 6.14263 18.6961 8.34355 18.6961 10.6385Z"/>
          </svg>
@@ -41,7 +44,7 @@
             </svg>
           </a>
 
-           <!-- drop down menu-->
+          <!-- drop down menu-->
          <div class="dropdown-menu" id="dropdownMenu">
              
              <div id="guestLinks">
@@ -62,180 +65,135 @@
   </div>
 
   <!-- ===== PROFILE SECTION ===== -->
-  <div class="profile-container">
-    <!-- Cover Photo -->
-    <div class="cover-photo">
-      <img src="6.jpg" alt="College of Science Cover">
-    </div>
+ <section class="profile-container">
+   <!-- Cover Photo -->
+   <div class="cover-photo">
+     <img src="6.jpg" alt="College of Science Cover">
+   </div>
 
-    <!-- Profile Info Section -->
-    <div class="profile-info">
-      <!-- Profile Picture -->
-      <div class="profile-picture">
-        <img src="images/profile-pic.jpg" alt="Profile Picture">
-      </div>
+   <!-- Profile Info Section -->
+   <div class="profile-info">
+     <!-- Profile Picture -->
+     <div class="profile-picture">
+       <img src="images/profile-pic.jpg" alt="Profile Picture">
+     </div>
 
-      <!-- Username and Email -->
-      <div class="user-details">
-        <h2 class="username">Username</h2>
-        <p class="email">xxx@gmail.com (email)</p>
-      </div>
+     <!-- Username and Email -->
+     <div class="user-details">
+       <h2 class="username">Username</h2>
+       <p class="email">xxx@gmail.com (email)</p>
+     </div>
 
-     <!-- Edit Profile Button -->
-      <a href="eventhive-profile-edit.html" class="edit-profile-btn">Edit Profile</a>
-    </div>
+    <!-- Edit Profile Button -->
+     <a href="eventhive-profile-edit.html" class="edit-profile-btn">Edit Profile</a>
+   </div>
 
-    <!-- Description Box -->
-    <div class="description-box">
-      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu</p>
-    </div>
-  </div>
+   <!-- Description Box -->
+   <div class="description-box">
+     <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu</p>
+   </div>
+</section>
 
-<!-- ===== LIKED POST SECTION ===== -->
-<div class="liked-post-section">
- <h3 class="liked-post-title">
-  Liked Post 
-  <svg class="heart-icon" width="24" height="22" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z" fill="#000"/>
-  </svg>
-</h3>
+<section class="liked-container">
   
-  <div class="liked-post-container">
-    <!-- Event Card 1 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event1-image.jpg')"></div>
+  <div class="liked-header">
+    <h3 class="liked-title">Liked Post</h3>
+  </div>
+   
+  <div class="liked-scroll-wrapper">
+    
+    <div class="event-card" data-category="College of Science" onclick="window.location.href='event-details-1.html'">
+      <div class="event-image"><img src="path/to/event1-image.jpg" alt="Edutech Summit"></div>
       <div class="event-footer">
-        <span class="event-title">EduTech Summit</span>
+        <span class="event-title">Edutech Summit on Campus</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-        <!--Prevents page reload and unique identifier per event existing in the web-->
-          <a href="#" class="details-btn" data-event-id="event-1">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">COS</span>
         </div>
       </div>
     </div>
 
-    <!-- Event Card 2 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event2-image.jpg')"></div>
+    <div class="event-card" data-category="College of Industrial Technology" onclick="window.location.href='event-details-2.html'">
+      <div class="event-image"><img src="path/to/event2-image.jpg" alt="Tech Innovation"></div>
       <div class="event-footer">
         <span class="event-title">Tech Innovation Conference</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-          <a href="#" class="details-btn" data-event-id="event-2">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">CIT</span>
         </div>
       </div>
     </div>
 
-    <!-- Event Card 3 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event3-image.jpg')"></div>
+    <div class="event-card" data-category="College of Architecture and Fine Arts" onclick="window.location.href='event-details-3.html'">
+      <div class="event-image"><img src="path/to/event3-image.jpg" alt="Sports Festival"></div>
       <div class="event-footer">
-        <span class="event-title">Annual Sports Festival</span>
+        <span class="event-title">Annual Sports Festival in CAFA</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-          <a href="#" class="details-btn" data-event-id="event-3">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">CAFA</span>
         </div>
       </div>
     </div>
 
-    <!-- Event Card 4 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event4-image.jpg')"></div>
+    <div class="event-card" data-category="College of Liberal Arts" onclick="window.location.href='event-details-4.html'">
+      <div class="event-image"><img src="path/to/event4-image.jpg" alt="Cultural Arts"></div>
       <div class="event-footer">
         <span class="event-title">Cultural Arts Exhibition</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-          <a href="#" class="details-btn" data-event-id="event-4">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">CLA</span>
         </div>
       </div>
     </div>
 
-    <!-- Event Card 5 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event5-image.jpg')"></div>
+    <div class="event-card" data-category="College of Industrial Education" onclick="window.location.href='event-details-5.html'">
+      <div class="event-image"><img src="path/to/event5-image.jpg" alt="Business Summit"></div>
       <div class="event-footer">
         <span class="event-title">Business Leadership Summit</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-          <a href="#" class="details-btn" data-event-id="event-5">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">CIE</span>
         </div>
       </div>
     </div>
 
-    <!-- Event Card 6 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event1-image.jpg')"></div>
+    <div class="event-card" data-category="College of Science" onclick="window.location.href='event-details-1.html'">
+      <div class="event-image"><img src="path/to/event1-image.jpg" alt="Edutech Summit"></div>
       <div class="event-footer">
-        <span class="event-title">EduTech Summit</span>
+        <span class="event-title">EduTech Summit on Campus</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-          <a href="#" class="details-btn" data-event-id="event-1">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">COS</span>
         </div>
       </div>
     </div>
 
-    <!-- Event Card 7 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event2-image.jpg')"></div>
+    <div class="event-card" data-category="College of Industrial Technology" onclick="window.location.href='event-details-2.html'">
+      <div class="event-image"><img src="path/to/event2-image.jpg" alt="Tech Innovation"></div>
       <div class="event-footer">
         <span class="event-title">Tech Innovation Conference</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-          <a href="#" class="details-btn" data-event-id="event-2">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">CIT</span>
         </div>
       </div>
     </div>
 
-    <!-- Event Card 8 -->
-    <div class="event-card">
-      <div class="event-image" style="background-image: url('path/to/event3-image.jpg')"></div>
+    <div class="event-card" data-category="College of Science" onclick="window.location.href='event-details-3.html'">
+      <div class="event-image"><img src="path/to/event3-image.jpg" alt="Sports Festival COS"></div>
       <div class="event-footer">
-        <span class="event-title">Annual Sports Festival</span>
+        <span class="event-title">Annual Sports Festival on COS</span>
         <div class="event-actions">
-          <button class="heart-btn active">
-            <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
-            </svg>
-          </button>
-          <a href="#" class="details-btn" data-event-id="event-3">See Details</a>
+          <button title="heart-btn" class="heart-btn" onclick="event.stopPropagation(); this.classList.toggle('active')"><svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg></button>
+          <span class="college-tag">COS</span>
         </div>
       </div>
     </div>
+
   </div>
-</div>
+</section>
 
-</body>
-</html>
-
-  <!-- ===== FOOTER ===== -->
+     <!-- ===== FOOTER ===== -->
       <footer class="footer">
         <div class="footer-container">
           
@@ -297,12 +255,11 @@
         
       </div>
     </div>
+
+    <script src="js/eventhive-dropdownmenu.js"></script> <!-- PROFILE ICON DROPDOWN JS FILE -->
+    <script src="js/eventhive-pop-up__log&sign.js"></script> <!-- POP UP PROFILE SIGN IN AND LOG IN JS FILE -->
+    <script src="js/eventhive-pop-up__join-us.js"></script> <!-- POP UP CONTACT JS FILE -->
+    <script src="js/eventhive-dropdown-searchbar.js"></script> <!-- DROPDOWN FOR CATEGORY LIST -->
     
-   <!-- ===== JAVASCRIPT FILES ===== -->
-  <script src="js/eventhive-dropdownmenu.js"></script>
-  <script src="js/eventhive-pop-up__log&sign.js"></script>
-  <script src="js/eventhive-pop-up__join-us.js"></script>
-  <script src="js/eventhive-profile.js"></script>
-  <script src="js/eventhive-events.js"></script>
 </body>
 </html>

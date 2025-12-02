@@ -1,632 +1,223 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  background-color: #FFFBF0;
-  font-family: "DM Sans", sans-serif;
-  font-optical-sizing: auto;
-  font-style: normal;
-}
-
-/* ===== HEADER ===== */
-.header {
-  background-color: #B81E20;
-  border-bottom: #F2C21F 9px solid;
-  position: block;
-  width: 100%;
-  height: 90px; 
-}
-
-/* ===== NAVBAR ===== */
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 2rem;
-  height: 100%;
-}
-
-/* ===== TITLE LOGO ===== */
-.titlelogo {
-  text-decoration: none;
-  color: #FFFBF0;
-  font-size: 48px;
-  text-shadow: 0 5px 1px rgba(0, 0, 0, 0.5);
-  font-weight: bold;
-  margin-left: 20px;
-}
-
-/* ===== NAV LIST ===== */
-.navlist ul {
-  list-style: none;
-  display: flex;
-  gap: 50px;
-}
-
-.navlist a {
-  text-decoration: none;
-  color: white;
-  padding: 15px;
-  border-radius: 20px;
-  font-size: 18px;
-  text-shadow: 0px 2px 5px rgba(0, 0, 0, 0.578);
-  transition: color 0.3s ease;
-}
-
-.navlist a:hover {
-  background-size: 100%;
-  background-color: rgba(242, 193, 31, 0.8);
-  padding: 15px;
-  border-radius: 20px;
-}
-
-/* ===== ICONS ===== */
-.icons {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-right: 15px;
-}
-
-.icons a {
-  background-color: #FFFBF0;
-  border-radius: 50%;
-  width: 40px;     
-  height: 40px;  
-  padding: 8.5px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-}
-
-.icons a svg {
-  fill: black;
-  height: 22px;
-  width: 22px;
-}
-
-.icons a:hover {
-  background-color: #F2C21F;
-  cursor: pointer;
-}
-
-.icons a:hover svg {
-  fill: white;
-}
-
-/* ===== DROPDOWN MENU PROFILE ICON ===== */
-.dropdown-menu {
-  position: absolute;
-  top: 50px; 
-  right: -5px; 
-  background-color: #fffaf0;
-  border: 2px solid #b81e20;
-  border-radius: 5px;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
-  display: none;
-  flex-direction: column;
-  width: 200px;
-  z-index: 999;
-}
-
-.dropdown-menu a {
-  border-radius: 0;
-  padding: 20px;
-  width: 100%;
-  text-decoration: none;
-  color: #222;
-  font-size: 16px;
-  display: block;
-  text-align: center;
-}
-
-.dropdown-menu a:hover {
-  background-color: #6E0002;
-  color: white;
-}
-
-.dropdown-menu.show {
-  display: flex;
-}
-
-/* ===== EDIT PROFILE SECTION ===== */
-.edit-profile-container {
-  max-width: 1100px;
-  margin: 30px auto;
-  background-color: #FFF7D8;
-  border-radius: 20px;
-  overflow: visible;
-  padding-bottom: 30px;
-}
-
-/* Cover Photo Edit */
-.cover-photo-edit {
-  width: 100%;
-  height: 280px;
-  border-radius: 20px;
-  overflow: hidden;
-  position: relative;
-}
-
-.cover-photo-edit img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.photo-edit-btn {
-  position: absolute;
-  background-color: rgba(0, 0, 0, 0.6);
-  border: 2px solid white;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.photo-edit-btn:hover {
-  background-color: #B81E20;
-  transform: scale(1.1)
-}
-
-.cover-edit-btn {
-  top: 50%;
-  left: 50%;
-  right: auto;
-  bottom: auto;
-  transform: translate(-50%, -50%);
-}
-
-.cover-edit-btn:hover {
-  transform: translate(-50%, -50%) scale(1.1);
-}
-
-.profile-edit-btn {
-  bottom: auto;
-  right: auto;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-}
-
-.profile-edit-btn:hover {
-  transform: translate(-50%, -50%) scale(1.1);
-}
-
-/* Profile Info Edit Section */
-.profile-info-edit {
-  position: relative;
-  padding: 20px 40px;
-  display: flex;
-  align-items: flex-end;
-  gap: 20px;
-}
-
-/* Profile Picture Edit */
-.profile-picture-edit {
-  position: absolute;
-  top: -70px;
-  left: 40px;
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  border: 6px solid #FFF7D8;
-  overflow: hidden;
-  background-color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.profile-picture-edit img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* User Details Edit */
-.user-details-edit {
-  flex: 1;
-  padding-left: 190px;  
-  padding-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.username-input,
-.email-input {
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-family: "DM Sans", sans-serif;
-  transition: border-color 0.3s ease;
-  background-color: white;
-  width: 60%;  
-  max-width: 400px;  
-}
-
-.username-input {
-  font-size: 18px;  
-  font-weight: 700;
-  color: #000;
-}
-
-.email-input {
-  font-size: 13px;  
-  color: #666;
-}
-
-.username-input:focus,
-.email-input:focus {
-  outline: none;
-  border-color: #B81E20;
-}
-
-/* Profile Action Buttons */
-.profile-action-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-/* Button Styles */
-.btn {
-  padding: 10px 28px;
-  border-radius: 20px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  font-family: "DM Sans", sans-serif;
-  text-decoration: none;
-  display: inline-block;
-  text-align: center;
-}
-
-.btn-primary {
-  background-color: #B81E20;
-  color: white;
-  border-color: #B81E20;
-}
-
-.btn-primary:hover {
-  background-color: #6E0002;
-  border-color: #6E0002;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(184, 30, 32, 0.3);
-}
-
-/* Active/Clicked State - White Button */
-.btn-primary:active,
-.btn-primary.active {
-  background-color: white;
-  color: #B81E20;
-  border-color: #B81E20;
-  transform: translateY(0);
-}
-
-/* Focus State */
-.btn-primary:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(184, 30, 32, 0.3);
-}
-
-.btn-secondary {
-  background-color: white;
-  color: #B81E20;
-  border-color: #B81E20;
-}
-
-.btn-secondary:hover {
-  background-color: #f8f8f8;
-  border-color: #6E0002;
-  color: #6E0002;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(184, 30, 32, 0.2);
-}
-
-.btn-secondary:active {
-  transform: translateY(0);
-}
-
-/* Description Edit Box */
-.description-edit-box {
-  padding: 20px 40px;
-}
-
-.description-label {
-  font-size: 16px;
-  font-weight: 600;
-  color: #000;
-  margin-bottom: 10px;
-  display: block;
-}
-
-.description-textarea {
-  width: 100%;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  padding: 15px;
-  font-size: 14px;
-  font-family: "DM Sans", sans-serif;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 100px;
-  transition: border-color 0.3s ease;
-  background-color: white;
-}
-
-.description-textarea:focus {
-  outline: none;
-  border-color: #B81E20;
-}
-
-/* ===== CHANGE PASSWORD SECTION ===== */
-.change-password-section {
-  margin: 20px 40px;
-  background-color: white;
-  border-radius: 15px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.change-password-header {
-  background-color: #B81E20;
-  padding: 15px 20px;
-  border-bottom: 5px solid #F2C21F;
-}
-
-.change-password-header h3 {
-  color: white;
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-}
-
-/* Password Form Container */
-.password-form-container {
-  padding: 30px;
-  background-color: #FFF7D8;
-  border-top: 5px solid #B81E20;  
-  border-bottom: 5px solid #B81E20;  
-}
-
-.password-form-title {
-  font-size: 24px;  
-  font-weight: 700;
-  color: #000;
-  margin-bottom: 25px;
-  text-align: center;
-  font-family: "DM Sans", sans-serif;  
-}
-
-/* Password Form */
-.password-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.input-group {
-  width: 100%;
-}
-
-.input-group label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background-color: white;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  padding: 12px 15px;
-  transition: border-color 0.3s ease;
-}
-
-.input-group label:focus-within {
-  border-color: #B81E20;
-}
-
-.input-group label svg {
-  flex-shrink: 0;
-}
-
-.input-group input {
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 15px;
-  font-family: "DM Sans", sans-serif;  
-  color: #333;
-}
-
-.input-group input::placeholder {
-  color: #999;
-  font-family: "DM Sans", sans-serif;  
-}
-
-/* Password Buttons */
-.password-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.password-buttons .btn {
-  flex: 1;
-  font-family: "DM Sans", sans-serif; 
-}
-
-/* ===== FOOTER SECTION ===== */
-.footer {
-  background-color: #fef6f0;
-  width: 100%;
-  margin-top: 60px;
-}
-
-.footer-container {
-  padding: 40px;
-  padding-top: 75px;
-  padding-bottom: 0px;
-  max-width: 100%;
-  margin-top: 0px;
-}
-
-.footer-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 50px;
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.footer-logo__badge {
-  background-color: #c92a2a;
-  color: white;
-  padding: 16px 40px;
-  border-radius: 50px;
-  box-shadow: 0 6px 12px rgba(201, 42, 42, 0.4);
-}
-
-.footer-logo__text {
-  color: #c92a2a;
-}
-
-.footer-nav {
-  display: flex;
-  justify-content: center;
-  gap: 100px;
-  margin-bottom: 50px;
-}
-
-.footer-nav p {
-  color: #888;
-  text-decoration: none;
-  font-size: 19px;
-  font-weight: bold;
-  transition: color 0.3s ease;
-  margin: 0;
-}
-
-.footer-nav__link {
-  color: #888;
-  text-decoration: none;
-  font-size: 19px;
-  font-weight: bold;
-  transition: color 0.3s ease;
-}
-
-.footer-nav__link:hover {
-  color: #c92a2a;
-}
-
-.footer-social {
-  display: flex;
-  justify-content: center;
-  gap: 30px;
-  margin-bottom: 60px;
-}
-
-.footer-social__link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  opacity: 0.7;
-}
-
-.footer-social__link:hover {
-  opacity: 1;
-  transform: translateY(-4px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.footer-social__icon {
-  width: 32px;
-  height: 32px;
-  fill: rgb(46, 46, 46);
-}
-
-.footer-copyright {
-  background-color: #c92a2a;
-  border-top: 5px solid #f4b41a;
-  padding: 25px;
-  text-align: center;
-}
-
-.footer-copyright__text {
-  color: white;
-  font-size: 16px;
-  margin: 0;
-}
-
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 768px) {
-  .edit-profile-container {
-    margin: 20px;
-  }
-
-  .cover-photo-edit {
-    height: 200px;
-  }
-
-  .profile-info-edit {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 20px 20px;
-  }
-
-  .profile-picture-edit {
-    width: 120px;
-    height: 120px;
-    top: -60px;
-    left: 20px;
-  }
-
-  .user-details-edit {
-    padding-left: 0;
-    padding-top: 70px;
+@import url('eventhive-common.css');
+
+/* =========================================
+   1. EDIT PROFILE: IMAGE UPLOADS
+   Strict hover areas so overlay doesn't spill
+   ========================================= */
+.upload-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.upload-overlay svg { pointer-events: none; }
+
+/* Strict Wrap Logic */
+.cover-photo { position: relative; overflow: hidden; }
+.cover-photo:hover .cover-overlay { opacity: 0.7; }
+
+.profile-picture { position: relative; overflow: hidden; }
+.profile-picture:hover .profile-overlay { opacity: 1; }
+
+
+/* =========================================
+   2. EDIT PROFILE: SPACING & INPUT MIMIC
+   Crucial for preventing layout shift
+   ========================================= */
+
+/* Wrapper to position the small pencil icon */
+.input-wrapper {
+    position: relative;
+    width: 35%;
+}
+
+/* Edit Icon (Pencil) styling */
+.edit-icon-indicator {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #B81E20;
+    font-size: 0.8rem;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.input-mimic-h2 {
     width: 100%;
-  }
+    border-radius: 10px;
+    border: 1px solid rgba(128, 128, 128, 0.5);
+    
+    font-size: 1rem; 
+    color: black;
+ 
+    padding: 7px;
+    margin-bottom: 5px; 
+    transition: border-bottom 0.3s ease;
 
-  .username-input {
-    font-size: 20px;
-  }
+}
 
-  .profile-action-buttons {
+.input-mimic-p {
     width: 100%;
-    flex-direction: column;
-  }
+    border: 1px solid rgba(128, 128, 128, 0.5);
+    border-radius: 10px;
+    
+    font-size: 1rem;
+    color: black; 
+    opacity: 0.8;  
+    
+    padding: 7px;
 
-  .profile-action-buttons .btn {
+}
+
+.textarea-mimic-p {
     width: 100%;
-  }
+    border: 1px solid rgba(128, 128, 128, 0.5);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    
+    /* MATCHING ORIGINAL TYPOGRAPHY */
+    font-size: 1.1rem;
+    color: black;
+    line-height: 1.7;
+    
+    padding: 10px; 
+    margin: -10px; 
+    resize: none;  
+    height: auto;
+    min-height: 150px; 
+    
+    transition: all 0.2s;
+}
 
-  .description-edit-box,
-  .change-password-section {
-    padding: 20px;
-    margin: 20px;
-  }
+.textarea-mimic-p:focus, .input-mimic-h2:focus, .input-mimic-p:focus {
+    outline: none;
+}
 
-  .password-form-container {
-    padding: 20px;
-  }
 
-  .password-buttons {
+/* Button overrides */
+.confirm-btn {
+    background-color: #c92a2a;
+    color: white !important;
+    text-align: center;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+.confirm-btn:hover {
+    background-color: white;
+    color: #B81E20 !important;
+    border-color: #B81E20;
+}
+
+
+.liked-header {
+    display: flex;
+    align-items: center;      /* Center vertically */
+    justify-content: center;  /* Center horizontally (ETO ANG SAGOT) */
+    gap: 10px;
+    margin-bottom: 50px;
+}
+
+/* =========================================
+   3. PASSWORD SECTION (New Design)
+   ========================================= */
+.password-container {
+    display: flex;
     flex-direction: column;
-  }
+    padding-bottom: 40px;
+}
+
+.password-form-wrapper {
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group { display: flex; flex-direction: column; }
+
+.form-group label {
+    font-weight: 700;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+.pass-input {
+    padding: 20px 15px;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    margin-bottom: 5px;
+}
+
+.pass-input:focus {
+    outline: none;
+}
+
+
+.save-pass-btn {
+    background-color: #c92a2a;
+    color: white !important;
+    font-size: 1.1rem;
+    font-weight: 650;
+    padding: 15px 35px;
+    border: 2px solid transparent;
+    border-radius: 50px;
+    cursor: pointer;
+    align-self: center;
+    margin-top: 10px;
+    transition: transform 0.2s;
+}
+
+.save-pass-btn:hover {
+    background-color: white;
+    color: #B81E20 !important;
+    border-color: #B81E20;
+}
+
+
+/* =========================================
+   4. MODAL POPUP
+   ========================================= */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: 2000;
+    display: none;
+    justify-content: center; align-items: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal-box {
+    background: white; padding: 30px 40px; border-radius: 16px;
+    width: 90%; max-width: 420px; text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.modal-header h3 { margin: 0 0 15px 0; color: #B81E20; font-size: 1.6rem; font-weight: 800; }
+.modal-body p { font-size: 1.1rem; color: #555; margin-bottom: 30px; }
+.modal-actions { display: flex; justify-content: center; gap: 20px; }
+
+.modal-btn { padding: 12px 30px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; font-size: 1rem; transition: 0.2s; }
+.no-btn { background: #f0f0f0; color: #333; }
+.no-btn:hover { background: #e0e0e0; }
+.yes-btn { background: #B81E20; color: white; }
+.yes-btn:hover { background: #96181a; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
