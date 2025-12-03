@@ -35,7 +35,8 @@
 /* Wrapper to position the small pencil icon */
 .input-wrapper {
     position: relative;
-    width: 35%;
+    width: 100%;
+    max-width: 400px;
 }
 
 /* Edit Icon (Pencil) styling */
@@ -226,15 +227,21 @@
 @media (max-width: 576px) {
   .input-wrapper {
     width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
   }
 
   .user-details-edit {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .input-mimic-h2,
   .input-mimic-p {
     text-align: center;
+    width: 100%;
   }
 
   .textarea-mimic-p {

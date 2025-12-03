@@ -227,6 +227,10 @@
     margin-left: 0;
     margin-bottom: 15px;
     text-align: center;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .username {
