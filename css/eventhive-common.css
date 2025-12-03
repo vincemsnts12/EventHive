@@ -289,7 +289,7 @@ body {
 }
 
 .event-card {
-  background-color: white;
+  background-color: #B81E20;
   width: 375px;
   border: 2px solid #B81E20;
   overflow: hidden;
@@ -682,10 +682,6 @@ body {
     gap: 40px;
   }
 
-  .event-card {
-    width: 320px;
-  }
-
   /* FOOTER */
   .footer-nav {
     gap: 40px;
@@ -746,10 +742,6 @@ body {
     margin-left: 0;
     justify-content: center;
     gap: 30px;
-  }
-
-  .event-card {
-    width: 90%;
   }
 
   .event-image {
