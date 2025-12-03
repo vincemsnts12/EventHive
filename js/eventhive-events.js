@@ -92,7 +92,7 @@ function updateEventDetails(eventId) {
     imageElement.src = event.image;
     imageElement.alt = event.title;
     imageElement.onerror = function() {
-        this.src = 'images/placeholder.jpg'; 
+        this.src = 'images/tup.png'; 
     };
   }
   
