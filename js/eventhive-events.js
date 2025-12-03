@@ -1,39 +1,49 @@
 // ===== SAMPLE EVENT DATA =====
-const eventsData = {
+const eventsData = { 
   'event-1': {
-    title: 'EduTech Summit: Shaping the Future of Learning',
+    title: 'EduTech Summit on Campus with Collab',
     description: 'Event in the College of Science to promote knowledge and participation through interactive workshops, keynote speakers, and networking opportunities for students and faculty.',
     location: 'College of Industrial Education – TUPTeachers on Grounds',
-    image: 'path/to/event1-image.jpg',
-    universityLogo: 'path/to/university-logo.png'
+    status: 'Open',
+    statusColor: 'open',
+    image: 'images/event-1.jpg',
+    universityLogo: 'images/logo-science.png' 
   },
   'event-2': {
     title: 'Tech Innovation Conference 2024',
     description: 'Join us for a groundbreaking conference featuring the latest innovations in technology, AI, and digital transformation. Network with industry leaders and explore cutting-edge solutions.',
     location: 'College of Engineering – Main Auditorium',
-    image: 'path/to/event2-image.jpg',
-    universityLogo: 'path/to/university-logo.png'
+    status: 'Ongoing',
+    statusColor: 'ongoing',
+    image: 'images/event-2.jpg',
+    universityLogo: 'images/logo-engineering.png'
   },
   'event-3': {
     title: 'Annual Sports Festival',
     description: 'Participate in our exciting annual sports festival with various athletic competitions, team games, and recreational activities for all students and faculty members.',
     location: 'University Sports Complex – Athletic Field',
-    image: 'path/to/event3-image.jpg',
-    universityLogo: 'path/to/university-logo.png'
+    status: 'Concluded',
+    statusColor: 'concluded',
+    image: 'images/event-3.jpg',
+    universityLogo: 'images/logo-sports.png'
   },
   'event-4': {
     title: 'Cultural Arts Exhibition',
     description: 'Explore diverse artistic expressions from students and local artists. Features paintings, sculptures, installations, and live performances celebrating creativity and culture.',
     location: 'College of Liberal Arts – Gallery Hall',
-    image: 'path/to/event4-image.jpg',
-    universityLogo: 'path/to/university-logo.png'
+    status: 'Open',
+    statusColor: 'open',
+    image: 'images/event-4.jpg',
+    universityLogo: 'images/logo-arts.png'
   },
   'event-5': {
     title: 'Business Leadership Summit',
     description: 'Connect with successful entrepreneurs and business leaders. Learn strategies for business growth, leadership skills, and entrepreneurial mindset development.',
     location: 'College of Business Administration – Conference Center',
-    image: 'path/to/event5-image.jpg',
-    universityLogo: 'path/to/university-logo.png'
+    status: 'Open',
+    statusColor: 'open',
+    image: 'images/event-5.jpg',
+    universityLogo: 'images/logo-business.png'
   }
 };
 
@@ -47,26 +57,16 @@ function getSelectedEventId() {
   return localStorage.getItem('selectedEventId');
 }
 
-// ===== SETUP SEE DETAILS BUTTONS ON HOMEPAGE AND PROFILE PAGE =====
+// ===== SETUP SEE DETAILS BUTTONS (For Home/Profile Page) =====
 function setupEventCardButtons() {
-  // Get all See Details buttons from event cards
   const detailButtons = document.querySelectorAll('.details-btn');
   
   detailButtons.forEach(button => {
     button.addEventListener('click', function(e) {
-      e.preventDefault();
-      
-      // Get the event ID from the button's data attribute
       const eventId = this.getAttribute('data-event-id');
-      
       if (eventId && eventsData[eventId]) {
-        // Store the event ID in localStorage
         storeEventInSession(eventId);
-        
-        // Redirect to events page
-        window.location.href = 'eventhive-homepage.html'; // Changed to your actual page name
-      } else {
-        console.error('Event not found:', eventId);
+        // HTML <a> tag handles redirection
       }
     });
   });
@@ -81,44 +81,39 @@ function updateEventDetails(eventId) {
     return;
   }
   
-  // Update title
-  const titleElement = document.getElementById('event-title');
-  if (titleElement) {
-    titleElement.textContent = event.title;
-  }
+  // 1. Update Text Elements
+  if(document.getElementById('event-title')) document.getElementById('event-title').textContent = event.title;
+  if(document.getElementById('event-description')) document.getElementById('event-description').textContent = event.description;
+  if(document.getElementById('event-location')) document.getElementById('event-location').textContent = event.location;
   
-  // Update description
-  const descriptionElement = document.getElementById('event-description');
-  if (descriptionElement) {
-    descriptionElement.textContent = event.description;
-  }
-  
-  // Update location
-  const locationElement = document.getElementById('event-location');
-  if (locationElement) {
-    locationElement.textContent = event.location;
-  }
-  
-  // Update event image
+  // 2. Update Image
   const imageElement = document.getElementById('event-image');
   if (imageElement) {
     imageElement.src = event.image;
     imageElement.alt = event.title;
-    // Show image if it has a valid path
-    if (event.image && !event.image.includes('path/to/')) {
-      imageElement.style.display = 'block';
-    }
+    imageElement.onerror = function() {
+        this.src = 'images/placeholder.jpg'; 
+    };
   }
   
-  // Update university logo
+  // 3. Update University Logo
   const logoElement = document.getElementById('university-logo');
   if (logoElement) {
-    logoElement.src = event.universityLogo;
-    logoElement.alt = 'University Logo';
-    // Show logo if it has a valid path
-    if (event.universityLogo && !event.universityLogo.includes('path/to/')) {
-      logoElement.style.display = 'block';
-    }
+    logoElement.src = event.universityLogo || 'images/logo-default.png';
+  }
+
+  // 4. UPDATE STATUS BADGE (New Logic)
+  const statusContainer = document.querySelector('.event-slider__status');
+  const statusText = document.getElementById('status-text');
+  
+  if (statusContainer && event.statusColor) {
+    // Reset to base class then add the specific status color class
+    statusContainer.className = 'event-slider__status'; 
+    statusContainer.classList.add(event.statusColor);
+  }
+
+  if (statusText) {
+    statusText.textContent = event.status;
   }
 }
 
@@ -128,15 +123,18 @@ function setupEventSliderNavigation() {
   const nextBtn = document.getElementById('nextEventBtn');
   const dotsContainer = document.getElementById('eventDotsContainer');
   
-  // Get all event IDs as array
   const eventIds = Object.keys(eventsData);
-  let currentEventId = getSelectedEventId() || eventIds[0];
+  let currentEventId = getSelectedEventId();
+  
+  if (!currentEventId || !eventsData[currentEventId]) {
+      currentEventId = eventIds[0];
+  }
+
   let currentIndex = eventIds.indexOf(currentEventId);
   
-  // DYNAMICALLY CREATE DOTS BASED ON NUMBER OF EVENTS
+  // Create Dots
   if (dotsContainer) {
-    dotsContainer.innerHTML = ''; // Clear existing dots
-    
+    dotsContainer.innerHTML = ''; 
     eventIds.forEach((eventId, index) => {
       const dot = document.createElement('div');
       dot.classList.add('event-slider__dot');
@@ -148,10 +146,8 @@ function setupEventSliderNavigation() {
     });
   }
   
-  // Get the newly created dots
   const dots = document.querySelectorAll('.event-slider__dot');
   
-  // Update dot indicators
   function updateDots() {
     dots.forEach((dot, index) => {
       if (index === currentIndex) {
@@ -162,81 +158,42 @@ function setupEventSliderNavigation() {
     });
   }
   
-  // Previous button click
-  if (prevBtn) {
-    prevBtn.addEventListener('click', () => {
-      currentIndex--;
-      if (currentIndex < 0) {
-        currentIndex = eventIds.length - 1; // Loop to last event
-      }
+  function changeEvent(newIndex) {
+      currentIndex = newIndex;
+      // Loop logic
+      if (currentIndex < 0) currentIndex = eventIds.length - 1;
+      if (currentIndex >= eventIds.length) currentIndex = 0;
       
       currentEventId = eventIds[currentIndex];
       storeEventInSession(currentEventId);
       updateEventDetails(currentEventId);
       updateDots();
-    });
   }
   
-  // Next button click
-  if (nextBtn) {
-    nextBtn.addEventListener('click', () => {
-      currentIndex++;
-      if (currentIndex >= eventIds.length) {
-        currentIndex = 0; // Loop to first event
-      }
-      
-      currentEventId = eventIds[currentIndex];
-      storeEventInSession(currentEventId);
-      updateEventDetails(currentEventId);
-      updateDots();
-    });
-  }
+  if (prevBtn) prevBtn.addEventListener('click', () => changeEvent(currentIndex - 1));
+  if (nextBtn) nextBtn.addEventListener('click', () => changeEvent(currentIndex + 1));
   
-  // Dot navigation
   dots.forEach((dot, index) => {
-    dot.addEventListener('click', () => {
-      currentIndex = index;
-      currentEventId = eventIds[currentIndex];
-      storeEventInSession(currentEventId);
-      updateEventDetails(currentEventId);
-      updateDots();
-    });
+    dot.addEventListener('click', () => changeEvent(index));
   });
 }
 
 // ===== INITIALIZE ON PAGE LOAD =====
 document.addEventListener('DOMContentLoaded', function() {
   
-  // Check if we're on the homepage/profile page with event cards
-  const isHomePage = document.querySelector('.event-card') !== null;
-  
-  // Check if we're on the events details page with slider
-  const isEventPage = document.querySelector('.event-slider') !== null;
-  
-  if (isHomePage) {
-    // Setup "See Details" buttons on homepage/profile
+  if (document.querySelector('.details-btn')) {
     setupEventCardButtons();
   }
   
-  if (isEventPage) {
-    // Get the selected event ID from localStorage
+  if (document.querySelector('.event-slider')) {
     const selectedEventId = getSelectedEventId();
-    
-    // If there's a selected event, display it otherwise show first event
     const eventIds = Object.keys(eventsData);
-    const eventToShow = selectedEventId || eventIds[0];
     
-    // Update the event details
+    const eventToShow = (selectedEventId && eventsData[selectedEventId]) 
+                        ? selectedEventId 
+                        : eventIds[0];
+    
     updateEventDetails(eventToShow);
-    
-    // Setup slider navigation prev/next buttons and dots
     setupEventSliderNavigation();
   }
-  
 });
-
-// ===== OPTIONAL: CLEAR SELECTED EVENT (for testing) =====
-function clearSelectedEvent() {
-  localStorage.removeItem('selectedEventId');
-  console.log('Selected event cleared from localStorage');
-}
