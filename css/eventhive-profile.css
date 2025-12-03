@@ -195,3 +195,72 @@
 .event-card {
   flex: 0 0 auto; 
 }
+
+/* ===== MOBILE RESPONSIVENESS ===== */
+@media (max-width: 576px) {
+  .profile-container {
+    margin: 20px 10px;
+    padding: 15px;
+  }
+
+  .cover-photo {
+    height: 200px;
+    border-radius: 15px;
+  }
+
+  .profile-info {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 15px;
+    margin-top: -50px;
+  }
+
+  .profile-picture {
+    width: 120px;
+    height: 120px;
+    margin-left: 0;
+    margin-bottom: 15px;
+  }
+
+  .user-details {
+    margin-left: 0;
+    margin-bottom: 15px;
+    text-align: center;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .username {
+    font-size: 1.5rem;
+  }
+
+  .email {
+    font-size: 1rem;
+  }
+
+  .edit-profile-btn {
+    margin-right: 0;
+    margin-bottom: 15px;
+  }
+
+  .description-box {
+    padding: 15px;
+  }
+
+  .description-box p {
+    font-size: 1rem;
+  }
+
+  /* Liked Container */
+  .liked-container {
+    margin: 20px 10px;
+    padding: 15px;
+  }
+
+  .liked-title {
+    font-size: 1.2rem;
+  }
+}
