@@ -220,21 +220,118 @@
   width: 100%;
 }
 
-/* Footer Wrapper (Changed to Flexbox for perfect single-line alignment) */
+/* Footer Wrapper - Location (Aligned with title/description icons) */
 .event-slider__footer {
   position: relative;
-  padding-left: 0; /* Reset padding */
-  margin-bottom: 0;
+  padding-left: 45px; /* Same as title/description wrapper */
+  margin-bottom: 0.75rem;
   margin-top: auto; 
-  display: flex;
-  align-items: center; /* This forces vertical centering */
-  gap: 15px; /* Space between icon and text */
   min-height: 30px;
-  
-  /* Font Styling */
   font-size: 1rem;
   color: #777;
   font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Date Section (Aligned with title/description icons) */
+.event-slider__date {
+  position: relative;
+  padding-left: 45px; /* Same as title/description wrapper */
+  font-size: 1rem;
+  color: #777;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  min-height: 30px;
+  line-height: 1.5;
+}
+
+/* Position icons absolutely like title/description icons */
+.event-slider__footer svg,
+.event-slider__date svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px;
+}
+
+/* Tags Container */
+.event-slider__tags {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 1rem;
+}
+
+/* Tags Row */
+.event-slider__tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Override status styles when inside tags container */
+.event-slider__tags .event-slider__status {
+  margin-top: 0;
+}
+
+/* Base Tag Styles */
+.event-slider__tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.2rem;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+/* College Tag Base */
+.event-slider__tag--college {
+  background-color: #B81E20;
+  color: white;
+  box-shadow: 0 2px 8px rgba(184, 30, 32, 0.3);
+}
+
+/* College Tag Colors */
+.event-slider__tag--college.cos {
+  background-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.event-slider__tag--college.coe {
+  background-color: #059669;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+}
+
+.event-slider__tag--college.cafa {
+  background-color: #7c3aed;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+
+.event-slider__tag--college.cla {
+  background-color: #db2777;
+  box-shadow: 0 2px 8px rgba(219, 39, 119, 0.3);
+}
+
+.event-slider__tag--college.cie {
+  background-color: #ea580c;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
+}
+
+/* Organization Tag */
+.event-slider__tag--org {
+  background-color: #F2C21F;
+  color: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(242, 194, 31, 0.3);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 /* Enforce Icon Size for Title & Description */
@@ -338,8 +435,8 @@
 
 /* --- DYNAMIC COLOR THEMES --- */
 
-/* OPEN (Green) */
-.event-slider__status.open {
+/* UPCOMING (Green) */
+.event-slider__status.upcoming {
   background-color: #ecfdf5;
   border-color: #6ee7b7;
   color: #059669;
@@ -468,4 +565,91 @@
   .event-slider__dots {
     bottom: 15px;
   }
+
+  .event-slider__tags-row {
+    justify-content: flex-start;
+  }
+
+  .featured-header__left h1 {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .event-slider {
+    padding: 1.5rem;
+  }
+
+  .event-slider__title {
+    font-size: 1.5rem;
+  }
+
+  .event-slider__description {
+    font-size: 1rem;
+  }
+
+  /* Consistent alignment for all icon+text sections on mobile */
+  .event-slider__title-wrapper,
+  .event-slider__description-wrapper,
+  .event-slider__footer,
+  .event-slider__date {
+    padding-left: 40px; /* Slightly smaller on mobile */
+  }
+
+  .event-slider__title-icon,
+  .event-slider__description-icon {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .event-slider__footer svg,
+  .event-slider__date svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .event-slider__footer,
+  .event-slider__date {
+    font-size: 0.9rem;
+  }
+
+  .event-slider__tags {
+    gap: 10px;
+  }
+
+  .event-slider__tags-row {
+    gap: 8px;
+  }
+
+  .event-slider__tag {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.75rem;
+  }
+
+  .event-slider__status {
+    padding: 0.4rem 0.9rem;
+  }
+
+  .status-label,
+  .status-text {
+    font-size: 0.75rem;
+  }
+
+  .featured-header__left h1 {
+    font-size: 1.8rem;
+  }
+
+  .featured-header__logo img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .event-slider__arrow {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .event-slider__arrow--prev { left: -10px; }
+  .event-slider__arrow--next { right: -10px; }
 }

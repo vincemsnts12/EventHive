@@ -3,49 +3,72 @@ const eventsData = {
   'event-1': {
     title: 'EduTech Summit on Campus with Collab',
     description: 'Event in the College of Science to promote knowledge and participation through interactive workshops, keynote speakers, and networking opportunities for students and faculty.',
-    location: 'College of Industrial Education – TUPTeachers on Grounds',
-    status: 'Open',
-    statusColor: 'open',
-    image: 'images/event-1.jpg',
-    universityLogo: 'images/logo-science.png' 
+    location: 'College of Industrial Education – TUP Teachers on Grounds',
+    date: 'November 7, 2025 (Friday) | 12:00 NN - 4:00 PM',
+    status: 'Upcoming',
+    statusColor: 'upcoming',
+    college: 'COS',
+    collegeColor: 'cos',
+    organization: 'AWS Learning Club - TUP Manila',
+    images: ['images/event-1.jpg', 'images/event-1-2.jpg', 'images/event-1-3.jpg'],
+    universityLogo: 'images/tup.png' 
   },
   'event-2': {
     title: 'Tech Innovation Conference 2024',
     description: 'Join us for a groundbreaking conference featuring the latest innovations in technology, AI, and digital transformation. Network with industry leaders and explore cutting-edge solutions.',
     location: 'College of Engineering – Main Auditorium',
+    date: 'November 15, 2025 (Saturday) | 9:00 AM - 5:00 PM',
     status: 'Ongoing',
     statusColor: 'ongoing',
-    image: 'images/event-2.jpg',
-    universityLogo: 'images/logo-engineering.png'
+    college: 'COE',
+    collegeColor: 'coe',
+    organization: 'Google Developer Groups on Campus TUP Manila',
+    images: ['images/event-2.jpg', 'images/event-2-2.jpg', 'images/event-2-3.jpg'],
+    universityLogo: 'images/tup.png'
   },
   'event-3': {
     title: 'Annual Sports Festival',
     description: 'Participate in our exciting annual sports festival with various athletic competitions, team games, and recreational activities for all students and faculty members.',
     location: 'University Sports Complex – Athletic Field',
+    date: 'December 1-3, 2025 (Mon-Wed) | 7:00 AM - 6:00 PM',
     status: 'Concluded',
     statusColor: 'concluded',
-    image: 'images/event-3.jpg',
-    universityLogo: 'images/logo-sports.png'
+    college: 'CAFA',
+    collegeColor: 'cafa',
+    organization: 'TUP CAFA Student Council',
+    images: ['images/event-3.jpg', 'images/event-3-2.jpg', 'images/event-3-3.jpg'],
+    universityLogo: 'images/tup.png'
   },
   'event-4': {
     title: 'Cultural Arts Exhibition',
     description: 'Explore diverse artistic expressions from students and local artists. Features paintings, sculptures, installations, and live performances celebrating creativity and culture.',
     location: 'College of Liberal Arts – Gallery Hall',
-    status: 'Open',
-    statusColor: 'open',
-    image: 'images/event-4.jpg',
-    universityLogo: 'images/logo-arts.png'
+    date: 'November 20, 2025 (Thursday) | 10:00 AM - 7:00 PM',
+    status: 'Upcoming',
+    statusColor: 'upcoming',
+    college: 'CLA',
+    collegeColor: 'cla',
+    organization: 'TUP Arts Society',
+    images: ['images/event-4.jpg', 'images/event-4-2.jpg', 'images/event-4-3.jpg'],
+    universityLogo: 'images/tup.png'
   },
   'event-5': {
     title: 'Business Leadership Summit',
     description: 'Connect with successful entrepreneurs and business leaders. Learn strategies for business growth, leadership skills, and entrepreneurial mindset development.',
     location: 'College of Business Administration – Conference Center',
-    status: 'Open',
-    statusColor: 'open',
-    image: 'images/event-5.jpg',
-    universityLogo: 'images/logo-business.png'
+    date: 'November 25, 2025 (Tuesday) | 1:00 PM - 5:00 PM',
+    status: 'Upcoming',
+    statusColor: 'upcoming',
+    college: 'CIE',
+    collegeColor: 'cie',
+    organization: 'TUP Entrepreneurship Club',
+    images: ['images/event-5.jpg', 'images/event-5-2.jpg', 'images/event-5-3.jpg'],
+    universityLogo: 'images/tup.png'
   }
 };
+
+// Current image index for the carousel
+let currentImageIndex = 0;
 
 // ===== STORE EVENT DATA IN LOCALSTORAGE =====
 function storeEventInSession(eventId) {
@@ -85,11 +108,13 @@ function updateEventDetails(eventId) {
   if(document.getElementById('event-title')) document.getElementById('event-title').textContent = event.title;
   if(document.getElementById('event-description')) document.getElementById('event-description').textContent = event.description;
   if(document.getElementById('event-location')) document.getElementById('event-location').textContent = event.location;
+  if(document.getElementById('event-date')) document.getElementById('event-date').textContent = event.date;
   
-  // 2. Update Image
+  // 2. Update Image (first image in array)
+  currentImageIndex = 0;
   const imageElement = document.getElementById('event-image');
-  if (imageElement) {
-    imageElement.src = event.image;
+  if (imageElement && event.images && event.images.length > 0) {
+    imageElement.src = event.images[0];
     imageElement.alt = event.title;
     imageElement.onerror = function() {
         this.src = 'images/tup.png'; 
@@ -99,15 +124,14 @@ function updateEventDetails(eventId) {
   // 3. Update University Logo
   const logoElement = document.getElementById('university-logo');
   if (logoElement) {
-    logoElement.src = event.universityLogo || 'images/logo-default.png';
+    logoElement.src = event.universityLogo || 'images/tup.png';
   }
 
-  // 4. UPDATE STATUS BADGE (New Logic)
+  // 4. UPDATE STATUS BADGE
   const statusContainer = document.querySelector('.event-slider__status');
   const statusText = document.getElementById('status-text');
   
   if (statusContainer && event.statusColor) {
-    // Reset to base class then add the specific status color class
     statusContainer.className = 'event-slider__status'; 
     statusContainer.classList.add(event.statusColor);
   }
@@ -115,30 +139,45 @@ function updateEventDetails(eventId) {
   if (statusText) {
     statusText.textContent = event.status;
   }
+
+  // 5. UPDATE COLLEGE TAG
+  const collegeTag = document.getElementById('college-tag');
+  if (collegeTag) {
+    collegeTag.textContent = event.college;
+    collegeTag.className = 'event-slider__tag event-slider__tag--college';
+    if (event.collegeColor) {
+      collegeTag.classList.add(event.collegeColor);
+    }
+  }
+
+  // 6. UPDATE ORGANIZATION TAG
+  const orgTag = document.getElementById('org-tag');
+  if (orgTag) {
+    orgTag.textContent = event.organization;
+  }
+
+  // 7. Setup Image Carousel Dots
+  setupImageCarousel(event);
 }
 
-// ===== EVENT SLIDER NAVIGATION =====
-function setupEventSliderNavigation() {
+// ===== IMAGE CAROUSEL FOR SINGLE EVENT =====
+function setupImageCarousel(event) {
   const prevBtn = document.getElementById('prevEventBtn');
   const nextBtn = document.getElementById('nextEventBtn');
   const dotsContainer = document.getElementById('eventDotsContainer');
+  const imageElement = document.getElementById('event-image');
   
-  const eventIds = Object.keys(eventsData);
-  let currentEventId = getSelectedEventId();
+  if (!event.images || event.images.length === 0) return;
   
-  if (!currentEventId || !eventsData[currentEventId]) {
-      currentEventId = eventIds[0];
-  }
-
-  let currentIndex = eventIds.indexOf(currentEventId);
+  const images = event.images;
   
-  // Create Dots
+  // Create Dots based on number of images
   if (dotsContainer) {
     dotsContainer.innerHTML = ''; 
-    eventIds.forEach((eventId, index) => {
+    images.forEach((img, index) => {
       const dot = document.createElement('div');
       dot.classList.add('event-slider__dot');
-      if (index === currentIndex) {
+      if (index === 0) {
         dot.classList.add('event-slider__dot--active');
       }
       dot.dataset.index = index;
@@ -146,35 +185,51 @@ function setupEventSliderNavigation() {
     });
   }
   
-  const dots = document.querySelectorAll('.event-slider__dot');
-  
-  function updateDots() {
+  function updateDotsAndImage() {
+    const dots = document.querySelectorAll('.event-slider__dot');
     dots.forEach((dot, index) => {
-      if (index === currentIndex) {
+      if (index === currentImageIndex) {
         dot.classList.add('event-slider__dot--active');
       } else {
         dot.classList.remove('event-slider__dot--active');
       }
     });
+    
+    // Update image
+    if (imageElement) {
+      imageElement.src = images[currentImageIndex];
+      imageElement.onerror = function() {
+        this.src = 'images/tup.png'; 
+      };
+    }
   }
   
-  function changeEvent(newIndex) {
-      currentIndex = newIndex;
-      // Loop logic
-      if (currentIndex < 0) currentIndex = eventIds.length - 1;
-      if (currentIndex >= eventIds.length) currentIndex = 0;
-      
-      currentEventId = eventIds[currentIndex];
-      storeEventInSession(currentEventId);
-      updateEventDetails(currentEventId);
-      updateDots();
+  function changeImage(newIndex) {
+    currentImageIndex = newIndex;
+    // Loop logic
+    if (currentImageIndex < 0) currentImageIndex = images.length - 1;
+    if (currentImageIndex >= images.length) currentImageIndex = 0;
+    
+    updateDotsAndImage();
   }
   
-  if (prevBtn) prevBtn.addEventListener('click', () => changeEvent(currentIndex - 1));
-  if (nextBtn) nextBtn.addEventListener('click', () => changeEvent(currentIndex + 1));
+  // Remove old event listeners by cloning buttons
+  if (prevBtn) {
+    const newPrevBtn = prevBtn.cloneNode(true);
+    prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
+    newPrevBtn.addEventListener('click', () => changeImage(currentImageIndex - 1));
+  }
   
+  if (nextBtn) {
+    const newNextBtn = nextBtn.cloneNode(true);
+    nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+    newNextBtn.addEventListener('click', () => changeImage(currentImageIndex + 1));
+  }
+  
+  // Add click listeners to dots
+  const dots = document.querySelectorAll('.event-slider__dot');
   dots.forEach((dot, index) => {
-    dot.addEventListener('click', () => changeEvent(index));
+    dot.addEventListener('click', () => changeImage(index));
   });
 }
 
@@ -193,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ? selectedEventId 
                         : eventIds[0];
     
+    // This now also sets up the image carousel
     updateEventDetails(eventToShow);
-    setupEventSliderNavigation();
   }
 });
