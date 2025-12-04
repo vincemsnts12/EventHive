@@ -889,9 +889,52 @@ body {
     display: none;
   }
 
-  /* ICONS → Hidden on mobile (moved to hamburger menu) */
+  /* ICONS → Show only search icon on mobile */
   .icons {
-    display: none;
+    display: flex;
+    align-items: center;
+    position: static;
+    margin-left: auto;
+    margin-right: 0px;
+    gap: 0;
+  }
+
+  /* Hide profile icon and dropdown on mobile */
+  .icons #profile-icon,
+  .icons .dropdown-menu {
+    display: none !important;
+  }
+
+  /* Search icon styling for mobile - matches hamburger style */
+  /* Target the first <a> in icons (always the search icon) */
+  .navbar .icons > a:first-of-type,
+  .header .icons > a:first-of-type {
+    width: auto !important;
+    height: auto !important;
+    padding: 8px !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navbar .icons > a:first-of-type svg,
+  .header .icons > a:first-of-type svg {
+    fill: #FFFBF0 !important;
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .navbar .icons > a:first-of-type:hover,
+  .header .icons > a:first-of-type:hover {
+    background-color: transparent !important;
+  }
+
+  .navbar .icons > a:first-of-type:hover svg,
+  .header .icons > a:first-of-type:hover svg {
+    fill: #F2C21F !important;
   }
 
   /* HAMBURGER → Visible on mobile */

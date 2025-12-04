@@ -324,6 +324,14 @@
   box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
 }
 
+/* TUP System-wide Tag (Hollow/Outline Style) */
+.event-slider__tag--college.tup {
+  background-color: #ffffff;
+  color: #B81E20;
+  border: 2px solid #B81E20;
+  box-shadow: 0 2px 8px rgba(184, 30, 32, 0.2);
+}
+
 /* Organization Tag */
 .event-slider__tag--org {
   background-color: #F2C21F;

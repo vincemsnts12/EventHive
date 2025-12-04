@@ -7,25 +7,25 @@ let index = 0;
 
 const heroData = [
   {
-    img: "images/.jpg",
-    title: "EduTech Summit: Shaping the Future of Learning",
-    desc: "sd",
+    img: "images/carousel_1.jpg",
+    title: "Mister and Miss TUP System 2025",
+    desc: "A prestigious TUP-System wide pageant showcasing talent, beauty, and excellence from all TUP branches.",
     btnText: "Know More",
-    btnLink: "#find-events"
+    eventId: "event-3"
   },
   {
-    img: "images/event2.jpg",
-    title: "Intellect Unlocked: A Symposium on Modern Education",
-    desc: "sd",
+    img: "images/carousel_4.jpg",
+    title: "Battle of The Bands 2025",
+    desc: "Who will take the crown? Watch the best bands from different colleges clash in an epic musical showdown!",
     btnText: "Know More",
-    btnLink: "#find-events"
+    eventId: "event-4"
   },
   {
-    img: "images/event3.jpg",
-    title: "ThesisCon: Presenting Ideas that Matter.",
-    desc: "sd",
+    img: "images/carousel_5.jpg",
+    title: "GDGoC In4Session",
+    desc: "Join us for the official GDGoC website launch and an exciting AI seminar for tech enthusiasts.",
     btnText: "Know More",
-    btnLink: "#find-events"
+    eventId: "event-5"
   }
 ];
 
@@ -45,7 +45,12 @@ function showSlide(n) {
     title.textContent = heroData[index].title;
     desc.textContent = heroData[index].desc;
     heroBtn.textContent = heroData[index].btnText;
-    heroBtn.href = heroData[index].btnLink;
+    
+    // Set up link to events page with event ID
+    heroBtn.href = "eventhive-events.html";
+    heroBtn.onclick = function() {
+      localStorage.setItem('selectedEventId', heroData[index].eventId);
+    };
 
     // Update dots
     dots.forEach(dot => dot.classList.remove('active'));

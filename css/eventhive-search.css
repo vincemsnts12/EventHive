@@ -77,7 +77,7 @@
 .dropdown-content {
   display: none;
   position: absolute;
-  background-color: #fff;
+  background-color: #B81E20;
   border: 2px solid #b81e20;
   border-radius: 10px;
   margin-top: 20px;
@@ -92,16 +92,17 @@
   cursor: pointer;
   font-size: 15px;
   color: #333;
+  background-color: #fff;
   transition: background 0.2s;
 }
 
 .dropdown-content div:hover {
-  background-color: #B81E20;
+  background-color: #b81e20;
   color: white;
 }
 
 .dropdown-content div.selected {
-  background-color: #B81E20;
+  background-color: #b81e20;
   color: white;
 }
 
