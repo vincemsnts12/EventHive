@@ -1,9 +1,8 @@
-const slides = document.querySelector('.slides');
+const slidesTrack = document.querySelector('.slides-track');
+const slides = document.querySelectorAll('.slide');
 const dots = document.querySelectorAll('.dot');
-const title = document.getElementById('hero-title');
-const desc = document.getElementById('hero-desc');
-const heroBtn = document.getElementById('hero-btn');
 let index = 0;
+let autoSlideTimer;
 
 const heroData = [
   {
@@ -29,50 +28,66 @@ const heroData = [
   }
 ];
 
-function showSlide(n) {
-  // Loop index (so 0→1→2→0)
-  index = (n + heroData.length) % heroData.length;
-
-  // Fade out first
-  slides.classList.add('fade-out');
-  title.classList.add('fade-out');
-  desc.classList.add('fade-out');
-  heroBtn.classList.add('fade-out');
-
-  setTimeout(() => {
-    // Update background and text
-    slides.style.backgroundImage = `url(${heroData[index].img})`;
-    title.textContent = heroData[index].title;
-    desc.textContent = heroData[index].desc;
-    heroBtn.textContent = heroData[index].btnText;
+// Initialize all slides with their content
+function initSlides() {
+  slides.forEach((slide, i) => {
+    const bg = slide.querySelector('.slide-bg');
+    const title = slide.querySelector('.hero-title');
+    const desc = slide.querySelector('.hero-desc');
+    const btn = slide.querySelector('.hero-btn');
     
-    // Set up link to events page with event ID
-    heroBtn.href = "eventhive-events.html";
-    heroBtn.onclick = function() {
-      localStorage.setItem('selectedEventId', heroData[index].eventId);
-    };
-
-    // Update dots
-    dots.forEach(dot => dot.classList.remove('active'));
-    dots[index].classList.add('active');
-
-    // Fade in again
-    slides.classList.remove('fade-out');
-    title.classList.remove('fade-out');
-    desc.classList.remove('fade-out');
-    heroBtn.classList.remove('fade-out');
-  }, 400);
+    if (heroData[i]) {
+      bg.style.backgroundImage = `url(${heroData[i].img})`;
+      title.textContent = heroData[i].title;
+      desc.textContent = heroData[i].desc;
+      btn.textContent = heroData[i].btnText;
+      btn.href = "eventhive-events.html";
+      btn.onclick = function() {
+        localStorage.setItem('selectedEventId', heroData[i].eventId);
+      };
+    }
+  });
 }
 
-// Navigation buttons
-document.querySelector('.prev').addEventListener('click', () => showSlide(index - 1));
-document.querySelector('.next').addEventListener('click', () => showSlide(index + 1));
+// Move to specific slide
+function goToSlide(n) {
+  index = (n + heroData.length) % heroData.length;
+  
+  // Move the track
+  const translateX = -index * 33.333;
+  slidesTrack.style.transform = `translateX(${translateX}%)`;
+  
+  // Update dots
+  dots.forEach(dot => dot.classList.remove('active'));
+  dots[index].classList.add('active');
+}
 
-// Dots click
-dots.forEach((dot, i) => dot.addEventListener('click', () => showSlide(i)));
+// Function to reset auto-slide timer
+function resetAutoSlideTimer() {
+  clearInterval(autoSlideTimer);
+  autoSlideTimer = setInterval(() => goToSlide(index + 1), 8000);
+}
 
-// Auto slide
-setInterval(() => showSlide(index + 1), 8000);
+// Navigation buttons (reset timer on manual navigation)
+document.querySelector('.prev').addEventListener('click', () => {
+  goToSlide(index - 1);
+  resetAutoSlideTimer();
+});
 
-// Initial load
-showSlide(0);
+document.querySelector('.next').addEventListener('click', () => {
+  goToSlide(index + 1);
+  resetAutoSlideTimer();
+});
+
+// Dots click (reset timer on manual navigation)
+dots.forEach((dot, i) => dot.addEventListener('click', () => {
+  goToSlide(i);
+  resetAutoSlideTimer();
+}));
+
+// Initialize
+initSlides();
+goToSlide(0);
+
+// Start auto slide
+autoSlideTimer = setInterval(() => goToSlide(index + 1), 8000);

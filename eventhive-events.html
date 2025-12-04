@@ -218,6 +218,89 @@
 
 </section>
 
+<!-- ===== COMMENTS SECTION ===== -->
+<section class="comments-section">
+  <div class="comments-wrapper">
+    
+    <!-- Section Header -->
+    <div class="comments-header">
+      <h2 class="comments-title">Comments</h2>
+      <span class="comments-count" id="commentsCount">3 comments</span>
+    </div>
+
+    <!-- Comment Input Box -->
+    <div class="comment-input-container">
+      <div class="comment-input-avatar">
+        <img src="images/prof_default.svg" alt="Your avatar" id="currentUserAvatar">
+      </div>
+      <div class="comment-input-box">
+        <div class="comment-input-wrapper">
+          <textarea 
+            class="comment-textarea" 
+            id="commentTextarea" 
+            placeholder="Write a comment..."
+            rows="3"
+            maxlength="200"
+          ></textarea>
+          <span class="comment-char-counter" id="charCounter">0/200</span>
+        </div>
+        <button class="comment-send-btn" id="commentSendBtn" title="Post comment">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Comments List (Oldest First) -->
+    <div class="comments-list" id="commentsList">
+      
+      <!-- Comment 1 - Oldest -->
+      <div class="comment-item" data-user-id="user-3">
+        <a href="eventhive-profile.html?user=gvan" class="comment-avatar">
+          <img src="images/gvan.JPG" alt="User avatar">
+        </a>
+        <div class="comment-content">
+          <div class="comment-header">
+            <a href="eventhive-profile.html?user=gvan" class="comment-author">Gvan Santos</a>
+            <span class="comment-timestamp">1 day ago</span>
+          </div>
+          <p class="comment-text">Was there representing COS! Such a proud moment for our college. The energy was unreal!</p>
+        </div>
+      </div>
+
+      <!-- Comment 2 -->
+      <div class="comment-item" data-user-id="user-2">
+        <a href="eventhive-profile.html?user=vince" class="comment-avatar">
+          <img src="images/vince.JPG" alt="User avatar">
+        </a>
+        <div class="comment-content">
+          <div class="comment-header">
+            <a href="eventhive-profile.html?user=vince" class="comment-author">Vince Marcelo</a>
+            <span class="comment-timestamp">5 hours ago</span>
+          </div>
+          <p class="comment-text">Congrats to all the winners! TUP really knows how to put on a show. 🎉</p>
+        </div>
+      </div>
+
+      <!-- Comment 3 - Newest -->
+      <div class="comment-item" data-user-id="user-1">
+        <a href="eventhive-profile.html?user=axel" class="comment-avatar">
+          <img src="images/axel.JPG" alt="User avatar">
+        </a>
+        <div class="comment-content">
+          <div class="comment-header">
+            <a href="eventhive-profile.html?user=axel" class="comment-author">Axel Rodriguez</a>
+            <span class="comment-timestamp">2 hours ago</span>
+          </div>
+          <p class="comment-text">This event was absolutely amazing! Can't wait for next year's pageant. The performances were top-notch! 👑✨</p>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
 
       <!-- ===== FOOTER ===== -->
       <footer class="footer">

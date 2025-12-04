@@ -233,6 +233,28 @@ function setupImageCarousel(event) {
   });
 }
 
+// ===== COMMENT CHARACTER COUNTER =====
+function setupCommentCharCounter() {
+  const textarea = document.getElementById('commentTextarea');
+  const counter = document.getElementById('charCounter');
+  const maxLength = 200;
+  
+  if (textarea && counter) {
+    textarea.addEventListener('input', function() {
+      const currentLength = this.value.length;
+      counter.textContent = `${currentLength}/${maxLength}`;
+      
+      // Update counter color based on length
+      counter.classList.remove('warning', 'limit');
+      if (currentLength >= maxLength) {
+        counter.classList.add('limit');
+      } else if (currentLength >= maxLength * 0.8) {
+        counter.classList.add('warning');
+      }
+    });
+  }
+}
+
 // ===== INITIALIZE ON PAGE LOAD =====
 document.addEventListener('DOMContentLoaded', function() {
   
@@ -251,4 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // This now also sets up the image carousel
     updateEventDetails(eventToShow);
   }
+  
+  // Setup comment character counter
+  setupCommentCharCounter();
 });
