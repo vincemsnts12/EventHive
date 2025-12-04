@@ -60,4 +60,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === signupModal) signupModal.style.display = 'none';
   });
 
+  // ===== GOOGLE SIGN UP BUTTON =====
+  const googleSignupBtn = document.getElementById('googleSignupBtn');
+  if (googleSignupBtn) {
+    googleSignupBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      // Check if Supabase functions are available
+      if (typeof signInWithGoogle === 'function') {
+        await signInWithGoogle();
+      } else {
+        // Fallback message if Supabase is not configured
+        alert('Google sign up is not yet configured. Please configure Supabase credentials in js/eventhive-supabase.js');
+        console.warn('signInWithGoogle function not found. Make sure eventhive-supabase.js is loaded and Supabase is configured.');
+      }
+    });
+  }
+
+  // ===== GOOGLE LOGIN BUTTON =====
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  if (googleLoginBtn) {
+    googleLoginBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      // Check if Supabase functions are available
+      if (typeof signInWithGoogle === 'function') {
+        await signInWithGoogle();
+      } else {
+        // Fallback message if Supabase is not configured
+        alert('Google login is not yet configured. Please configure Supabase credentials in js/eventhive-supabase.js');
+        console.warn('signInWithGoogle function not found. Make sure eventhive-supabase.js is loaded and Supabase is configured.');
+      }
+    });
+  }
+
 });

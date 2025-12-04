@@ -592,6 +592,32 @@
   margin: 0;
 }
 
+.comments-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.comments-likes {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.likes-heart-icon {
+  color: #B81E20;
+  fill: #B81E20;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.likes-count {
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
 .comments-count {
   font-size: 0.95rem;
   color: #888;
@@ -925,6 +951,24 @@
 
   .comments-title {
     font-size: 1.3rem;
+  }
+
+  .comments-header-right {
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+
+  .likes-heart-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .likes-count {
+    font-size: 0.9rem;
+  }
+
+  .comments-count {
+    font-size: 0.9rem;
   }
 
   .comment-input-container {

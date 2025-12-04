@@ -429,6 +429,60 @@ body {
   color: #B81E20;
   text-decoration: underline;
 }
+
+/* ===== AUTH MODAL DIVIDER ===== */
+.auth-modal__divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.auth-modal__divider::before,
+.auth-modal__divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.auth-modal__divider span {
+  padding: 0 15px;
+  background: white;
+}
+
+/* ===== GOOGLE SIGN UP BUTTON ===== */
+.auth-modal__google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  background-color: white;
+  color: #333;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 10px;
+}
+
+.auth-modal__google-btn:hover {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.auth-modal__google-btn:active {
+  transform: scale(0.98);
+}
+
+.auth-modal__google-btn svg {
+  flex-shrink: 0;
+}
 /* ===== EVENT CARD SHARED STYLES ===== */
 .events-section {
   width: 90%;
