@@ -207,7 +207,9 @@ body {
   padding: 20px;
 }
 
-.mobile-menu-nav a {
+.mobile-menu-nav a,
+#mobileGuestLinks a,
+#mobileUserLinks a {
   color: #FFFBF0;
   text-decoration: none;
   font-size: 18px;
@@ -216,17 +218,54 @@ body {
   transition: background-color 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 18px !important;
+  line-height: 1.5;
 }
 
-.mobile-menu-nav a:hover {
+/* Explicitly style Dashboard button to match other menu items */
+#mobileDashboardBtn {
+  color: #FFFBF0 !important;
+  text-decoration: none !important;
+  font-size: 18px !important;
+  padding: 15px 20px !important;
+  border-radius: 10px !important;
+  transition: background-color 0.3s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 18px !important;
+  line-height: 1.5 !important;
+}
+
+/* Ensure Dashboard link has proper gap - included in main selector above */
+
+.mobile-menu-nav a:hover,
+#mobileGuestLinks a:hover,
+#mobileUserLinks a:hover,
+#mobileDashboardBtn:hover {
   background-color: rgba(242, 193, 31, 0.8);
 }
 
-.mobile-menu-nav a svg {
+.mobile-menu-nav a svg,
+#mobileGuestLinks a svg,
+#mobileUserLinks a svg {
   width: 22px;
   height: 22px;
   fill: #FFFBF0;
+  flex-shrink: 0;
+  margin: 0;
+  margin-top: -2px;
+  align-self: center;
+}
+
+/* Explicitly style Dashboard button SVG */
+#mobileDashboardBtn svg {
+  width: 22px !important;
+  height: 22px !important;
+  fill: #FFFBF0 !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  margin-top: -2px !important;
+  align-self: center !important;
 }
 
 .mobile-menu-divider {
@@ -241,30 +280,6 @@ body {
   display: block;
 }
 
-#mobileGuestLinks a,
-#mobileUserLinks a {
-  color: #FFFBF0;
-  text-decoration: none;
-  font-size: 18px;
-  padding: 15px 20px;
-  border-radius: 10px;
-  transition: background-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-#mobileGuestLinks a:hover,
-#mobileUserLinks a:hover {
-  background-color: rgba(242, 193, 31, 0.8);
-}
-
-#mobileGuestLinks a svg,
-#mobileUserLinks a svg {
-  width: 22px;
-  height: 22px;
-  fill: #FFFBF0;
-}
 
 /* ===== DROPDOWN MENU PROFILE ICON ===== */
 .dropdown-menu {

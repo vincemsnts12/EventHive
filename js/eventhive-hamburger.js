@@ -10,11 +10,18 @@ function updateMobileMenuAuthState() {
   // Get login state from the dropdown menu script (isLoggedIn variable)
   // This checks if the global isLoggedIn variable exists
   const loggedIn = (typeof isLoggedIn !== 'undefined') ? isLoggedIn : false;
+  const isAdmin = (typeof isChecker !== 'undefined') ? isChecker : false;
   
   if (mobileGuestLinks && mobileUserLinks) {
     if (loggedIn) {
       mobileGuestLinks.style.display = 'none';
       mobileUserLinks.style.display = 'block';
+      
+      // Show/hide Dashboard link based on admin status
+      const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
+      if (mobileDashboardBtn) {
+        mobileDashboardBtn.style.display = isAdmin ? 'block' : 'none';
+      }
     } else {
       mobileGuestLinks.style.display = 'block';
       mobileUserLinks.style.display = 'none';

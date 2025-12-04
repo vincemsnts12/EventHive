@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventHive Admin Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/eventhive-common.css">
+  <link rel="stylesheet" href="css/eventhive-admin.css">
+
+</head>
+<body>
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <nav class="navbar">
+      <h1><a class="titlelogo" href="eventhive-homepage.html">EventHive</a></h1>
+
+      <div class="navlist">
+        <ul>
+          <li><a href="eventhive-homepage.html">Home</a></li>
+          <li><a href="eventhive-aboutus.html">About Us</a></li>
+          <li><a href="eventhive-contacts.html">Contacts</a></li>
+        </ul>
+      </div>
+
+      <div class="icons">
+        <a title="eventhive-search" href="eventhive-search.html">
+         <svg width="25" height="26" viewBox="0 0 25 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18.2965 16.6861C19.7962 14.6074 20.4679 12.03 20.1773 9.46977C19.8866 6.90951 18.6549 4.55515 16.7288 2.87771C14.8026 1.20027 12.324 0.323458 9.78869 0.42269C7.25343 0.521921 4.84854 1.58988 3.05515 3.41291C1.26177 5.23593 0.21214 7.67958 0.116266 10.255C0.0203925 12.8304 0.885342 15.3475 2.53807 17.3029C4.1908 19.2583 6.50942 20.5077 9.03006 20.8012C11.5507 21.0946 14.0875 20.4105 16.1329 18.8856H16.1313C16.1767 18.9485 16.2273 19.0088 16.2831 19.0665L22.246 25.1236C22.5364 25.4188 22.9304 25.5848 23.3412 25.5849C23.7521 25.5851 24.1462 25.4194 24.4368 25.1244C24.7274 24.8294 24.8907 24.4292 24.8909 24.0119C24.891 23.5945 24.728 23.1942 24.4375 22.899L18.4746 16.8419C18.4193 16.7849 18.3598 16.7339 18.2965 16.6861ZM18.6961 10.6385C18.6961 11.7748 18.4758 12.9 18.0477 13.9498C17.6196 14.9997 16.9921 15.9536 16.2011 16.7571C15.4101 17.5606 14.4711 18.198 13.4376 18.6328C12.4041 19.0677 11.2964 19.2915 10.1777 19.2915C9.05904 19.2915 7.95134 19.0677 6.91783 18.6328C5.88433 18.198 4.94527 17.5606 4.15426 16.7571C3.36325 15.9536 2.73578 14.9997 2.30769 13.9498C1.8796 12.9 1.65927 11.7748 1.65927 10.6385C1.65927 8.34355 2.55674 6.14263 4.15426 4.51987C5.75177 2.89712 7.91847 1.98546 10.1777 1.98546C12.4369 1.98546 14.6036 2.89712 16.2011 4.51987C17.7987 6.14263 18.6961 8.34355 18.6961 10.6385Z"/>
+         </svg>
+        </a>
+        
+        <a id="profile-icon" class="profile-btn">
+          <svg width="27" height="27" viewBox="0 0 27 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.46209 26.5849C2.46209 26.5849 0.254517 26.5849 0.254517 24.4151C0.254517 22.2453 2.46209 15.7359 13.5 15.7359C24.5378 15.7359 26.7454 22.2453 26.7454 24.4151C26.7454 26.5849 24.5378 26.5849 24.5378 26.5849H2.46209ZM13.5 13.566C15.2564 13.566 16.9409 12.8802 18.1829 11.6595C19.4249 10.4387 20.1227 8.78302 20.1227 7.05661C20.1227 5.3302 19.4249 3.6745 18.1829 2.45375C16.9409 1.23299 15.2564 0.54718 13.5 0.54718C11.7435 0.54718 10.059 1.23299 8.817 2.45375C7.57499 3.6745 6.87724 5.3302 6.87724 7.05661C6.87724 8.78302 7.57499 10.4387 8.817 11.6595C10.059 12.8802 11.7435 13.566 13.5 13.566Z"/>
+          </svg>
+        </a>
+
+        <!-- drop down menu-->
+        <div class="dropdown-menu" id="dropdownMenu">
+          <div id="guestLinks">
+            <a href="#" id="navLoginBtn">Log In</a>
+            <a href="#" id="navSignupBtn">Sign Up</a>
+          </div>
+
+          <div id="userLinks" style="display: none;">
+            <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
+            <a href="eventhive-admin.html" id="navDashboardBtn" style="display: none;">Dashboard</a>
+            <a href="#" id="navLogoutBtn">Log Out</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hamburger Button (Mobile) -->
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+
+  <!-- Mobile Slide-out Menu -->
+  <nav class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-nav">
+      <a href="eventhive-homepage.html">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        Home
+      </a>
+      <a href="eventhive-aboutus.html">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        About Us
+      </a>
+      <a href="eventhive-contacts.html">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        Contacts
+      </a>
+      <div class="mobile-menu-divider"></div>
+      
+      <!-- Guest Links (shown when logged out) -->
+      <div id="mobileGuestLinks">
+        <a href="#" id="mobileLoginBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/></svg>
+          Log In
+        </a>
+        <a href="#" id="mobileSignupBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          Sign Up
+        </a>
+      </div>
+
+      <!-- User Links (shown when logged in) -->
+      <div id="mobileUserLinks" style="display: none;">
+        <a href="eventhive-profile.html">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          View Profile
+        </a>
+        <a href="eventhive-admin.html" id="mobileDashboardBtn" style="display: none;">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
+          Dashboard
+        </a>
+        <a href="#" id="mobileLogoutBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+          Log Out
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== ADMIN DASHBOARD SECTION ===== -->
+  <section class="admin-dashboard">
+    <div class="dashboard-wrapper">
+      
+      <!-- Dashboard Header -->
+      <div class="dashboard-header">
+        <h1 class="dashboard-title">Admin Dashboard</h1>
+        <p class="dashboard-subtitle">Manage and review all events</p>
+      </div>
+
+      <!-- Published Events Table -->
+      <div class="dashboard-table-container">
+        <h2 class="table-section-title">Published Events</h2>
+        <table class="events-table" id="publishedEventsTable">
+          <thead class="table-header--published">
+            <tr>
+              <th>Title</th>
+              <th>Description</th>
+              <th>Location</th>
+              <th>Date & Time</th>
+              <th>College</th>
+              <th>Organization</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="publishedEventsTableBody">
+            <!-- Events will be populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pending Events Table -->
+      <div class="dashboard-table-container">
+        <h2 class="table-section-title">Pending Events</h2>
+        <table class="events-table" id="pendingEventsTable">
+          <thead class="table-header--pending">
+            <tr>
+              <th>Title</th>
+              <th>Description</th>
+              <th>Location</th>
+              <th>Date & Time</th>
+              <th>College</th>
+              <th>Organization</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pendingEventsTableBody">
+            <!-- Events will be populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-logo">
+        <span class="footer-logo__badge">EventHive</span>
+        <span class="footer-logo__text">on Campus</span>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="eventhive-contacts.html" class="footer-nav__link">Contact us</a>
+        <a href="eventhive-homepage.html" class="footer-nav__link">Home</a>
+        <a href="#join-us" class="footer-nav__link">Want to publish an event?</a>
+      </nav>
+    </div>
+
+    <div class="footer-copyright">
+      <div class="tup">
+        <img src="images/tup.png" alt="TUP Logo">
+        <p>Technological University of the Philippines - Manila</p>
+      </div>
+      <p class="footer-copyright__text">Copyright EventHive Group 2</p>
+    </div>
+  </footer>
+
+  <!-- ===== MODALS ===== -->
+  
+  <!-- View Title Modal (Read-only) -->
+  <div class="admin-modal-overlay" id="viewTitleModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Event Title</h2>
+        <button class="admin-modal-close" id="closeViewTitleModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p class="view-only-text" id="viewTitleText"></p>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="closeViewTitleBtn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Description Modal (Read-only) -->
+  <div class="admin-modal-overlay" id="viewDescModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Event Description</h2>
+        <button class="admin-modal-close" id="closeViewDescModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p class="view-only-text" id="viewDescText"></p>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="closeViewDescBtn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Location Modal (Read-only) -->
+  <div class="admin-modal-overlay" id="viewLocationModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Event Location</h2>
+        <button class="admin-modal-close" id="closeViewLocationModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p class="view-only-text" id="viewLocationText"></p>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="closeViewLocationBtn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Title Modal -->
+  <div class="admin-modal-overlay" id="editTitleModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Edit Title</h2>
+        <button class="admin-modal-close" id="closeTitleModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <textarea class="admin-modal-input" id="editTitleInput" rows="2"></textarea>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="cancelTitleEdit">Cancel</button>
+          <button class="admin-btn admin-btn--save" id="saveTitleEdit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Description Modal -->
+  <div class="admin-modal-overlay" id="editDescModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Edit Description</h2>
+        <button class="admin-modal-close" id="closeDescModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <textarea class="admin-modal-input" id="editDescInput" rows="5"></textarea>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="cancelDescEdit">Cancel</button>
+          <button class="admin-btn admin-btn--save" id="saveDescEdit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Location Modal -->
+  <div class="admin-modal-overlay" id="editLocationModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Edit Location</h2>
+        <button class="admin-modal-close" id="closeLocationModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <input type="text" class="admin-modal-input" id="editLocationInput" placeholder="Enter location">
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="cancelLocationEdit">Cancel</button>
+          <button class="admin-btn admin-btn--save" id="saveLocationEdit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit College Tags Modal -->
+  <div class="admin-modal-overlay" id="editCollegeModal">
+    <div class="admin-modal-container admin-modal-container--wide">
+      <div class="admin-modal-header">
+        <h2>Select Colleges</h2>
+        <button class="admin-modal-close" id="closeCollegeModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="tag-selector" id="collegeTagSelector">
+          <!-- Checkboxes will be populated by JavaScript -->
+        </div>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="cancelCollegeEdit">Cancel</button>
+          <button class="admin-btn admin-btn--save" id="saveCollegeEdit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Organization Tags Modal -->
+  <div class="admin-modal-overlay" id="editOrgModal">
+    <div class="admin-modal-container admin-modal-container--wide">
+      <div class="admin-modal-header">
+        <h2>Select Organizations</h2>
+        <button class="admin-modal-close" id="closeOrgModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="tag-selector" id="orgTagSelector">
+          <!-- Checkboxes will be populated by JavaScript -->
+        </div>
+        <div class="add-org-section">
+          <input type="text" class="add-org-input" id="newOrgInput" placeholder="Add new organization">
+          <button class="admin-btn admin-btn--add" id="addNewOrgBtn">+ Add</button>
+        </div>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="cancelOrgEdit">Cancel</button>
+          <button class="admin-btn admin-btn--save" id="saveOrgEdit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/eventhive-dropdownmenu.js"></script>
+  <script src="js/eventhive-pop-up__log&sign.js"></script>
+  <script src="js/eventhive-hamburger.js"></script>
+  <script src="js/eventhive-events.js"></script>
+  <script src="js/eventhive-admin.js"></script>
+</body>
+</html>
+

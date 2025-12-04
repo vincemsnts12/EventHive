@@ -4,7 +4,11 @@ const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
 // Change to true to simulate logged-in view
-let isLoggedIn = true; 
+let isLoggedIn = false;
+
+// Change to true to simulate admin view (for testing)
+// In production, this should be a function that checks user role in database
+let isChecker = false; 
 
 profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
@@ -13,6 +17,12 @@ profileIcon.addEventListener('click', (e) => {
   if (isLoggedIn) {
     if (guestLinks) guestLinks.style.display = 'none';
     if (userLinks) userLinks.style.display = 'block';
+    
+    // Show/hide Dashboard link based on admin status
+    const dashboardLink = document.getElementById('navDashboardBtn');
+    if (dashboardLink) {
+      dashboardLink.style.display = isChecker ? 'block' : 'none';
+    }
   } else {
     if (guestLinks) guestLinks.style.display = 'block';
     if (userLinks) userLinks.style.display = 'none';
