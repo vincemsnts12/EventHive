@@ -226,7 +226,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <!-- SUPABASE CLIENT -->
     <script src="js/eventhive-supabase.js"></script> <!-- SUPABASE CONFIGURATION -->
-    <script src="js/eventhive-supabase-services.js"></script> <!-- SUPABASE SERVICES (LIKES, COMMENTS, PROFILES) -->
+    <script src="js/backend/security-services.js"></script> <!-- SECURITY SERVICES (MUST LOAD FIRST) -->
+    <script src="js/backend/eventhive-supabase-services.js"></script> <!-- SUPABASE SERVICES (LIKES, COMMENTS, PROFILES) -->
     <script src="js/eventhive-date-utils.js"></script> <!-- DATE UTILITY FUNCTIONS -->
     <script src="js/eventhive-events.js"></script> <!-- EVENT DATA (needed for liked events) -->
     <script src="js/eventhive-profile-liked.js"></script> <!-- LIKED EVENTS SECTION (uses Supabase) -->

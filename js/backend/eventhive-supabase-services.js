@@ -1,5 +1,6 @@
 // ===== SUPABASE SERVICES FOR LIKES, COMMENTS, AND PROFILES =====
 // This file contains all Supabase database operations
+// Moved to backend folder for better organization
 
 // Ensure Supabase client is initialized
 function getSupabaseClient() {
@@ -27,6 +28,12 @@ async function toggleEventLike(eventId) {
     return { success: false, error: 'User not authenticated' };
   }
 
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id }, 'Invalid eventId in toggleEventLike');
+    return { success: false, error: 'Invalid event ID' };
+  }
+
   try {
     // Check if user already liked this event
     const { data: existingLike, error: checkError } = await supabase
@@ -37,6 +44,7 @@ async function toggleEventLike(eventId) {
       .single();
 
     if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: checkError.message }, 'Error checking like');
       console.error('Error checking like:', checkError);
       return { success: false, error: checkError.message };
     }
@@ -50,6 +58,7 @@ async function toggleEventLike(eventId) {
         .eq('user_id', user.id);
 
       if (deleteError) {
+        logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: deleteError.message }, 'Error unliking');
         console.error('Error unliking:', deleteError);
         return { success: false, error: deleteError.message };
       }
@@ -65,6 +74,7 @@ async function toggleEventLike(eventId) {
         });
 
       if (insertError) {
+        logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: insertError.message }, 'Error liking');
         console.error('Error liking:', insertError);
         return { success: false, error: insertError.message };
       }
@@ -72,6 +82,7 @@ async function toggleEventLike(eventId) {
       return { success: true, liked: true };
     }
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { eventId, userId: user?.id, error: error.message }, 'Unexpected error toggling like');
     console.error('Unexpected error toggling like:', error);
     return { success: false, error: error.message };
   }
@@ -86,6 +97,11 @@ async function getEventLikeCount(eventId) {
   const supabase = getSupabaseClient();
   if (!supabase) {
     return { success: false, count: 0, error: 'Supabase not initialized' };
+  }
+
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, count: 0, error: 'Invalid event ID' };
   }
 
   try {
@@ -120,6 +136,11 @@ async function hasUserLikedEvent(eventId) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return { success: true, liked: false }; // Not logged in = not liked
+  }
+
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, liked: false, error: 'Invalid event ID' };
   }
 
   try {
@@ -189,6 +210,11 @@ async function getEventComments(eventId) {
     return { success: false, comments: [], error: 'Supabase not initialized' };
   }
 
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, comments: [], error: 'Invalid event ID' };
+  }
+
   try {
     const { data, error } = await supabase
       .from('comments')
@@ -252,13 +278,32 @@ async function createComment(eventId, content) {
     return { success: false, error: 'User not authenticated' };
   }
 
-  // Validate content
-  if (!content || content.trim().length === 0) {
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id }, 'Invalid eventId in createComment');
+    return { success: false, error: 'Invalid event ID' };
+  }
+
+  if (!content || typeof content !== 'string') {
+    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id }, 'Invalid content in createComment');
     return { success: false, error: 'Comment cannot be empty' };
   }
 
-  if (content.length > 200) {
+  // Trim and validate content
+  const trimmedContent = content.trim();
+  if (trimmedContent.length === 0) {
+    return { success: false, error: 'Comment cannot be empty' };
+  }
+
+  if (trimmedContent.length > 200) {
+    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id, contentLength: trimmedContent.length }, 'Comment exceeds length limit');
     return { success: false, error: 'Comment cannot exceed 200 characters' };
+  }
+
+  // Profanity filtering
+  const filteredContent = filterProfanity(trimmedContent);
+  if (filteredContent !== trimmedContent) {
+    logSecurityEvent('PROFANITY_FILTERED', { eventId, userId: user.id }, 'Profanity detected in comment');
   }
 
   try {
@@ -267,7 +312,7 @@ async function createComment(eventId, content) {
       .insert({
         event_id: eventId,
         user_id: user.id,
-        content: content.trim()
+        content: filteredContent
       })
       .select(`
         id,
@@ -285,6 +330,7 @@ async function createComment(eventId, content) {
       .single();
 
     if (error) {
+      logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: error.message }, 'Error creating comment');
       console.error('Error creating comment:', error);
       return { success: false, error: error.message };
     }
@@ -304,8 +350,10 @@ async function createComment(eventId, content) {
       }
     };
 
+    logSecurityEvent('COMMENT_CREATED', { eventId, userId: user.id, commentId: data.id }, 'Comment created successfully');
     return { success: true, comment };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { eventId, userId: user?.id, error: error.message }, 'Unexpected error creating comment');
     console.error('Unexpected error creating comment:', error);
     return { success: false, error: error.message };
   }
@@ -327,6 +375,12 @@ async function deleteComment(commentId) {
     return { success: false, error: 'User not authenticated' };
   }
 
+  // Input validation
+  if (!commentId || typeof commentId !== 'string' || commentId.trim().length === 0) {
+    logSecurityEvent('INVALID_INPUT', { commentId, userId: user.id }, 'Invalid commentId in deleteComment');
+    return { success: false, error: 'Invalid comment ID' };
+  }
+
   try {
     const { error } = await supabase
       .from('comments')
@@ -335,12 +389,15 @@ async function deleteComment(commentId) {
       .eq('user_id', user.id); // Ensure user can only delete their own comments
 
     if (error) {
+      logSecurityEvent('DATABASE_ERROR', { commentId, userId: user.id, error: error.message }, 'Error deleting comment');
       console.error('Error deleting comment:', error);
       return { success: false, error: error.message };
     }
 
+    logSecurityEvent('COMMENT_DELETED', { commentId, userId: user.id }, 'Comment deleted successfully');
     return { success: true };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { commentId, userId: user?.id, error: error.message }, 'Unexpected error deleting comment');
     console.error('Unexpected error deleting comment:', error);
     return { success: false, error: error.message };
   }
@@ -366,6 +423,11 @@ async function getUserProfile(userId = null) {
       return { success: false, error: 'User not authenticated' };
     }
     userId = user.id;
+  }
+
+  // Input validation
+  if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+    return { success: false, error: 'Invalid user ID' };
   }
 
   try {
@@ -403,28 +465,71 @@ async function updateUserProfile(profileData) {
     return { success: false, error: 'User not authenticated' };
   }
 
+  // Input validation
+  if (!profileData || typeof profileData !== 'object') {
+    logSecurityEvent('INVALID_INPUT', { userId: user.id }, 'Invalid profileData in updateUserProfile');
+    return { success: false, error: 'Invalid profile data' };
+  }
+
+  // Validate and sanitize inputs
+  const validatedData = {};
+  if (profileData.username !== undefined) {
+    const username = validateUsername(profileData.username);
+    if (!username) {
+      return { success: false, error: 'Invalid username format' };
+    }
+    validatedData.username = username;
+  }
+
+  if (profileData.fullName !== undefined) {
+    const fullName = validateFullName(profileData.fullName);
+    if (!fullName) {
+      return { success: false, error: 'Invalid full name format' };
+    }
+    validatedData.full_name = fullName;
+  }
+
+  if (profileData.bio !== undefined) {
+    const bio = validateBio(profileData.bio);
+    validatedData.bio = bio; // Can be empty/null
+  }
+
+  if (profileData.avatarUrl !== undefined) {
+    const avatarUrl = validateUrl(profileData.avatarUrl);
+    if (avatarUrl === false) {
+      return { success: false, error: 'Invalid avatar URL format' };
+    }
+    validatedData.avatar_url = avatarUrl;
+  }
+
+  if (profileData.coverPhotoUrl !== undefined) {
+    const coverPhotoUrl = validateUrl(profileData.coverPhotoUrl);
+    if (coverPhotoUrl === false) {
+      return { success: false, error: 'Invalid cover photo URL format' };
+    }
+    validatedData.cover_photo_url = coverPhotoUrl;
+  }
+
+  validatedData.updated_at = new Date().toISOString();
+
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .update({
-        username: profileData.username,
-        full_name: profileData.fullName,
-        avatar_url: profileData.avatarUrl,
-        cover_photo_url: profileData.coverPhotoUrl,
-        bio: profileData.bio,
-        updated_at: new Date().toISOString()
-      })
+      .update(validatedData)
       .eq('id', user.id)
       .select()
       .single();
 
     if (error) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: error.message }, 'Error updating profile');
       console.error('Error updating profile:', error);
       return { success: false, error: error.message };
     }
 
+    logSecurityEvent('PROFILE_UPDATED', { userId: user.id }, 'Profile updated successfully');
     return { success: true, profile: data };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, error: error.message }, 'Unexpected error updating profile');
     console.error('Unexpected error updating profile:', error);
     return { success: false, error: error.message };
   }

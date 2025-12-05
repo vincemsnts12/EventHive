@@ -429,9 +429,10 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/eventhive-supabase.js"></script>
-  <script src="js/eventhive-supabase-services.js"></script>
-  <script src="js/eventhive-events-services.js"></script>
-  <script src="js/eventhive-storage-services.js"></script>
+  <script src="js/backend/security-services.js"></script> <!-- SECURITY SERVICES (MUST LOAD FIRST) -->
+  <script src="js/backend/eventhive-supabase-services.js"></script>
+  <script src="js/backend/eventhive-events-services.js"></script>
+  <script src="js/backend/eventhive-storage-services.js"></script>
   <script src="js/eventhive-dropdownmenu.js"></script>
   <script src="js/eventhive-pop-up__log&sign.js"></script>
   <script src="js/eventhive-hamburger.js"></script>

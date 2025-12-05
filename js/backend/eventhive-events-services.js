@@ -1,5 +1,6 @@
 // ===== EVENT CRUD SERVICES FOR SUPABASE =====
 // This file contains all event-related database operations
+// Moved to backend folder with security enhancements
 
 // Ensure Supabase client is initialized
 function getSupabaseClient() {
@@ -25,6 +26,14 @@ async function getEvents(options = {}) {
   const supabase = getSupabaseClient();
   if (!supabase) {
     return { success: false, events: [], error: 'Supabase not initialized' };
+  }
+
+  // Input validation
+  if (options.status && typeof options.status !== 'string') {
+    return { success: false, events: [], error: 'Invalid status filter' };
+  }
+  if (options.collegeCode && typeof options.collegeCode !== 'string') {
+    return { success: false, events: [], error: 'Invalid college code filter' };
   }
 
   try {
@@ -53,6 +62,7 @@ async function getEvents(options = {}) {
     const { data, error } = await query;
 
     if (error) {
+      logSecurityEvent('DATABASE_ERROR', { error: error.message }, 'Error getting events');
       console.error('Error getting events:', error);
       return { success: false, events: [], error: error.message };
     }
@@ -74,6 +84,7 @@ async function getEvents(options = {}) {
 
     return { success: true, events };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { error: error.message }, 'Unexpected error getting events');
     console.error('Unexpected error getting events:', error);
     return { success: false, events: [], error: error.message };
   }
@@ -90,6 +101,16 @@ async function getEventById(eventId) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, error: 'Invalid event ID' };
+  }
+
+  if (!validateUUID(eventId)) {
+    logSecurityEvent('INVALID_INPUT', { eventId }, 'Invalid UUID format in getEventById');
+    return { success: false, error: 'Invalid event ID format' };
+  }
+
   try {
     const { data, error } = await supabase
       .from('events')
@@ -98,6 +119,7 @@ async function getEventById(eventId) {
       .single();
 
     if (error) {
+      logSecurityEvent('DATABASE_ERROR', { eventId, error: error.message }, 'Error getting event');
       console.error('Error getting event:', error);
       return { success: false, error: error.message };
     }
@@ -116,6 +138,7 @@ async function getEventById(eventId) {
 
     return { success: true, event };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { eventId, error: error.message }, 'Unexpected error getting event');
     console.error('Unexpected error getting event:', error);
     return { success: false, error: error.message };
   }
@@ -156,6 +179,7 @@ async function getPublishedEvents() {
       .order('start_date', { ascending: true });
 
     if (error) {
+      logSecurityEvent('DATABASE_ERROR', { error: error.message }, 'Error getting published events');
       console.error('Error getting published events:', error);
       return { success: false, events: [], error: error.message };
     }
@@ -164,13 +188,15 @@ async function getPublishedEvents() {
     const events = await Promise.all((data || []).map(async (dbEvent) => {
       const imagesResult = await getEventImages(dbEvent.id);
       const images = imagesResult.success ? imagesResult.images : [];
+      const thumbnailIndex = imagesResult.success ? imagesResult.thumbnailIndex : 0;
       const likesResult = await getEventLikeCount(dbEvent.id);
       const likesCount = likesResult.success ? likesResult.count : 0;
-      return eventFromDatabase(dbEvent, images, likesCount);
+      return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
     }));
 
     return { success: true, events };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { error: error.message }, 'Unexpected error getting published events');
     console.error('Unexpected error getting published events:', error);
     return { success: false, events: [], error: error.message };
   }
@@ -194,9 +220,39 @@ async function createEvent(eventData) {
     return { success: false, error: 'User not authenticated' };
   }
 
+  // Input validation
+  const title = validateEventTitle(eventData.title);
+  if (!title) {
+    logSecurityEvent('INVALID_INPUT', { userId: user.id, field: 'title' }, 'Invalid event title');
+    return { success: false, error: 'Invalid event title' };
+  }
+
+  const description = validateEventDescription(eventData.description);
+  if (!description) {
+    logSecurityEvent('INVALID_INPUT', { userId: user.id, field: 'description' }, 'Invalid event description');
+    return { success: false, error: 'Invalid event description' };
+  }
+
+  const location = validateEventLocation(eventData.location);
+  if (!location) {
+    logSecurityEvent('INVALID_INPUT', { userId: user.id, field: 'location' }, 'Invalid event location');
+    return { success: false, error: 'Invalid event location' };
+  }
+
+  // Filter profanity from description
+  const filteredDescription = filterProfanity(description);
+  if (containsProfanity(description)) {
+    logSecurityEvent('PROFANITY_FILTERED', { userId: user.id, field: 'description' }, 'Profanity filtered from event description');
+  }
+
   try {
     // Transform to database format
-    const dbEvent = eventToDatabase(eventData);
+    const dbEvent = eventToDatabase({
+      ...eventData,
+      title: title,
+      description: filteredDescription,
+      location: location
+    });
     
     // Set created_by
     dbEvent.created_by = user.id;
@@ -212,6 +268,7 @@ async function createEvent(eventData) {
       .single();
 
     if (insertError) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError.message }, 'Error creating event');
       console.error('Error creating event:', insertError);
       return { success: false, error: insertError.message };
     }
@@ -225,9 +282,12 @@ async function createEvent(eventData) {
       }
     }
 
+    logSecurityEvent('EVENT_CREATED', { userId: user.id, eventId: insertedEvent.id, title: title }, 'Event created successfully');
+
     // Get full event with images and likes
     return getEventById(insertedEvent.id);
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, error: error.message }, 'Unexpected error creating event');
     console.error('Unexpected error creating event:', error);
     return { success: false, error: error.message };
   }
@@ -247,15 +307,59 @@ async function updateEvent(eventId, eventData) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, error: 'Invalid event ID' };
+  }
+
+  if (!validateUUID(eventId)) {
+    logSecurityEvent('INVALID_INPUT', { eventId }, 'Invalid UUID format in updateEvent');
+    return { success: false, error: 'Invalid event ID format' };
+  }
+
   // Check if user is admin
   const adminCheck = await checkIfUserIsAdmin();
   if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to update event');
     return { success: false, error: 'Only admins can update events' };
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Validate and sanitize inputs
+  const validatedData = { ...eventData };
+  
+  if (eventData.title !== undefined) {
+    const title = validateEventTitle(eventData.title);
+    if (!title) {
+      return { success: false, error: 'Invalid event title' };
+    }
+    validatedData.title = title;
+  }
+
+  if (eventData.description !== undefined) {
+    const description = validateEventDescription(eventData.description);
+    if (!description) {
+      return { success: false, error: 'Invalid event description' };
+    }
+    // Filter profanity
+    validatedData.description = filterProfanity(description);
+    if (containsProfanity(description)) {
+      logSecurityEvent('PROFANITY_FILTERED', { userId: user.id, eventId, field: 'description' }, 'Profanity filtered from event description');
+    }
+  }
+
+  if (eventData.location !== undefined) {
+    const location = validateEventLocation(eventData.location);
+    if (!location) {
+      return { success: false, error: 'Invalid event location' };
+    }
+    validatedData.location = location;
   }
 
   try {
     // Transform to database format
-    const dbEvent = eventToDatabase(eventData);
+    const dbEvent = eventToDatabase(validatedData);
     
     // Remove id, created_at, created_by (don't update these)
     delete dbEvent.id;
@@ -274,6 +378,7 @@ async function updateEvent(eventId, eventData) {
       .single();
 
     if (updateError) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error updating event');
       console.error('Error updating event:', updateError);
       return { success: false, error: updateError.message };
     }
@@ -287,9 +392,12 @@ async function updateEvent(eventId, eventData) {
       }
     }
 
+    logSecurityEvent('EVENT_UPDATED', { userId: user.id, eventId }, 'Event updated successfully');
+
     // Get full event with images and likes
     return getEventById(eventId);
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error updating event');
     console.error('Unexpected error updating event:', error);
     return { success: false, error: error.message };
   }
@@ -308,11 +416,24 @@ async function deleteEvent(eventId) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, error: 'Invalid event ID' };
+  }
+
+  if (!validateUUID(eventId)) {
+    logSecurityEvent('INVALID_INPUT', { eventId }, 'Invalid UUID format in deleteEvent');
+    return { success: false, error: 'Invalid event ID format' };
+  }
+
   // Check if user is admin
   const adminCheck = await checkIfUserIsAdmin();
   if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to delete event');
     return { success: false, error: 'Only admins can delete events' };
   }
+
+  const { data: { user } } = await supabase.auth.getUser();
 
   try {
     // Delete event (cascade will delete images, likes, comments)
@@ -322,12 +443,15 @@ async function deleteEvent(eventId) {
       .eq('id', eventId);
 
     if (error) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: error.message }, 'Error deleting event');
       console.error('Error deleting event:', error);
       return { success: false, error: error.message };
     }
 
+    logSecurityEvent('EVENT_DELETED', { userId: user.id, eventId }, 'Event deleted successfully');
     return { success: true };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error deleting event');
     console.error('Unexpected error deleting event:', error);
     return { success: false, error: error.message };
   }
@@ -346,9 +470,20 @@ async function approveEvent(eventId) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, error: 'Invalid event ID' };
+  }
+
+  if (!validateUUID(eventId)) {
+    logSecurityEvent('INVALID_INPUT', { eventId }, 'Invalid UUID format in approveEvent');
+    return { success: false, error: 'Invalid event ID format' };
+  }
+
   // Check if user is admin
   const adminCheck = await checkIfUserIsAdmin();
   if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to approve event');
     return { success: false, error: 'Only admins can approve events' };
   }
 
@@ -378,13 +513,17 @@ async function approveEvent(eventId) {
       .eq('id', eventId);
 
     if (updateError) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error approving event');
       console.error('Error approving event:', updateError);
       return { success: false, error: updateError.message };
     }
 
+    logSecurityEvent('EVENT_APPROVED', { userId: user.id, eventId, newStatus }, 'Event approved successfully');
+
     // Get updated event
     return getEventById(eventId);
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error approving event');
     console.error('Unexpected error approving event:', error);
     return { success: false, error: error.message };
   }
@@ -396,6 +535,14 @@ async function approveEvent(eventId) {
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function rejectEvent(eventId) {
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, error: 'Invalid event ID' };
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  logSecurityEvent('EVENT_REJECTED', { userId: user?.id, eventId }, 'Event rejected by admin');
+  
   // Rejecting is the same as deleting for pending events
   return deleteEvent(eventId);
 }
@@ -411,6 +558,11 @@ async function getEventImages(eventId) {
   const supabase = getSupabaseClient();
   if (!supabase) {
     return { success: false, images: [], thumbnailIndex: 0, error: 'Supabase not initialized' };
+  }
+
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, images: [], thumbnailIndex: 0, error: 'Invalid event ID' };
   }
 
   try {
@@ -454,9 +606,19 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
+  // Input validation
+  if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
+    return { success: false, error: 'Invalid event ID' };
+  }
+
+  if (!Array.isArray(imageUrls)) {
+    return { success: false, error: 'Invalid image URLs array' };
+  }
+
   // Check if user is admin
   const adminCheck = await checkIfUserIsAdmin();
   if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to manage images');
     return { success: false, error: 'Only admins can manage images' };
   }
 
@@ -468,6 +630,7 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
       .eq('event_id', eventId);
 
     if (deleteError) {
+      logSecurityEvent('DATABASE_ERROR', { eventId, error: deleteError.message }, 'Error deleting existing images');
       console.error('Error deleting existing images:', deleteError);
       return { success: false, error: deleteError.message };
     }
@@ -485,6 +648,7 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
         .insert(imageRows);
 
       if (insertError) {
+        logSecurityEvent('DATABASE_ERROR', { eventId, error: insertError.message }, 'Error inserting images');
         console.error('Error inserting images:', insertError);
         return { success: false, error: insertError.message };
       }
@@ -492,6 +656,7 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
 
     return { success: true };
   } catch (error) {
+    logSecurityEvent('UNEXPECTED_ERROR', { eventId, error: error.message }, 'Unexpected error saving event images');
     console.error('Unexpected error saving event images:', error);
     return { success: false, error: error.message };
   }
