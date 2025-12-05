@@ -95,25 +95,48 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ===== EMAIL/PASSWORD LOGIN FORM =====
-  const loginForm = loginModal?.querySelector('.auth-modal-form');
+  // Try multiple ways to find the login form
+  let loginForm = null;
+  if (loginModal) {
+    loginForm = loginModal.querySelector('.auth-modal-form');
+  }
+  if (!loginForm) {
+    // Fallback: try finding by ID or direct query
+    loginForm = document.querySelector('#loginModal .auth-modal-form');
+  }
+  
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      e.stopPropagation();
+      
+      console.log('Login form submitted'); // Debug log
       
       const emailInput = document.getElementById('login-email');
       const passwordInput = document.getElementById('login-password');
-      const submitBtn = loginForm.querySelector('.auth-modal__submit');
+      const submitBtn = loginForm.querySelector('.auth-modal__submit') || loginForm.querySelector('button[type="submit"]');
       
       if (!emailInput || !passwordInput) {
-        alert('Login form fields not found.');
+        console.error('Login form fields not found:', { emailInput: !!emailInput, passwordInput: !!passwordInput });
+        alert('Login form fields not found. Please refresh the page.');
         return;
       }
       
       const email = emailInput.value.trim();
       const password = passwordInput.value;
       
+      if (!email || !password) {
+        alert('Please enter both email and password.');
+        return;
+      }
+      
       // Validate email domain
-      if (!email.endsWith('@tup.edu.ph')) {
+      if (typeof isAllowedEmailDomain === 'function') {
+        if (!isAllowedEmailDomain(email)) {
+          alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
+          return;
+        }
+      } else if (!email.endsWith('@tup.edu.ph')) {
         alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
         return;
       }
@@ -129,27 +152,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const supabase = getSupabaseClient();
         if (supabase) {
           try {
+            console.log('Attempting login with Supabase...'); // Debug log
             const { data, error } = await supabase.auth.signInWithPassword({
               email: email,
               password: password
             });
             
             if (error) {
+              console.error('Login error:', error); // Debug log
               alert('Login failed: ' + error.message);
               // Re-enable submit button
               if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Login';
               }
+              // Log security event for failed login
+              if (typeof logSecurityEvent === 'function') {
+                logSecurityEvent('FAILED_LOGIN', { email: email, error: error.message }, 'User login attempt failed');
+              }
             } else {
+              console.log('Login successful!'); // Debug log
               // Success - close modal and update UI
-              loginModal.style.display = 'none';
+              if (loginModal) {
+                loginModal.style.display = 'none';
+              }
               // Clear form
               emailInput.value = '';
               passwordInput.value = '';
               
               // Wait a moment for session to be established
-              await new Promise(resolve => setTimeout(resolve, 200));
+              await new Promise(resolve => setTimeout(resolve, 300));
               
               // Update UI immediately
               if (typeof updateDropdownAuthState === 'function') {
@@ -165,15 +197,19 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           } catch (err) {
-            console.error('Login error:', err);
+            console.error('Unexpected login error:', err);
             alert('An error occurred during login. Please try again.');
             // Re-enable submit button
             if (submitBtn) {
               submitBtn.disabled = false;
               submitBtn.textContent = 'Login';
             }
+            if (typeof logSecurityEvent === 'function') {
+              logSecurityEvent('UNEXPECTED_ERROR', { email: email, error: err.message }, 'Unexpected error during login');
+            }
           }
         } else {
+          console.error('Supabase client is null');
           alert('Supabase is not configured. Please check your configuration.');
           if (submitBtn) {
             submitBtn.disabled = false;
@@ -181,11 +217,32 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       } else {
+        console.error('getSupabaseClient function not found');
         alert('Supabase functions not available. Please check your configuration.');
         if (submitBtn) {
           submitBtn.disabled = false;
           submitBtn.textContent = 'Login';
         }
+      }
+    });
+  } else {
+    console.warn('Login form not found. Modal:', loginModal);
+  }
+  
+  // ===== FALLBACK: DIRECT LOGIN BUTTON CLICK HANDLER =====
+  // In case form submit doesn't work, handle button click directly
+  const loginSubmitBtn = document.querySelector('#loginModal button[type="submit"]') || 
+                         document.querySelector('#loginModal .auth-modal__submit');
+  if (loginSubmitBtn && !loginForm) {
+    console.log('Using fallback login button handler');
+    loginSubmitBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Trigger form submission manually
+      const form = loginSubmitBtn.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       }
     });
   }
