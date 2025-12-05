@@ -285,13 +285,77 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Listen for auth state changes (when user logs in/out)
-// Force check when auth state changes (bypasses 5-minute cache)
+// REPLACED: consolidated Supabase auth listener to save/clear cache immediately
 if (typeof getSupabaseClient === 'function') {
   const supabase = getSupabaseClient();
-  if (supabase) {
-    supabase.auth.onAuthStateChange(() => {
-      updateDropdownAuthState(true); // Force check on auth state change
+  if (supabase && supabase.auth && typeof supabase.auth.onAuthStateChange === 'function') {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      try {
+        if (event === 'SIGNED_OUT') {
+          // Clear cache and force guest UI immediately
+          clearAllCaches();
+          if (dropdownMenu) dropdownMenu.classList.remove('show');
+          applyDropdownState('guest');
+          return;
+        }
+
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          // Determine login + admin status and persist it immediately
+          let isLoggedIn = false;
+          let isAdmin = false;
+
+          // Fast check: session info from the event
+          if (session && (session.user || session.access_token || session.session)) {
+            isLoggedIn = true;
+          } else {
+            // Fallback: try Supabase client user getter
+            try {
+              const userResp = await (supabase.auth.getUser?.() || supabase.auth.user?.());
+              const user = userResp?.data?.user || userResp || null;
+              if (user) isLoggedIn = true;
+            } catch (e) {
+              // ignore - will treat as logged out
+            }
+          }
+
+          if (isLoggedIn) {
+            // Prefer app-provided admin check function if available
+            if (typeof checkIfUserIsAdmin === 'function') {
+              try {
+                const adminResult = await checkIfUserIsAdmin();
+                isAdmin = !!(adminResult && adminResult.success && adminResult.isAdmin === true);
+              } catch (e) { /* ignore and fallback */ }
+            }
+
+            // Fallback: inspect user metadata for a role flag
+            if (!isAdmin) {
+              try {
+                const userResp = session?.user ? { user: session.user } : (await supabase.auth.getUser())?.data;
+                const user = userResp?.user || userResp;
+                if (user && (user.app_metadata?.role === 'admin' || user.user_metadata?.role === 'admin')) {
+                  isAdmin = true;
+                }
+              } catch (e) { /* ignore */ }
+            }
+
+            // Persist the auth state RIGHT AWAY so other pages read it immediately after navigation
+            saveCachedAuthState(true, isAdmin);
+            return;
+          }
+
+          // If we reach here, treat as logged out
+          saveCachedAuthState(false, false);
+          applyDropdownState('guest');
+          return;
+        }
+
+        // For other events, conservative refresh
+        updateDropdownAuthState(true);
+      } catch (err) {
+        console.error('Error handling auth state change:', err);
+        // Fallback to forcing a refresh
+        updateDropdownAuthState(true);
+      }
     });
   }
 }
@@ -357,25 +421,6 @@ if (logoutBtn) {
     
     // State is already applied in clearAllCaches
   });
-}
-
-// Listen for auth state changes (when user logs in/out)
-// Force check when auth state changes (bypasses 5-minute cache)
-if (typeof getSupabaseClient === 'function') {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        // User logged out - clear caches and close dropdown
-        clearAllCaches();
-        if (dropdownMenu) {
-          dropdownMenu.classList.remove('show');
-        }
-      } else {
-        updateDropdownAuthState(true); // Force check on auth state change
-      }
-    });
-  }
 }
 
 // Clear caches when tab closes
