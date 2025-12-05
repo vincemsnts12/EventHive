@@ -54,6 +54,35 @@
              </div>
 
           </div>
+          <script>
+            (function() {
+              try {
+                const cached = sessionStorage.getItem('eventhive_auth_cache');
+                if (cached) {
+                  const parsed = JSON.parse(cached);
+                  const now = Date.now();
+                  if (now - parsed.timestamp < 5 * 60 * 1000 && parsed.state) {
+                    const isLoggedIn = parsed.state.isLoggedIn;
+                    const isAdmin = parsed.state.isAdmin;
+                    const guestLinks = document.getElementById('guestLinks');
+                    const userLinks = document.getElementById('userLinks');
+                    const dashboardLink = document.getElementById('navDashboardBtn');
+                    if (guestLinks && userLinks) {
+                      if (isLoggedIn) {
+                        guestLinks.style.display = 'none';
+                        userLinks.style.display = 'block';
+                        if (dashboardLink) dashboardLink.style.display = isAdmin ? 'block' : 'none';
+                      } else {
+                        guestLinks.style.display = 'block';
+                        userLinks.style.display = 'none';
+                        if (dashboardLink) dashboardLink.style.display = 'none';
+                      }
+                    }
+                  }
+                }
+              } catch (e) {}
+            })();
+          </script>
     
       </div>
 
