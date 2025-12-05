@@ -154,10 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
               emailInput.value = '';
               passwordInput.value = '';
               
-              // Wait for session to be established
-              await new Promise(resolve => setTimeout(resolve, 200));
+              // Wait longer for session to be fully established
+              await new Promise(resolve => setTimeout(resolve, 500));
               
               // Update UI and cache auth state (includes dashboard/admin status)
+              // Wait for this to complete to ensure isAdmin is loaded
               if (typeof updateDropdownAuthState === 'function') {
                 await updateDropdownAuthState(true); // Force update after login - this caches auth state
               }
@@ -165,15 +166,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 await updateMobileMenuAuthState();
               }
               
-              // Preload profile data for instant access (cache profile)
+              // Load and cache profile data immediately after login (wait for completion)
               if (typeof getUserProfile === 'function') {
-                getUserProfile().then(result => {
-                  if (result.success && result.profile) {
+                try {
+                  const profileResult = await getUserProfile();
+                  if (profileResult.success && profileResult.profile) {
                     // Cache profile data in localStorage for instant loading
                     try {
                       const profileCache = {
                         timestamp: Date.now(),
-                        profile: result.profile
+                        profile: profileResult.profile
                       };
                       localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
                       console.log('Profile cached after login');
@@ -181,9 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
                       console.error('Error caching profile:', e);
                     }
                   }
-                }).catch(err => {
+                } catch (err) {
                   console.error('Error preloading profile:', err);
-                });
+                }
               }
               
               // Ensure 5-minute auth checker is running (it should already be set up, but verify)
