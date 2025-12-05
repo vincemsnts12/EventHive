@@ -3,7 +3,9 @@
 document.addEventListener('DOMContentLoaded', function() {
   
   // ===== LOAD SAVED PROFILE DATA =====
-  loadSavedProfileData();
+  // Profile data is now loaded from Supabase via eventhive-profile-load.js
+  // This localStorage function is kept as fallback only
+  // loadSavedProfileData();
 
   // ===== EDIT PROFILE BUTTON ACTIVE STATE =====
   const editProfileBtn = document.querySelector('.edit-profile-btn');

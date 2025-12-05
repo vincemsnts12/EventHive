@@ -21,70 +21,10 @@ let availableOrganizations = [
   'TUP Entrepreneurship Club'
 ];
 
-// Pending Events (from Google Forms submissions)
-// Raw data - will be enriched with parsed dates
-const pendingEventsDataRaw = {
-  'pending-1': {
-    title: 'Hackathon 2025: Code Your Future',
-    description: 'A 48-hour coding competition where students will build innovative solutions to real-world problems. Prizes and mentorship opportunities await!',
-    location: 'College of Engineering – Computer Lab',
-    date: 'January 15, 2026 (Thursday) | 8:00 AM - 6:00 PM',
-    status: 'Pending',
-    isFeatured: false, // Default for pending events
-    likes: 0, // Default for pending events
-    college: 'COE',
-    collegeColor: 'coe',
-    organization: 'TUP Programming Club',
-    images: ['images/tup.png'],
-    universityLogo: 'images/tup.png',
-    id: 'pending-1',
-    createdAt: null,
-    updatedAt: null,
-    createdBy: null
-  },
-  'pending-2': {
-    title: 'Art Exhibition: Colors of Innovation',
-    description: 'Showcase of student artworks featuring digital art, traditional paintings, and mixed media installations celebrating creativity and innovation.',
-    location: 'College of Architecture – Gallery Hall',
-    date: 'February 10, 2026 (Tuesday) | 10:00 AM - 7:00 PM',
-    status: 'Pending',
-    isFeatured: false, // Default for pending events
-    likes: 0, // Default for pending events
-    college: 'CAFA',
-    collegeColor: 'cafa',
-    organization: 'TUP Visual Arts Society',
-    images: ['images/tup.png'],
-    universityLogo: 'images/tup.png',
-    id: 'pending-2',
-    createdAt: null,
-    updatedAt: null,
-    createdBy: null
-  },
-  'pending-3': {
-    title: 'Science Fair 2026: Innovation Showcase',
-    description: 'Annual science fair featuring student research projects, experiments, and innovations across various scientific disciplines.',
-    location: 'College of Science – Main Hall',
-    date: 'March 5, 2026 (Thursday) | 9:00 AM - 4:00 PM',
-    status: 'Pending',
-    isFeatured: false, // Default for pending events
-    likes: 0, // Default for pending events
-    college: 'COS',
-    collegeColor: 'cos',
-    organization: 'TUP Science Society',
-    images: ['images/tup.png'],
-    universityLogo: 'images/tup.png',
-    id: 'pending-3',
-    createdAt: null,
-    updatedAt: null,
-    createdBy: null
-  }
-};
-
-// Enrich pending events data with parsed dates and calculated fields
-// Note: This will be re-enriched when new events are added
-let pendingEventsData = typeof enrichEventsData !== 'undefined' 
-  ? enrichEventsData(pendingEventsDataRaw)
-  : pendingEventsDataRaw;
+// ===== PENDING EVENTS DATA =====
+// Pending events are loaded from Supabase database
+// This object will be populated by Supabase queries (see eventhive-admin-init.js)
+let pendingEventsData = {};
 
 // Current editing state
 let currentEditingEventId = null;
@@ -385,7 +325,7 @@ function populatePublishedEventsTable() {
 
 // ===== GENERATE UNIQUE PENDING EVENT ID =====
 function generatePendingEventId() {
-  const existingIds = Object.keys(pendingEventsDataRaw);
+  const existingIds = Object.keys(pendingEventsData);
   let counter = 1;
   let newId = `pending-${counter}`;
   
@@ -441,17 +381,8 @@ function createNewPendingEvent() {
     createdBy: null
   };
   
-  // Add to raw data
-  pendingEventsDataRaw[newId] = newEvent;
-  
-  // Re-enrich the data
-  if (typeof enrichEventsData !== 'undefined') {
-    // Re-enrich all pending events data
-    pendingEventsData = enrichEventsData(pendingEventsDataRaw);
-  } else {
-    // Fallback: just add to pendingEventsData directly
-    pendingEventsData[newId] = newEvent;
-  }
+  // Add to pending events data
+  pendingEventsData[newId] = newEvent;
   
   // Re-render the table
   populatePendingEventsTable();
@@ -1333,11 +1264,8 @@ function saveDateEdit() {
       event.status = calculateEventStatus(startDateTime, endDateTime, event.status === 'Pending' ? 'Pending' : null);
     }
     
-    // Re-enrich the event to ensure all fields are updated
-    if (typeof enrichEventsData !== 'undefined') {
-      const enriched = enrichEventsData({ [currentEditingEventId]: event });
-      Object.assign(event, enriched[currentEditingEventId]);
-    }
+    // Event data is already in the correct format from Supabase
+    // No need to enrich - event is already updated
     
     if (currentEditingTable === 'published') {
       rowsInEditMode.delete(currentEditingEventId);

@@ -21,11 +21,11 @@ function previewImage(input, imgId) {
    2. Main Profile "Confirm Changes" Logic
    Triggered via onclick="return confirmMainChanges()" in HTML
    ========================================= */
+// confirmMainChanges is now defined in eventhive-profile-edit-save.js
+// This function is kept for backward compatibility but will be overridden
 function confirmMainChanges() {
-    // In a real app, you would validate inputs here first
-    alert("Profile details updated successfully!");
-    // Return true allows the <a> tag to navigate to eventhive-profile.html
-    return true; 
+    // This will be handled by eventhive-profile-edit-save.js
+    return false;
 }
 
 /* =========================================

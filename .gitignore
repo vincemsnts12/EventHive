@@ -11,6 +11,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Built files with injected credentials
+js/eventhive-supabase.js
+
 # IDE
 .vscode/
 .idea/

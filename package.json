@@ -1,0 +1,13 @@
+{
+  "name": "eventhive",
+  "version": "1.0.0",
+  "description": "EventHive - TUP Event Management System",
+  "scripts": {
+    "build": "node build.js",
+    "vercel-build": "node build.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
+

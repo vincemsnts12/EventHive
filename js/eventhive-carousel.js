@@ -94,9 +94,20 @@ dots.forEach((dot, i) => dot.addEventListener('click', () => {
   resetAutoSlideTimer();
 }));
 
-// Initialize
-initSlides();
-goToSlide(0);
+// Initialize carousel when events are loaded
+// This will be called by eventhive-homepage-init.js after events are loaded from Supabase
+// For now, initialize if eventsData already has data (fallback for non-Supabase scenarios)
+if (typeof eventsData !== 'undefined' && Object.keys(eventsData).length > 0) {
+  initSlides();
+  goToSlide(0);
+} else {
+  // Wait for events to be loaded - homepage-init.js will call initSlides() and goToSlide(0)
+  // Export functions for external initialization
+  window.initCarousel = function() {
+    initSlides();
+    goToSlide(0);
+  };
+}
 
 // Render Top Events Today (top 3 by likes)
 function renderTopEvents() {
