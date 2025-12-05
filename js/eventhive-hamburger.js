@@ -11,15 +11,37 @@ async function updateMobileMenuAuthState() {
   let loggedIn = false;
   let isAdmin = false;
   
-  if (typeof getCurrentUser === 'function') {
-    const userResult = await getCurrentUser();
-    loggedIn = userResult.success && userResult.user !== null;
-    
-    // Check if user is admin
-    if (loggedIn && typeof checkIfUserIsAdmin === 'function') {
-      const adminResult = await checkIfUserIsAdmin();
-      isAdmin = adminResult.success && adminResult.isAdmin === true;
+  try {
+    // Method 1: Try using getCurrentUser function
+    if (typeof getCurrentUser === 'function') {
+      const userResult = await getCurrentUser();
+      loggedIn = userResult.success && userResult.user !== null;
+      
+      // Check if user is admin
+      if (loggedIn && typeof checkIfUserIsAdmin === 'function') {
+        const adminResult = await checkIfUserIsAdmin();
+        isAdmin = adminResult.success && adminResult.isAdmin === true;
+      }
+    } 
+    // Method 2: Fallback - check Supabase session directly
+    else if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        loggedIn = !!(session && session.user);
+        
+        // Check if user is admin
+        if (loggedIn && typeof checkIfUserIsAdmin === 'function') {
+          const adminResult = await checkIfUserIsAdmin();
+          isAdmin = adminResult.success && adminResult.isAdmin === true;
+        }
+      }
     }
+  } catch (error) {
+    console.error('Error checking mobile menu auth state:', error);
+    // Default to logged out on error
+    loggedIn = false;
+    isAdmin = false;
   }
   
   if (mobileGuestLinks && mobileUserLinks) {
@@ -43,6 +65,8 @@ async function updateMobileMenuAuthState() {
       }
     }
   }
+  
+  console.log('Mobile menu auth state updated:', { loggedIn, isAdmin });
 }
 
 // Toggle mobile menu

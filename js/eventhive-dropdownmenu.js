@@ -9,15 +9,37 @@ async function updateDropdownAuthState() {
   let isLoggedIn = false;
   let isAdmin = false;
   
-  if (typeof getCurrentUser === 'function') {
-    const userResult = await getCurrentUser();
-    isLoggedIn = userResult.success && userResult.user !== null;
-    
-    // Check if user is admin
-    if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
-      const adminResult = await checkIfUserIsAdmin();
-      isAdmin = adminResult.success && adminResult.isAdmin === true;
+  try {
+    // Method 1: Try using getCurrentUser function
+    if (typeof getCurrentUser === 'function') {
+      const userResult = await getCurrentUser();
+      isLoggedIn = userResult.success && userResult.user !== null;
+      
+      // Check if user is admin
+      if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
+        const adminResult = await checkIfUserIsAdmin();
+        isAdmin = adminResult.success && adminResult.isAdmin === true;
+      }
+    } 
+    // Method 2: Fallback - check Supabase session directly
+    else if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        isLoggedIn = !!(session && session.user);
+        
+        // Check if user is admin
+        if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
+          const adminResult = await checkIfUserIsAdmin();
+          isAdmin = adminResult.success && adminResult.isAdmin === true;
+        }
+      }
     }
+  } catch (error) {
+    console.error('Error checking auth state:', error);
+    // Default to logged out on error
+    isLoggedIn = false;
+    isAdmin = false;
   }
   
   // Update UI based on auth state
@@ -40,6 +62,8 @@ async function updateDropdownAuthState() {
       dashboardLink.style.display = 'none';
     }
   }
+  
+  console.log('Dropdown auth state updated:', { isLoggedIn, isAdmin });
 }
 
 profileIcon.addEventListener('click', async (e) => {
