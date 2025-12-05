@@ -83,31 +83,18 @@ function toggleMobileMenu(e) {
     e.stopPropagation();
   }
   
-  console.log('toggleMobileMenu called');
-  
   // Get elements fresh each time (they might not exist when script loads)
   const btn = document.getElementById('hamburgerBtn');
   const menu = document.getElementById('mobileMenu');
   const overlay = document.getElementById('mobileMenuOverlay');
   
-  console.log('Elements found:', { btn, menu, overlay });
-  
   if (!btn || !menu || !overlay) {
-    console.error('Menu elements not found:', { btn, menu, overlay });
     return;
   }
-  
-  console.log('Before toggle - btn classes:', btn.classList.toString());
-  console.log('Before toggle - menu classes:', menu.classList.toString());
-  console.log('Before toggle - overlay classes:', overlay.classList.toString());
   
   btn.classList.toggle('active');
   menu.classList.toggle('active');
   overlay.classList.toggle('active');
-  
-  console.log('After toggle - btn classes:', btn.classList.toString());
-  console.log('After toggle - menu classes:', menu.classList.toString());
-  console.log('After toggle - overlay classes:', overlay.classList.toString());
   
   // Update auth state when opening menu (use cache directly, no async)
   updateMobileMenuAuthState();
@@ -137,14 +124,10 @@ function closeMobileMenu() {
 function attachHamburgerListener() {
   const btn = document.getElementById('hamburgerBtn');
   if (btn) {
-    console.log('Attaching click listener to hamburger button');
     // Remove any existing listeners by cloning
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     newBtn.addEventListener('click', toggleMobileMenu);
-    console.log('Click listener attached successfully');
-  } else {
-    console.warn('Hamburger button not found for listener attachment');
   }
 }
 
@@ -160,7 +143,6 @@ if (document.readyState !== 'loading') {
 // Event delegation as ultimate backup
 document.addEventListener('click', (e) => {
   if (e.target.closest('#hamburgerBtn')) {
-    console.log('Hamburger button clicked via event delegation');
     toggleMobileMenu(e);
   }
 }, true);
