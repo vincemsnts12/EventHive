@@ -6,11 +6,21 @@ const mobileGuestLinks = document.getElementById('mobileGuestLinks');
 const mobileUserLinks = document.getElementById('mobileUserLinks');
 
 // Function to update mobile menu based on login state
-function updateMobileMenuAuthState() {
-  // Get login state from the dropdown menu script (isLoggedIn variable)
-  // This checks if the global isLoggedIn variable exists
-  const loggedIn = (typeof isLoggedIn !== 'undefined') ? isLoggedIn : false;
-  const isAdmin = (typeof isChecker !== 'undefined') ? isChecker : false;
+async function updateMobileMenuAuthState() {
+  // Check if user is logged in using Supabase
+  let loggedIn = false;
+  let isAdmin = false;
+  
+  if (typeof getCurrentUser === 'function') {
+    const userResult = await getCurrentUser();
+    loggedIn = userResult.success && userResult.user !== null;
+    
+    // Check if user is admin
+    if (loggedIn && typeof checkIfUserIsAdmin === 'function') {
+      const adminResult = await checkIfUserIsAdmin();
+      isAdmin = adminResult.success && adminResult.isAdmin === true;
+    }
+  }
   
   if (mobileGuestLinks && mobileUserLinks) {
     if (loggedIn) {
@@ -25,18 +35,24 @@ function updateMobileMenuAuthState() {
     } else {
       mobileGuestLinks.style.display = 'block';
       mobileUserLinks.style.display = 'none';
+      
+      // Hide dashboard link for non-logged-in users
+      const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
+      if (mobileDashboardBtn) {
+        mobileDashboardBtn.style.display = 'none';
+      }
     }
   }
 }
 
 // Toggle mobile menu
-function toggleMobileMenu() {
+async function toggleMobileMenu() {
   hamburgerBtn.classList.toggle('active');
   mobileMenu.classList.toggle('active');
   mobileMenuOverlay.classList.toggle('active');
   
   // Update auth state when opening menu
-  updateMobileMenuAuthState();
+  await updateMobileMenuAuthState();
   
   // Prevent body scroll when menu is open
   if (mobileMenu.classList.contains('active')) {
@@ -107,18 +123,34 @@ if (mobileSignupBtn) {
 // Mobile Logout Button
 const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
 if (mobileLogoutBtn) {
-  mobileLogoutBtn.addEventListener('click', (e) => {
+  mobileLogoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    // Set logged out state
-    if (typeof isLoggedIn !== 'undefined') {
-      isLoggedIn = false;
+    
+    // Sign out using Supabase
+    if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
     }
-    // Update both menus
-    updateMobileMenuAuthState();
+    
+    // Update menus
+    await updateMobileMenuAuthState();
     closeMobileMenu();
+    
     // Optionally redirect to homepage
     // window.location.href = 'eventhive-homepage.html';
   });
+}
+
+// Listen for auth state changes (when user logs in/out)
+if (typeof getSupabaseClient === 'function') {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    supabase.auth.onAuthStateChange(() => {
+      updateMobileMenuAuthState();
+    });
+  }
 }
 
 // Initialize auth state on page load
