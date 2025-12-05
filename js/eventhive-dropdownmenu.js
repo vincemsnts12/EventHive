@@ -3,21 +3,53 @@ const dropdownMenu = document.getElementById('dropdownMenu');
 const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
-// Cache for auth state (5 minutes)
-let lastAuthCheck = 0;
-let cachedAuthState = { isLoggedIn: false, isAdmin: false };
+// Cache for auth state (5 minutes) - persisted across page loads
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_KEY = 'eventhive_auth_cache';
+
+// Get cached auth state from localStorage
+function getCachedAuthState() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const now = Date.now();
+      const timeSinceLastCheck = now - parsed.timestamp;
+      
+      // Return cache if it's less than 5 minutes old
+      if (timeSinceLastCheck < AUTH_CHECK_INTERVAL) {
+        return parsed.state;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading auth cache:', e);
+  }
+  return null;
+}
+
+// Save auth state to localStorage
+function saveCachedAuthState(isLoggedIn, isAdmin) {
+  try {
+    const cache = {
+      timestamp: Date.now(),
+      state: { isLoggedIn, isAdmin }
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {
+    console.error('Error saving auth cache:', e);
+  }
+}
 
 // Update dropdown menu based on authentication state
 async function updateDropdownAuthState(forceCheck = false) {
-  const now = Date.now();
-  const timeSinceLastCheck = now - lastAuthCheck;
-  
-  // Only check if forced or if 5 minutes have passed
-  if (!forceCheck && timeSinceLastCheck < AUTH_CHECK_INTERVAL) {
-    // Use cached state
-    applyAuthStateToUI(cachedAuthState.isLoggedIn, cachedAuthState.isAdmin);
-    return;
+  // Check cache first (unless forced)
+  if (!forceCheck) {
+    const cached = getCachedAuthState();
+    if (cached !== null) {
+      // Use cached state - instant UI update
+      applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
+      return;
+    }
   }
   
   // Perform actual auth check
@@ -35,9 +67,8 @@ async function updateDropdownAuthState(forceCheck = false) {
     }
   }
   
-  // Update cache
-  lastAuthCheck = now;
-  cachedAuthState = { isLoggedIn, isAdmin };
+  // Save to cache
+  saveCachedAuthState(isLoggedIn, isAdmin);
   
   // Update UI
   applyAuthStateToUI(isLoggedIn, isAdmin);
@@ -68,13 +99,22 @@ function applyAuthStateToUI(isLoggedIn, isAdmin) {
 
 profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
-  // Just toggle the dropdown - auth state is already checked on page load
+  // Just toggle the dropdown - uses cached auth state (instant)
   dropdownMenu.classList.toggle('show');
+  // Update UI from cache (no delay)
+  updateDropdownAuthState(false); // false = use cache if available
 });
 
-// Initialize auth state on page load (when HTML loads)
-document.addEventListener('DOMContentLoaded', async () => {
-  await updateDropdownAuthState();
+// Initialize: Load cached state immediately (no delay)
+document.addEventListener('DOMContentLoaded', () => {
+  // Apply cached state immediately if available
+  const cached = getCachedAuthState();
+  if (cached !== null) {
+    applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
+  }
+  
+  // Then check auth in background (only if cache expired or doesn't exist)
+  updateDropdownAuthState(false);
 });
 
 // Listen for auth state changes (when user logs in/out)
@@ -88,7 +128,7 @@ if (typeof getSupabaseClient === 'function') {
   }
 }
 
-// Set up periodic check every 5 minutes
+// Set up periodic check every 5 minutes (background refresh)
 setInterval(() => {
   updateDropdownAuthState(true); // Force check every 5 minutes
 }, AUTH_CHECK_INTERVAL);
