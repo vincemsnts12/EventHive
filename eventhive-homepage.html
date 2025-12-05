@@ -12,63 +12,71 @@
   <link rel="stylesheet" href="css/eventhive-common.css">
   <link rel="stylesheet" href="css/eventhive-homepage.css">
   
-  <!-- Inline script to set initial auth state from cache (prevents flash) -->
+  <!-- Blocking script to set initial auth state IMMEDIATELY (prevents flash) -->
   <script>
     (function() {
       try {
-        const cached = sessionStorage.getItem('eventhive_auth_cache');
+        const cached = localStorage.getItem('eventhive_auth_cache');
         if (cached) {
           const parsed = JSON.parse(cached);
           const now = Date.now();
-          const timeSinceLastCheck = now - parsed.timestamp;
-          // If cache is less than 5 minutes old, use it
-          if (timeSinceLastCheck < 5 * 60 * 1000 && parsed.state) {
-            const isLoggedIn = parsed.state.isLoggedIn;
-            const isAdmin = parsed.state.isAdmin;
-            // Set initial state before body renders
-            document.addEventListener('DOMContentLoaded', function() {
+          if (now - parsed.timestamp < 5 * 60 * 1000 && parsed.state) {
+            window.__eventhive_auth_cache = parsed.state; // Store in window for immediate access
+            // Try to set state immediately if elements exist
+            function setAuthState() {
               const guestLinks = document.getElementById('guestLinks');
               const userLinks = document.getElementById('userLinks');
               const dashboardLink = document.getElementById('navDashboardBtn');
-              if (guestLinks && userLinks) {
-                if (isLoggedIn) {
-                  guestLinks.style.display = 'none';
-                  userLinks.style.display = 'block';
-                  if (dashboardLink) {
-                    dashboardLink.style.display = isAdmin ? 'block' : 'none';
-                  }
-                } else {
-                  guestLinks.style.display = 'block';
-                  userLinks.style.display = 'none';
-                  if (dashboardLink) {
-                    dashboardLink.style.display = 'none';
-                  }
-                }
-              }
-              // Mobile menu
               const mobileGuestLinks = document.getElementById('mobileGuestLinks');
               const mobileUserLinks = document.getElementById('mobileUserLinks');
               const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
+              
+              if (guestLinks && userLinks) {
+                if (parsed.state.isLoggedIn) {
+                  guestLinks.style.display = 'none';
+                  userLinks.style.display = 'block';
+                  if (dashboardLink) dashboardLink.style.display = parsed.state.isAdmin ? 'block' : 'none';
+                } else {
+                  guestLinks.style.display = 'block';
+                  userLinks.style.display = 'none';
+                  if (dashboardLink) dashboardLink.style.display = 'none';
+                }
+              }
+              
               if (mobileGuestLinks && mobileUserLinks) {
-                if (isLoggedIn) {
+                if (parsed.state.isLoggedIn) {
                   mobileGuestLinks.style.display = 'none';
                   mobileUserLinks.style.display = 'block';
-                  if (mobileDashboardBtn) {
-                    mobileDashboardBtn.style.display = isAdmin ? 'block' : 'none';
-                  }
+                  if (mobileDashboardBtn) mobileDashboardBtn.style.display = parsed.state.isAdmin ? 'block' : 'none';
                 } else {
                   mobileGuestLinks.style.display = 'block';
                   mobileUserLinks.style.display = 'none';
-                  if (mobileDashboardBtn) {
-                    mobileDashboardBtn.style.display = 'none';
-                  }
+                  if (mobileDashboardBtn) mobileDashboardBtn.style.display = 'none';
                 }
               }
-            });
+            }
+            
+            // Try immediately (if body is already parsed)
+            if (document.body) {
+              setAuthState();
+            } else {
+              // Wait for body, but use a synchronous approach
+              const originalWrite = document.write;
+              let bodyFound = false;
+              const checkInterval = setInterval(function() {
+                if (document.body) {
+                  clearInterval(checkInterval);
+                  setAuthState();
+                }
+              }, 0);
+              
+              // Also try on DOMContentLoaded as backup
+              document.addEventListener('DOMContentLoaded', setAuthState, { once: true });
+            }
           }
         }
       } catch (e) {
-        // Silently fail - main script will handle it
+        // Silently fail
       }
     })();
   </script>
@@ -118,7 +126,7 @@
           <script>
             (function() {
               try {
-                const cached = sessionStorage.getItem('eventhive_auth_cache');
+                const cached = localStorage.getItem('eventhive_auth_cache');
                 if (cached) {
                   const parsed = JSON.parse(cached);
                   const now = Date.now();

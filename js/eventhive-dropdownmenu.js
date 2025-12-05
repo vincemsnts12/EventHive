@@ -3,14 +3,14 @@ const dropdownMenu = document.getElementById('dropdownMenu');
 const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
-// Cache for auth state (5 minutes) - persisted across page loads in same tab (sessionStorage)
+// Cache for auth state (5 minutes) - persisted across page loads in same tab (localStorage for instant access)
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CACHE_KEY = 'eventhive_auth_cache';
 
-// Get cached auth state from sessionStorage
+// Get cached auth state from localStorage
 function getCachedAuthState() {
   try {
-    const cached = sessionStorage.getItem(CACHE_KEY);
+    const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
       const now = Date.now();
@@ -27,14 +27,14 @@ function getCachedAuthState() {
   return null;
 }
 
-// Save auth state to sessionStorage
+// Save auth state to localStorage
 function saveCachedAuthState(isLoggedIn, isAdmin) {
   try {
     const cache = {
       timestamp: Date.now(),
       state: { isLoggedIn, isAdmin }
     };
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   } catch (e) {
     console.error('Error saving auth cache:', e);
   }
@@ -173,8 +173,8 @@ setInterval(() => {
 // Clear all caches
 function clearAllCaches() {
   try {
-    sessionStorage.removeItem(CACHE_KEY);
-    sessionStorage.removeItem('eventhive_profile_cache');
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem('eventhive_profile_cache');
   } catch (e) {
     console.error('Error clearing caches:', e);
   }

@@ -5,14 +5,14 @@ const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
 const mobileGuestLinks = document.getElementById('mobileGuestLinks');
 const mobileUserLinks = document.getElementById('mobileUserLinks');
 
-// Use same cache as desktop dropdown (shared sessionStorage)
+// Use same cache as desktop dropdown (shared localStorage)
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CACHE_KEY = 'eventhive_auth_cache';
 
-// Get cached auth state from sessionStorage (shared with desktop)
+// Get cached auth state from localStorage (shared with desktop)
 function getCachedAuthState() {
   try {
-    const cached = sessionStorage.getItem(CACHE_KEY);
+    const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
       const now = Date.now();
@@ -29,14 +29,14 @@ function getCachedAuthState() {
   return null;
 }
 
-// Save auth state to sessionStorage (shared with desktop)
+// Save auth state to localStorage (shared with desktop)
 function saveCachedAuthState(isLoggedIn, isAdmin) {
   try {
     const cache = {
       timestamp: Date.now(),
       state: { isLoggedIn, isAdmin }
     };
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   } catch (e) {
     console.error('Error saving auth cache:', e);
   }
@@ -179,8 +179,8 @@ if (mobileSignupBtn) {
 // Clear all caches function
 function clearAllCaches() {
   try {
-    sessionStorage.removeItem('eventhive_auth_cache');
-    sessionStorage.removeItem('eventhive_profile_cache');
+    localStorage.removeItem('eventhive_auth_cache');
+    localStorage.removeItem('eventhive_profile_cache');
   } catch (e) {
     console.error('Error clearing caches:', e);
   }

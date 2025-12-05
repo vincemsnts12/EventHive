@@ -60,7 +60,7 @@
           <script>
             (function() {
               try {
-                const cached = sessionStorage.getItem('eventhive_auth_cache');
+                const cached = localStorage.getItem('eventhive_auth_cache');
                 if (cached) {
                   const parsed = JSON.parse(cached);
                   const now = Date.now();
