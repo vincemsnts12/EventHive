@@ -28,8 +28,24 @@
         <a href="eventhive-search.html"><svg width="25" height="26" viewBox="0 0 25 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18.2965 16.6861C19.7962 14.6074 20.4679 12.03 20.1773 9.46977C19.8866 6.90951 18.6549 4.55515 16.7288 2.87771C14.8026 1.20027 12.324 0.323458 9.78869 0.42269C7.25343 0.521921 4.84854 1.58988 3.05515 3.41291C1.26177 5.23593 0.21214 7.67958 0.116266 10.255C0.0203925 12.8304 0.885342 15.3475 2.53807 17.3029C4.1908 19.2583 6.50942 20.5077 9.03006 20.8012C11.5507 21.0946 14.0875 20.4105 16.1329 18.8856H16.1313C16.1767 18.9485 16.2273 19.0088 16.2831 19.0665L22.246 25.1236C22.5364 25.4188 22.9304 25.5848 23.3412 25.5849C23.7521 25.5851 24.1462 25.4194 24.4368 25.1244C24.7274 24.8294 24.8907 24.4292 24.8909 24.0119C24.891 23.5945 24.728 23.1942 24.4375 22.899L18.4746 16.8419C18.4193 16.7849 18.3598 16.7339 18.2965 16.6861ZM18.6961 10.6385C18.6961 11.7748 18.4758 12.9 18.0477 13.9498C17.6196 14.9997 16.9921 15.9536 16.2011 16.7571C15.4101 17.5606 14.4711 18.198 13.4376 18.6328C12.4041 19.0677 11.2964 19.2915 10.1777 19.2915C9.05904 19.2915 7.95134 19.0677 6.91783 18.6328C5.88433 18.198 4.94527 17.5606 4.15426 16.7571C3.36325 15.9536 2.73578 14.9997 2.30769 13.9498C1.8796 12.9 1.65927 11.7748 1.65927 10.6385C1.65927 8.34355 2.55674 6.14263 4.15426 4.51987C5.75177 2.89712 7.91847 1.98546 10.1777 1.98546C12.4369 1.98546 14.6036 2.89712 16.2011 4.51987C17.7987 6.14263 18.6961 8.34355 18.6961 10.6385Z"/></svg></a>
         <a id="profile-icon" class="profile-btn"><svg width="27" height="27" viewBox="0 0 27 27" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.46209 26.5849C2.46209 26.5849 0.254517 26.5849 0.254517 24.4151C0.254517 22.2453 2.46209 15.7359 13.5 15.7359C24.5378 15.7359 26.7454 22.2453 26.7454 24.4151C26.7454 26.5849 24.5378 26.5849 24.5378 26.5849H2.46209ZM13.5 13.566C15.2564 13.566 16.9409 12.8802 18.1829 11.6595C19.4249 10.4387 20.1227 8.78302 20.1227 7.05661C20.1227 5.3302 19.4249 3.6745 18.1829 2.45375C16.9409 1.23299 15.2564 0.54718 13.5 0.54718C11.7435 0.54718 10.059 1.23299 8.817 2.45375C7.57499 3.6745 6.87724 5.3302 6.87724 7.05661C6.87724 8.78302 7.57499 10.4387 8.817 11.6595C10.059 12.8802 11.7435 13.566 13.5 13.566Z"/></svg></a>
         <div class="dropdown-menu" id="dropdownMenu">
-            <div id="guestLinks"><a href="#login" id="navLoginBtn">Log In</a><a href="#signup" id="navSignupBtn">Sign Up</a></div>
-            <div id="userLinks" style="display: none;"><a href="eventhive-profile.html" id="navProfileBtn">View Profile</a><a href="eventhive-admin.html" id="navDashboardBtn" style="display: none;">Dashboard</a><a href="#" id="navLogoutBtn">Log Out</a></div>
+          <!-- State 1: Guest (default) -->
+          <div id="dropdownState-guest">
+            <a href="#login" id="navLoginBtn">Log In</a>
+            <a href="#signup" id="navSignupBtn">Sign Up</a>
+          </div>
+          
+          <!-- State 2: User (logged in, not admin) -->
+          <div id="dropdownState-user" style="display: none;">
+            <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
+            <a href="#" id="navLogoutBtn">Log Out</a>
+          </div>
+          
+          <!-- State 3: Admin (logged in, admin) -->
+          <div id="dropdownState-admin" style="display: none;">
+            <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
+            <a href="eventhive-admin.html" id="navDashboardBtn">Dashboard</a>
+            <a href="#" id="navLogoutBtn">Log Out</a>
+          </div>
         </div>
       </div>
 

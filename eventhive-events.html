@@ -44,18 +44,24 @@
 
           <!-- drop down menu-->
           <div class="dropdown-menu" id="dropdownMenu">
-             
-             <div id="guestLinks">
+             <!-- State 1: Guest (default) -->
+             <div id="dropdownState-guest">
                <a href="#" id="navLoginBtn">Log In</a>
                <a href="#" id="navSignupBtn">Sign Up</a>
              </div>
-
-             <div id="userLinks" style="display: none;">
-                <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
-                <a href="eventhive-admin.html" id="navDashboardBtn" style="display: none;">Dashboard</a>
-                <a href="#" id="navLogoutBtn">Log Out</a>
+             
+             <!-- State 2: User (logged in, not admin) -->
+             <div id="dropdownState-user" style="display: none;">
+               <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
+               <a href="#" id="navLogoutBtn">Log Out</a>
              </div>
-
+             
+             <!-- State 3: Admin (logged in, admin) -->
+             <div id="dropdownState-admin" style="display: none;">
+               <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
+               <a href="eventhive-admin.html" id="navDashboardBtn">Dashboard</a>
+               <a href="#" id="navLogoutBtn">Log Out</a>
+             </div>
           </div>
     
       </div>

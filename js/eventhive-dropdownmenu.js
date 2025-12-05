@@ -1,8 +1,6 @@
 // Get elements (may be null if DOM not ready yet)
 const profileIcon = document.getElementById('profile-icon');
 const dropdownMenu = document.getElementById('dropdownMenu');
-const guestLinks = document.getElementById('guestLinks');
-const userLinks = document.getElementById('userLinks');
 
 // Cache for auth state (5 minutes) - persisted across page loads
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -28,65 +26,77 @@ function getCachedAuthState() {
   return null;
 }
 
-// Function to apply cache state to UI (synchronous, no async operations)
-function applyCacheStateToUI() {
+// Determine dropdown state from cached auth state
+function getDropdownState() {
   const cached = getCachedAuthState();
-  if (cached !== null) {
-    const gl = document.getElementById('guestLinks');
-    const ul = document.getElementById('userLinks');
-    const db = document.getElementById('navDashboardBtn');
-    
-    if (cached.isLoggedIn) {
-      // USER IS LOGGED IN - THIS IS THE ABSOLUTE DEFAULT STATE
-      // Hide guestLinks and show userLinks IMMEDIATELY
-      if (gl) {
-        gl.style.display = 'none';
-      }
-      if (ul) {
-        ul.style.display = 'block';
-      }
-      if (db) {
-        db.style.display = cached.isAdmin ? 'block' : 'none';
-      }
-    } else {
-      // USER IS LOGGED OUT
-      if (gl) {
-        gl.style.display = 'block';
-      }
-      if (ul) {
-        ul.style.display = 'none';
-      }
-      if (db) {
-        db.style.display = 'none';
-      }
-    }
+  if (cached === null) {
+    return 'guest'; // Default state if no cache
+  }
+  
+  if (cached.isLoggedIn && cached.isAdmin) {
+    return 'admin'; // Logged in + Admin
+  } else if (cached.isLoggedIn) {
+    return 'user'; // Logged in + Not Admin
+  } else {
+    return 'guest'; // Logged out
   }
 }
 
-// IMMEDIATE INITIALIZATION: Apply cache state as soon as script loads
-// This runs IMMEDIATELY to prevent showing wrong state (Log In/Sign Up when logged in)
-// Uses multiple strategies to ensure it runs as early as possible
-(function applyCacheStateImmediately() {
+// Apply dropdown state by replacing content entirely
+function applyDropdownState(state) {
+  if (!dropdownMenu) return;
+  
+  // Hide all states
+  const guestState = document.getElementById('dropdownState-guest');
+  const userState = document.getElementById('dropdownState-user');
+  const adminState = document.getElementById('dropdownState-admin');
+  
+  if (guestState) guestState.style.display = 'none';
+  if (userState) userState.style.display = 'none';
+  if (adminState) adminState.style.display = 'none';
+  
+  // Show only the correct state
+  switch (state) {
+    case 'guest':
+      if (guestState) guestState.style.display = 'block';
+      break;
+    case 'user':
+      if (userState) userState.style.display = 'block';
+      break;
+    case 'admin':
+      if (adminState) adminState.style.display = 'block';
+      break;
+  }
+}
+
+// IMMEDIATE INITIALIZATION: Apply dropdown state as soon as script loads
+// This runs IMMEDIATELY to prevent showing wrong state
+(function applyDropdownStateImmediately() {
+  function applyStateNow() {
+    const state = getDropdownState();
+    applyDropdownState(state);
+  }
+  
   // Try immediately (if DOM is ready)
-  applyCacheStateToUI();
+  applyStateNow();
   
   // Try when DOM is interactive (earlier than DOMContentLoaded)
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyCacheStateToUI, { once: true });
+    document.addEventListener('DOMContentLoaded', applyStateNow, { once: true });
   } else {
     // DOM already loaded, apply immediately
-    applyCacheStateToUI();
+    applyStateNow();
   }
   
   // Also try on next frame (catches elements added dynamically)
-  requestAnimationFrame(applyCacheStateToUI);
+  requestAnimationFrame(applyStateNow);
   
   // Also try after a tiny delay (catches late-loading elements)
-  setTimeout(applyCacheStateToUI, 0);
+  setTimeout(applyStateNow, 0);
   
   // Use MutationObserver to catch elements as soon as they're added to DOM
   const observer = new MutationObserver(() => {
-    applyCacheStateToUI();
+    applyStateNow();
   });
   
   // Observe the document body for changes
@@ -112,6 +122,10 @@ function saveCachedAuthState(isLoggedIn, isAdmin) {
       state: { isLoggedIn, isAdmin }
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    
+    // Immediately apply the new state
+    const newState = isLoggedIn && isAdmin ? 'admin' : (isLoggedIn ? 'user' : 'guest');
+    applyDropdownState(newState);
   } catch (e) {
     console.error('Error saving auth cache:', e);
   }
@@ -125,7 +139,8 @@ async function updateDropdownAuthState(forceCheck = false) {
     if (cached !== null) {
       // Cache is valid (< 5 minutes from login) - use it ABSOLUTELY
       // This is the state from initial login check - NO async operations
-      applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
+      const state = cached.isLoggedIn && cached.isAdmin ? 'admin' : (cached.isLoggedIn ? 'user' : 'guest');
+      applyDropdownState(state);
       return; // Exit immediately - NO async checks during 5-minute window
     }
   }
@@ -152,31 +167,13 @@ async function updateDropdownAuthState(forceCheck = false) {
   // Save to cache with current timestamp (resets 5-minute timer)
   saveCachedAuthState(isLoggedIn, isAdmin);
   
-  // Update UI
-  applyAuthStateToUI(isLoggedIn, isAdmin);
+  // State is already applied in saveCachedAuthState
 }
 
-// Apply auth state to UI
+// Apply auth state to UI (for compatibility with other scripts)
 function applyAuthStateToUI(isLoggedIn, isAdmin) {
-  if (isLoggedIn) {
-    if (guestLinks) guestLinks.style.display = 'none';
-    if (userLinks) userLinks.style.display = 'block';
-    
-    // Show/hide Dashboard link based on admin status
-    const dashboardLink = document.getElementById('navDashboardBtn');
-    if (dashboardLink) {
-      dashboardLink.style.display = isAdmin ? 'block' : 'none';
-    }
-  } else {
-    if (guestLinks) guestLinks.style.display = 'block';
-    if (userLinks) userLinks.style.display = 'none';
-    
-    // Hide dashboard link for non-logged-in users
-    const dashboardLink = document.getElementById('navDashboardBtn');
-    if (dashboardLink) {
-      dashboardLink.style.display = 'none';
-    }
-  }
+  const state = isLoggedIn && isAdmin ? 'admin' : (isLoggedIn ? 'user' : 'guest');
+  applyDropdownState(state);
 }
 
 // Make functions globally accessible for login script
@@ -187,17 +184,11 @@ if (typeof window !== 'undefined') {
 
 profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
-  // Just toggle the dropdown - uses cached auth state (instant)
+  // Just toggle the dropdown - state is already set correctly
   dropdownMenu.classList.toggle('show');
-  // Use cache directly - NO async checks if cache is valid
-  const cached = getCachedAuthState();
-  if (cached !== null) {
-    // Cache is valid - use it directly, no async operations
-    applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
-  } else {
-    // No cache - check auth
-    updateDropdownAuthState(false);
-  }
+  // Ensure state is correct (use cache directly, no async)
+  const state = getDropdownState();
+  applyDropdownState(state);
 });
 
 // Initialize: Load cached state on DOM ready (backup - ensures it's applied)
@@ -208,11 +199,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use cached state immediately - ABSOLUTE DEFAULT for next 5 minutes
     // NO async checks - cache is valid for 5 minutes from login
     // This is the state from initial login check - use it absolutely
-    applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
+    const state = cached.isLoggedIn && cached.isAdmin ? 'admin' : (cached.isLoggedIn ? 'user' : 'guest');
+    applyDropdownState(state);
     // DO NOT call updateDropdownAuthState - cache is absolute for 5 minutes
   } else {
-    // No cache - default to logged out state
-    applyAuthStateToUI(false, false);
+    // No cache - default to guest state
+    applyDropdownState('guest');
     // Only check auth if no cache exists
     updateDropdownAuthState(false).catch(err => {
       console.error('Error updating auth state:', err);
@@ -256,9 +248,6 @@ let authCheckInterval = setInterval(() => {
   }
 }, 60000); // Check every minute to see if 5 minutes have passed since login
 
-// Ensure interval is cleared on logout to prevent unnecessary checks
-// (It will restart on next page load if user is logged in)
-
 // Clear all caches
 function clearAllCaches() {
   try {
@@ -267,6 +256,8 @@ function clearAllCaches() {
   } catch (e) {
     console.error('Error clearing caches:', e);
   }
+  // Apply guest state after clearing cache
+  applyDropdownState('guest');
 }
 
 // Desktop Logout Button Handler
@@ -291,13 +282,7 @@ if (logoutBtn) {
     // Clear all caches
     clearAllCaches();
     
-    // Update UI immediately
-    applyAuthStateToUI(false, false);
-    
-    // Also update mobile menu if function exists
-    if (typeof updateMobileMenuAuthState === 'function') {
-      await updateMobileMenuAuthState();
-    }
+    // State is already applied in clearAllCaches
   });
 }
 
@@ -313,7 +298,6 @@ if (typeof getSupabaseClient === 'function') {
         if (dropdownMenu) {
           dropdownMenu.classList.remove('show');
         }
-        applyAuthStateToUI(false, false);
       } else {
         updateDropdownAuthState(true); // Force check on auth state change
       }
