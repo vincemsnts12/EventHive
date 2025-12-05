@@ -33,6 +33,7 @@ function getDropdownState() {
     return 'guest'; // Default state if no cache
   }
   
+  // IF LOGGED IN, NEVER RETURN GUEST
   if (cached.isLoggedIn && cached.isAdmin) {
     return 'admin'; // Logged in + Admin
   } else if (cached.isLoggedIn) {
@@ -43,38 +44,77 @@ function getDropdownState() {
 }
 
 // Apply dropdown state by replacing content entirely
+// FORCES the state - NO EXCEPTIONS - NEVER SHOW GUEST IF LOGGED IN
 function applyDropdownState(state) {
-  if (!dropdownMenu) return;
+  // If dropdown not ready, try again
+  if (!dropdownMenu) {
+    setTimeout(() => applyDropdownState(state), 10);
+    return;
+  }
   
-  // Hide all states
+  // Get all state elements
   const guestState = document.getElementById('dropdownState-guest');
   const userState = document.getElementById('dropdownState-user');
   const adminState = document.getElementById('dropdownState-admin');
   
-  if (guestState) guestState.style.display = 'none';
-  if (userState) userState.style.display = 'none';
-  if (adminState) adminState.style.display = 'none';
+  // FORCE HIDE ALL STATES
+  if (guestState) {
+    guestState.style.display = 'none';
+    guestState.style.visibility = 'hidden';
+  }
+  if (userState) {
+    userState.style.display = 'none';
+    userState.style.visibility = 'hidden';
+  }
+  if (adminState) {
+    adminState.style.display = 'none';
+    adminState.style.visibility = 'hidden';
+  }
   
-  // Show only the correct state
+  // FORCE SHOW ONLY THE CORRECT STATE
   switch (state) {
     case 'guest':
-      if (guestState) guestState.style.display = 'block';
+      if (guestState) {
+        guestState.style.display = 'block';
+        guestState.style.visibility = 'visible';
+      }
       break;
     case 'user':
-      if (userState) userState.style.display = 'block';
+      if (userState) {
+        userState.style.display = 'block';
+        userState.style.visibility = 'visible';
+      }
       break;
     case 'admin':
-      if (adminState) adminState.style.display = 'block';
+      if (adminState) {
+        adminState.style.display = 'block';
+        adminState.style.visibility = 'visible';
+      }
       break;
   }
 }
 
 // IMMEDIATE INITIALIZATION: Apply dropdown state as soon as script loads
 // This runs IMMEDIATELY to prevent showing wrong state
+// FORCES the correct state based on cache - NO EXCEPTIONS
 (function applyDropdownStateImmediately() {
   function applyStateNow() {
-    const state = getDropdownState();
-    applyDropdownState(state);
+    const cached = getCachedAuthState();
+    if (cached !== null) {
+      // CACHE EXISTS - THIS IS THE ABSOLUTE TRUTH
+      // If logged in, NEVER show guest state
+      if (cached.isLoggedIn) {
+        // USER IS LOGGED IN - NEVER SHOW GUEST
+        const state = cached.isAdmin ? 'admin' : 'user';
+        applyDropdownState(state);
+      } else {
+        // User is logged out
+        applyDropdownState('guest');
+      }
+    } else {
+      // No cache - default to guest
+      applyDropdownState('guest');
+    }
   }
   
   // Try immediately (if DOM is ready)
@@ -123,9 +163,18 @@ function saveCachedAuthState(isLoggedIn, isAdmin) {
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
     
-    // Immediately apply the new state
-    const newState = isLoggedIn && isAdmin ? 'admin' : (isLoggedIn ? 'user' : 'guest');
-    applyDropdownState(newState);
+    // IMMEDIATELY apply the new state - FORCE IT
+    // IF LOGGED IN, NEVER SHOW GUEST
+    if (isLoggedIn) {
+      const newState = isAdmin ? 'admin' : 'user';
+      applyDropdownState(newState);
+      // Also apply multiple times to ensure it sticks
+      setTimeout(() => applyDropdownState(newState), 0);
+      requestAnimationFrame(() => applyDropdownState(newState));
+      setTimeout(() => applyDropdownState(newState), 50);
+    } else {
+      applyDropdownState('guest');
+    }
   } catch (e) {
     console.error('Error saving auth cache:', e);
   }
@@ -139,8 +188,13 @@ async function updateDropdownAuthState(forceCheck = false) {
     if (cached !== null) {
       // Cache is valid (< 5 minutes from login) - use it ABSOLUTELY
       // This is the state from initial login check - NO async operations
-      const state = cached.isLoggedIn && cached.isAdmin ? 'admin' : (cached.isLoggedIn ? 'user' : 'guest');
-      applyDropdownState(state);
+      // IF LOGGED IN, NEVER SHOW GUEST
+      if (cached.isLoggedIn) {
+        const state = cached.isAdmin ? 'admin' : 'user';
+        applyDropdownState(state);
+      } else {
+        applyDropdownState('guest');
+      }
       return; // Exit immediately - NO async checks during 5-minute window
     }
   }
@@ -172,8 +226,16 @@ async function updateDropdownAuthState(forceCheck = false) {
 
 // Apply auth state to UI (for compatibility with other scripts)
 function applyAuthStateToUI(isLoggedIn, isAdmin) {
-  const state = isLoggedIn && isAdmin ? 'admin' : (isLoggedIn ? 'user' : 'guest');
-  applyDropdownState(state);
+  // IF LOGGED IN, NEVER SHOW GUEST
+  if (isLoggedIn) {
+    const state = isAdmin ? 'admin' : 'user';
+    applyDropdownState(state);
+    // Also apply multiple times to ensure it sticks
+    setTimeout(() => applyDropdownState(state), 0);
+    requestAnimationFrame(() => applyDropdownState(state));
+  } else {
+    applyDropdownState('guest');
+  }
 }
 
 // Make functions globally accessible for login script
@@ -187,8 +249,14 @@ profileIcon.addEventListener('click', (e) => {
   // Just toggle the dropdown - state is already set correctly
   dropdownMenu.classList.toggle('show');
   // Ensure state is correct (use cache directly, no async)
-  const state = getDropdownState();
-  applyDropdownState(state);
+  const cached = getCachedAuthState();
+  if (cached !== null && cached.isLoggedIn) {
+    // IF LOGGED IN, NEVER SHOW GUEST
+    const state = cached.isAdmin ? 'admin' : 'user';
+    applyDropdownState(state);
+  } else {
+    applyDropdownState('guest');
+  }
 });
 
 // Initialize: Load cached state on DOM ready (backup - ensures it's applied)
@@ -199,8 +267,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use cached state immediately - ABSOLUTE DEFAULT for next 5 minutes
     // NO async checks - cache is valid for 5 minutes from login
     // This is the state from initial login check - use it absolutely
-    const state = cached.isLoggedIn && cached.isAdmin ? 'admin' : (cached.isLoggedIn ? 'user' : 'guest');
-    applyDropdownState(state);
+    // IF LOGGED IN, NEVER SHOW GUEST
+    if (cached.isLoggedIn) {
+      const state = cached.isAdmin ? 'admin' : 'user';
+      applyDropdownState(state);
+    } else {
+      applyDropdownState('guest');
+    }
     // DO NOT call updateDropdownAuthState - cache is absolute for 5 minutes
   } else {
     // No cache - default to guest state
