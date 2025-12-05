@@ -356,9 +356,18 @@ function populatePublishedEventsTable() {
     deleteBtn.setAttribute('data-table', 'published');
     deleteBtn.setAttribute('title', 'Delete');
     deleteBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-    deleteBtn.addEventListener('click', () => {
+    deleteBtn.addEventListener('click', async () => {
       if (confirm(`Are you sure you want to delete "${event.title}"?`)) {
-        // TODO: Delete from database
+        // Delete from Supabase if function available
+        if (typeof deleteEvent === 'function') {
+          const result = await deleteEvent(eventId);
+          if (!result.success) {
+            alert(`Error deleting event: ${result.error}`);
+            return;
+          }
+        }
+        
+        // Remove from local data
         delete eventsData[eventId];
         rowsInEditMode.delete(eventId);
         populatePublishedEventsTable();
@@ -702,48 +711,70 @@ function populatePendingEventsTable() {
 }
 
 // ===== APPROVE PENDING EVENT =====
-function approvePendingEvent(eventId) {
-  if (!pendingEventsData[eventId]) return;
+async function approvePendingEvent(eventId) {
+  if (!pendingEventsData[eventId]) {
+    alert('Event not found');
+    return;
+  }
   
   const pendingEvent = pendingEventsData[eventId];
   
-  // Create new event ID for published events
-  const newEventId = `event-${Object.keys(eventsData).length + 1}`;
-  
-  // Move to published events with status "Upcoming"
-  eventsData[newEventId] = {
-    ...pendingEvent,
-    status: 'Upcoming'
-    // statusColor will be derived from status in enrichEventsData
-  };
-  
-  // Remove from pending
-  delete pendingEventsData[eventId];
+  // Approve in Supabase if function available
+  if (typeof approveEvent === 'function') {
+    const result = await approveEvent(eventId);
+    if (!result.success) {
+      alert(`Error approving event: ${result.error}`);
+      return;
+    }
+    
+    // Update local data with approved event
+    if (result.event) {
+      const newEventId = result.event.id;
+      eventsData[newEventId] = result.event;
+      delete pendingEventsData[eventId];
+    }
+  } else {
+    // Fallback: local approval (for development)
+    const newEventId = `event-${Object.keys(eventsData).length + 1}`;
+    eventsData[newEventId] = {
+      ...pendingEvent,
+      status: 'Upcoming'
+    };
+    delete pendingEventsData[eventId];
+  }
   
   // Refresh both tables
   populatePublishedEventsTable();
   populatePendingEventsTable();
-  
-  // TODO: Save to Supabase
-  console.log(`Approved event: ${eventId} → ${newEventId}`);
 }
 
 // ===== REJECT PENDING EVENT =====
-function rejectPendingEvent(eventId) {
-  if (!pendingEventsData[eventId]) return;
+async function rejectPendingEvent(eventId) {
+  if (!pendingEventsData[eventId]) {
+    alert('Event not found');
+    return;
+  }
   
   const event = pendingEventsData[eventId];
   
-  if (confirm(`Are you sure you want to reject "${event.title}"?`)) {
-    // Remove from pending
-    delete pendingEventsData[eventId];
-    
-    // Refresh pending table
-    populatePendingEventsTable();
-    
-    // TODO: Save rejection to Supabase
-    console.log(`Rejected event: ${eventId}`);
+  if (!confirm(`Are you sure you want to reject "${event.title}"?`)) {
+    return;
   }
+  
+  // Reject in Supabase if function available
+  if (typeof rejectEvent === 'function') {
+    const result = await rejectEvent(eventId);
+    if (!result.success) {
+      alert(`Error rejecting event: ${result.error}`);
+      return;
+    }
+  }
+  
+  // Remove from pending
+  delete pendingEventsData[eventId];
+  
+  // Refresh pending table
+  populatePendingEventsTable();
 }
 
 // ===== TOGGLE EDIT MODE FOR ROW =====
@@ -1006,100 +1037,238 @@ function openViewLocationModal(location) {
 
 // ===== SAVE FUNCTIONS =====
 
-function saveTitleEdit() {
+async function saveTitleEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const newTitle = document.getElementById('editTitleInput').value.trim();
   const featureCheckbox = document.getElementById('featureEventCheckbox');
   const isFeatured = featureCheckbox ? featureCheckbox.checked : false;
-  if (newTitle) {
-    if (currentEditingTable === 'published' && eventsData[currentEditingEventId]) {
-      eventsData[currentEditingEventId].title = newTitle;
-      eventsData[currentEditingEventId].isFeatured = isFeatured;
-      rowsInEditMode.delete(currentEditingEventId);
-      populatePublishedEventsTable();
-    } else if (currentEditingTable === 'pending' && pendingEventsData[currentEditingEventId]) {
-      pendingEventsData[currentEditingEventId].title = newTitle;
-      pendingEventsData[currentEditingEventId].isFeatured = isFeatured;
-      populatePendingEventsTable();
+  
+  if (!newTitle) {
+    alert('Title cannot be empty');
+    return;
+  }
+  
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (!event) {
+    alert('Event not found');
+    return;
+  }
+  
+  // Update local data first (for immediate UI feedback)
+  event.title = newTitle;
+  event.isFeatured = isFeatured;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving title: ${result.error}`);
+      // Revert local change
+      event.title = event.title; // Keep as is for now
+      return;
     }
-    closeModal('editTitleModal');
-    // TODO: Save to Supabase
+    // Update local data with response
+    if (result.event) {
+      Object.assign(event, result.event);
+    }
+    rowsInEditMode.delete(currentEditingEventId);
+  } else if (typeof createEvent === 'function' && currentEditingTable === 'pending') {
+    // For pending events, we can update locally (they'll be saved when approved)
+    // Or create/update if it's a new event
+  }
+  
+  closeModal('editTitleModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
   }
 }
 
-function saveDescEdit() {
+async function saveDescEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const newDesc = document.getElementById('editDescInput').value.trim();
-  if (newDesc) {
-    if (currentEditingTable === 'published' && eventsData[currentEditingEventId]) {
-      eventsData[currentEditingEventId].description = newDesc;
-      rowsInEditMode.delete(currentEditingEventId);
-      populatePublishedEventsTable();
-    } else if (currentEditingTable === 'pending' && pendingEventsData[currentEditingEventId]) {
-      pendingEventsData[currentEditingEventId].description = newDesc;
-      populatePendingEventsTable();
+  
+  if (!newDesc) {
+    alert('Description cannot be empty');
+    return;
+  }
+  
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (!event) {
+    alert('Event not found');
+    return;
+  }
+  
+  // Update local data
+  event.description = newDesc;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving description: ${result.error}`);
+      return;
     }
-    closeModal('editDescModal');
-    // TODO: Save to Supabase
+    if (result.event) {
+      Object.assign(event, result.event);
+    }
+    rowsInEditMode.delete(currentEditingEventId);
+  }
+  
+  closeModal('editDescModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
   }
 }
 
-function saveLocationEdit() {
+async function saveLocationEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const newLocation = document.getElementById('editLocationInput').value.trim();
-  if (newLocation) {
-    if (currentEditingTable === 'published' && eventsData[currentEditingEventId]) {
-      eventsData[currentEditingEventId].location = newLocation;
-      rowsInEditMode.delete(currentEditingEventId);
-      populatePublishedEventsTable();
-    } else if (currentEditingTable === 'pending' && pendingEventsData[currentEditingEventId]) {
-      pendingEventsData[currentEditingEventId].location = newLocation;
-      populatePendingEventsTable();
+  
+  if (!newLocation) {
+    alert('Location cannot be empty');
+    return;
+  }
+  
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (!event) {
+    alert('Event not found');
+    return;
+  }
+  
+  // Update local data
+  event.location = newLocation;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving location: ${result.error}`);
+      return;
     }
-    closeModal('editLocationModal');
-    // TODO: Save to Supabase
+    if (result.event) {
+      Object.assign(event, result.event);
+    }
+    rowsInEditMode.delete(currentEditingEventId);
+  }
+  
+  closeModal('editLocationModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
   }
 }
 
-function saveCollegeEdit() {
+async function saveCollegeEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const checked = document.querySelectorAll('#collegeTagSelector input[type="checkbox"]:checked');
-  if (checked.length > 0) {
-    // For now, take first selected (can be expanded for multiple)
-    const selectedCollege = availableColleges.find(c => c.code === checked[0].value);
-    if (selectedCollege) {
-      if (currentEditingTable === 'published' && eventsData[currentEditingEventId]) {
-        eventsData[currentEditingEventId].college = selectedCollege.code;
-        eventsData[currentEditingEventId].collegeColor = selectedCollege.color;
-        rowsInEditMode.delete(currentEditingEventId);
-        populatePublishedEventsTable();
-      } else if (currentEditingTable === 'pending' && pendingEventsData[currentEditingEventId]) {
-        pendingEventsData[currentEditingEventId].college = selectedCollege.code;
-        pendingEventsData[currentEditingEventId].collegeColor = selectedCollege.color;
-        populatePendingEventsTable();
-      }
-      closeModal('editCollegeModal');
-      // TODO: Save to Supabase
+  
+  if (checked.length === 0) {
+    alert('Please select at least one college');
+    return;
+  }
+  
+  // For now, take first selected (can be expanded for multiple)
+  const selectedCollege = availableColleges.find(c => c.code === checked[0].value);
+  if (!selectedCollege) {
+    alert('Invalid college selection');
+    return;
+  }
+  
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (!event) {
+    alert('Event not found');
+    return;
+  }
+  
+  // Update local data
+  event.college = selectedCollege.code;
+  event.collegeColor = selectedCollege.color;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving college: ${result.error}`);
+      return;
     }
+    if (result.event) {
+      Object.assign(event, result.event);
+    }
+    rowsInEditMode.delete(currentEditingEventId);
+  }
+  
+  closeModal('editCollegeModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
   }
 }
 
-function saveOrgEdit() {
+async function saveOrgEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const checked = document.querySelectorAll('#orgTagSelector input[type="checkbox"]:checked');
-  if (checked.length > 0) {
-    // For now, take first selected (can be expanded for multiple)
-    const selectedOrg = checked[0].value;
-    if (currentEditingTable === 'published' && eventsData[currentEditingEventId]) {
-      eventsData[currentEditingEventId].organization = selectedOrg;
-      rowsInEditMode.delete(currentEditingEventId);
-      populatePublishedEventsTable();
-    } else if (currentEditingTable === 'pending' && pendingEventsData[currentEditingEventId]) {
-      pendingEventsData[currentEditingEventId].organization = selectedOrg;
-      populatePendingEventsTable();
+  
+  if (checked.length === 0) {
+    alert('Please select at least one organization');
+    return;
+  }
+  
+  // For now, take first selected (can be expanded for multiple)
+  const selectedOrg = checked[0].value;
+  
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (!event) {
+    alert('Event not found');
+    return;
+  }
+  
+  // Update local data
+  event.organization = selectedOrg;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving organization: ${result.error}`);
+      return;
     }
-    closeModal('editOrgModal');
-    // TODO: Save to Supabase
+    if (result.event) {
+      Object.assign(event, result.event);
+    }
+    rowsInEditMode.delete(currentEditingEventId);
+  }
+  
+  closeModal('editOrgModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
   }
 }
 
@@ -1390,7 +1559,7 @@ function deleteImage(index) {
   }
 }
 
-function handleImageUpload(event) {
+async function handleImageUpload(event) {
   const files = Array.from(event.target.files);
   const errorDiv = document.getElementById('imageUploadError');
   
@@ -1417,55 +1586,117 @@ function handleImageUpload(event) {
   // Hide error if validation passes
   errorDiv.style.display = 'none';
   
-  // Process files (for now, create object URLs - will be replaced with Supabase URLs in production)
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // For now, store as data URL or object URL
-      // In production, upload to Supabase Storage and get URL
-      const imageUrl = e.target.result;
-      currentEditingImages.push(imageUrl);
+  // Show loading state
+  errorDiv.textContent = 'Uploading images...';
+  errorDiv.style.display = 'block';
+  errorDiv.style.color = '#666';
+  
+  // Upload files to Supabase Storage
+  if (typeof uploadEventImages === 'function' && currentEditingEventId) {
+    try {
+      const uploadResult = await uploadEventImages(files, currentEditingEventId);
       
-      // If this is the first image, set it as thumbnail
-      if (currentEditingImages.length === 1) {
-        currentThumbnailIndex = 0;
+      if (uploadResult.success && uploadResult.urls.length > 0) {
+        // Add uploaded URLs to current editing images
+        currentEditingImages.push(...uploadResult.urls);
+        
+        // If this is the first image, set it as thumbnail
+        if (currentEditingImages.length === uploadResult.urls.length) {
+          currentThumbnailIndex = 0;
+        }
+        
+        errorDiv.style.display = 'none';
+        renderImagesGallery(true);
+      } else {
+        // Show errors
+        const errorMsg = uploadResult.errors && uploadResult.errors.length > 0 
+          ? uploadResult.errors.join('; ') 
+          : 'Failed to upload images. Please try again.';
+        errorDiv.textContent = errorMsg;
+        errorDiv.style.color = '#B81E20';
+        errorDiv.style.display = 'block';
       }
-      
-      renderImagesGallery();
-    };
-    reader.onerror = () => {
-      errorDiv.textContent = 'Error reading file. Please try again.';
+    } catch (error) {
+      errorDiv.textContent = `Error uploading images: ${error.message}`;
+      errorDiv.style.color = '#B81E20';
       errorDiv.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  });
+    }
+  } else {
+    // Fallback: use FileReader if Supabase not available (for development)
+    console.warn('Supabase Storage not available, using FileReader fallback');
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target.result;
+        currentEditingImages.push(imageUrl);
+        if (currentEditingImages.length === 1) {
+          currentThumbnailIndex = 0;
+        }
+        renderImagesGallery(true);
+      };
+      reader.onerror = () => {
+        errorDiv.textContent = 'Error reading file. Please try again.';
+        errorDiv.style.color = '#B81E20';
+        errorDiv.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   
   // Reset input
   event.target.value = '';
 }
 
-function saveImagesEdit() {
+async function saveImagesEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   
-  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
-  const event = source[currentEditingEventId];
+  // Ensure thumbnail index is valid
+  if (currentThumbnailIndex >= currentEditingImages.length) {
+    currentThumbnailIndex = 0;
+  }
   
-  if (event) {
-    // Update images array
-    event.images = [...currentEditingImages];
-    
-    // Store thumbnail index (for future use when rendering cards)
-    event.thumbnailIndex = currentThumbnailIndex;
-    
-    // Ensure thumbnail index is valid
-    if (event.thumbnailIndex >= event.images.length) {
-      event.thumbnailIndex = 0;
+  // If no images, use universityLogo as fallback
+  if (currentEditingImages.length === 0) {
+    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+    const event = source[currentEditingEventId];
+    if (event) {
+      currentEditingImages = [event.universityLogo || 'images/tup.png'];
+      currentThumbnailIndex = 0;
     }
+  }
+  
+  // Update event in Supabase if functions are available
+  if (typeof updateEvent === 'function') {
+    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+    const event = source[currentEditingEventId];
     
-    // If no images, use universityLogo as fallback
-    if (event.images.length === 0) {
-      event.images = [event.universityLogo || 'images/tup.png'];
-      event.thumbnailIndex = 0;
+    if (event) {
+      // Update event with new images and thumbnail index
+      const updatedEvent = {
+        ...event,
+        images: [...currentEditingImages],
+        thumbnailIndex: currentThumbnailIndex
+      };
+      
+      const result = await updateEvent(currentEditingEventId, updatedEvent);
+      
+      if (result.success) {
+        // Update local data
+        event.images = [...currentEditingImages];
+        event.thumbnailIndex = currentThumbnailIndex;
+      } else {
+        alert(`Error saving images: ${result.error}`);
+        return;
+      }
+    }
+  } else {
+    // Fallback: update local data only (for development)
+    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+    const event = source[currentEditingEventId];
+    
+    if (event) {
+      event.images = [...currentEditingImages];
+      event.thumbnailIndex = currentThumbnailIndex;
     }
   }
   
@@ -1477,10 +1708,6 @@ function saveImagesEdit() {
   } else {
     populatePendingEventsTable();
   }
-  
-  // TODO: Upload images to Supabase Storage and save URLs to database
-  console.log('Images saved:', currentEditingImages);
-  console.log('Thumbnail index:', currentThumbnailIndex);
 }
 
 function addNewOrganization() {

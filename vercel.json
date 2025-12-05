@@ -1,0 +1,52 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/eventhive-homepage.html"
+    },
+    {
+      "source": "/events",
+      "destination": "/eventhive-events.html"
+    },
+    {
+      "source": "/search",
+      "destination": "/eventhive-search.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/eventhive-profile.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/eventhive-admin.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/eventhive-aboutus.html"
+    },
+    {
+      "source": "/contacts",
+      "destination": "/eventhive-contacts.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}
+

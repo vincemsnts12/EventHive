@@ -709,6 +709,49 @@ body {
     white-space: nowrap; 
 }
 
+/* College Tag Colors */
+.college-tag.cos {
+    background-color: #dc2626; /* RED */
+    color: white;
+    border: 2px solid #dc2626;
+}
+
+.college-tag.coe {
+    background-color: #ea580c; /* ORANGE */
+    color: white;
+    border: 2px solid #ea580c;
+}
+
+.college-tag.cafa {
+    background-color: #6b7280; /* GREY */
+    color: white;
+    border: 2px solid #6b7280;
+}
+
+.college-tag.cla {
+    background-color: #db2777; /* PINK */
+    color: white;
+    border: 2px solid #db2777;
+}
+
+.college-tag.cie {
+    background-color: #2563eb; /* BLUE */
+    color: white;
+    border: 2px solid #2563eb;
+}
+
+.college-tag.cit {
+    background-color: #059669; /* GREEN */
+    color: white;
+    border: 2px solid #059669;
+}
+
+.college-tag.tup {
+    background-color: #ffffff;
+    color: #B81E20;
+    border: 2px solid #B81E20;
+}
+
 .footer {
   background-color: #fef6f0;
   width: 100%;

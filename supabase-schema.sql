@@ -89,13 +89,7 @@ CREATE POLICY "Users can create comments"
   ON comments FOR INSERT
   WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 
--- Policy: Users can update their own comments
-CREATE POLICY "Users can update own comments"
-  ON comments FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- Policy: Users can delete their own comments
+-- Policy: Users can delete their own comments (comments cannot be edited)
 CREATE POLICY "Users can delete own comments"
   ON comments FOR DELETE
   USING (auth.uid() = user_id);
@@ -118,9 +112,8 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Trigger for comments
-CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Note: Comments cannot be updated, so no trigger needed for updated_at
+-- The updated_at field remains for potential future use but won't change
 
 -- ===== FUNCTION: Create profile on user signup =====
 CREATE OR REPLACE FUNCTION public.handle_new_user()
