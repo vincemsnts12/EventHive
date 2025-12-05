@@ -322,3 +322,47 @@ ALTER TABLE comments
   ADD CONSTRAINT comments_event_id_fkey 
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE;
 
+-- ===== SECURITY LOGS TABLE =====
+-- Stores security events for monitoring and auditing
+CREATE TABLE security_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_type VARCHAR(50) NOT NULL, -- 'FAILED_LOGIN', 'EVENT_APPROVED', 'EVENT_REJECTED', 'EVENT_UPDATED', 'EVENT_DELETED', etc.
+  metadata JSONB, -- Additional data (user_id, event_id, error messages, etc.)
+  message TEXT, -- Human-readable message
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL, -- User who triggered the event (if applicable)
+  ip_address INET, -- IP address (if available from backend)
+  user_agent TEXT, -- User agent string
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE security_logs ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Only admins can read security logs
+CREATE POLICY "Admins can read security logs"
+  ON security_logs FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid() AND profiles.is_admin = TRUE
+    )
+  );
+
+-- Policy: Authenticated users can insert security logs (for logging their own actions)
+-- This allows the frontend to log events, but only admins can view them
+CREATE POLICY "Authenticated users can insert security logs"
+  ON security_logs FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- Indexes for performance and filtering
+CREATE INDEX idx_security_logs_event_type ON security_logs(event_type);
+CREATE INDEX idx_security_logs_user_id ON security_logs(user_id);
+CREATE INDEX idx_security_logs_created_at ON security_logs(created_at DESC); -- Most recent first
+CREATE INDEX idx_security_logs_metadata ON security_logs USING GIN(metadata); -- For JSONB queries
+
+-- Index for common event types mentioned
+CREATE INDEX idx_security_logs_failed_login ON security_logs(event_type, created_at DESC) 
+  WHERE event_type = 'FAILED_LOGIN';
+CREATE INDEX idx_security_logs_event_actions ON security_logs(event_type, created_at DESC) 
+  WHERE event_type IN ('EVENT_APPROVED', 'EVENT_REJECTED', 'EVENT_UPDATED', 'EVENT_DELETED');
+

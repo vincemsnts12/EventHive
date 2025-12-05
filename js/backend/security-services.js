@@ -315,9 +315,6 @@ function logSecurityEvent(eventType, metadata = {}, message = '') {
     console.log('[SECURITY LOG]', logEntry);
   }
   
-  // In production, send to logging service
-  // Example: sendToLoggingService(logEntry);
-  
   // Store in localStorage for client-side tracking (limited storage)
   try {
     const logs = JSON.parse(localStorage.getItem('security_logs') || '[]');
@@ -338,22 +335,57 @@ function logSecurityEvent(eventType, metadata = {}, message = '') {
 }
 
 /**
- * Send log to backend (if backend logging endpoint exists)
+ * Send log to backend (Supabase security_logs table)
  * @param {Object} logEntry - Log entry to send
  */
 async function sendLogToBackend(logEntry) {
-  // This would send to your backend logging endpoint
-  // For now, we'll use Supabase if available
+  // Send to Supabase security_logs table if available
   if (typeof getSupabaseClient === 'function') {
     try {
       const supabase = getSupabaseClient();
       if (supabase) {
-        // Create a security_logs table in Supabase for this
-        // For now, just log to console
-        // await supabase.from('security_logs').insert(logEntry);
+        // Get current user if available
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Extract IP address and user agent from metadata if available
+        const metadata = logEntry.metadata || {};
+        const ipAddress = metadata.ip || null;
+        const userAgent = metadata.userAgent || logEntry.metadata?.userAgent || navigator.userAgent;
+        
+        // Prepare log entry for database
+        const dbLogEntry = {
+          event_type: logEntry.event,
+          metadata: {
+            ...metadata,
+            // Remove userAgent from metadata as it's stored separately
+            userAgent: undefined
+          },
+          message: logEntry.message || '',
+          user_id: user?.id || metadata.userId || null,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          created_at: logEntry.timestamp || new Date().toISOString()
+        };
+        
+        // Insert into security_logs table
+        const { error } = await supabase
+          .from('security_logs')
+          .insert(dbLogEntry);
+        
+        if (error) {
+          // Silently fail - logging shouldn't break the app
+          // Only log to console in development
+          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.warn('Failed to log security event to Supabase:', error);
+          }
+        }
       }
     } catch (e) {
       // Silently fail - logging shouldn't break the app
+      // Only log to console in development
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.warn('Error sending log to backend:', e);
+      }
     }
   }
 }
