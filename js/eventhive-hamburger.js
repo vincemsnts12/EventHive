@@ -1,9 +1,6 @@
 // Hamburger Menu Toggle Script
-const hamburgerBtn = document.getElementById('hamburgerBtn');
-const mobileMenu = document.getElementById('mobileMenu');
-const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
-const mobileGuestLinks = document.getElementById('mobileGuestLinks');
-const mobileUserLinks = document.getElementById('mobileUserLinks');
+// Elements will be selected when DOM is ready
+let hamburgerBtn, mobileMenu, mobileMenuOverlay, mobileGuestLinks, mobileUserLinks;
 
 // Cache for auth state (5 minutes) - same as desktop dropdown
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -29,13 +26,21 @@ function getCachedAuthState() {
   return null;
 }
 
+// Get mobile menu elements (with fallback)
+function getMobileMenuElements() {
+  if (!mobileGuestLinks) mobileGuestLinks = document.getElementById('mobileGuestLinks');
+  if (!mobileUserLinks) mobileUserLinks = document.getElementById('mobileUserLinks');
+  return { mobileGuestLinks, mobileUserLinks };
+}
+
 // Apply mobile menu state based on cached auth
 function applyMobileMenuState(isLoggedIn, isAdmin) {
-  if (!mobileGuestLinks || !mobileUserLinks) return;
+  const elements = getMobileMenuElements();
+  if (!elements.mobileGuestLinks || !elements.mobileUserLinks) return;
   
   if (isLoggedIn) {
-    mobileGuestLinks.style.display = 'none';
-    mobileUserLinks.style.display = 'block';
+    elements.mobileGuestLinks.style.display = 'none';
+    elements.mobileUserLinks.style.display = 'block';
     
     // Show/hide Dashboard link based on admin status
     const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
@@ -43,8 +48,8 @@ function applyMobileMenuState(isLoggedIn, isAdmin) {
       mobileDashboardBtn.style.display = isAdmin ? 'block' : 'none';
     }
   } else {
-    mobileGuestLinks.style.display = 'block';
-    mobileUserLinks.style.display = 'none';
+    elements.mobileGuestLinks.style.display = 'block';
+    elements.mobileUserLinks.style.display = 'none';
     
     // Hide dashboard link for non-logged-in users
     const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
@@ -180,6 +185,13 @@ async function updateMobileMenuAuthState(forceCheck = false) {
 
 // Toggle mobile menu
 async function toggleMobileMenu() {
+  // Get elements if not already cached
+  if (!hamburgerBtn) hamburgerBtn = document.getElementById('hamburgerBtn');
+  if (!mobileMenu) mobileMenu = document.getElementById('mobileMenu');
+  if (!mobileMenuOverlay) mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+  
+  if (!hamburgerBtn || !mobileMenu || !mobileMenuOverlay) return;
+  
   hamburgerBtn.classList.toggle('active');
   mobileMenu.classList.toggle('active');
   mobileMenuOverlay.classList.toggle('active');
@@ -206,19 +218,32 @@ async function toggleMobileMenu() {
 
 // Close mobile menu
 function closeMobileMenu() {
-  hamburgerBtn.classList.remove('active');
-  mobileMenu.classList.remove('active');
-  mobileMenuOverlay.classList.remove('active');
+  // Get elements if not already cached
+  if (!hamburgerBtn) hamburgerBtn = document.getElementById('hamburgerBtn');
+  if (!mobileMenu) mobileMenu = document.getElementById('mobileMenu');
+  if (!mobileMenuOverlay) mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+  
+  if (hamburgerBtn) hamburgerBtn.classList.remove('active');
+  if (mobileMenu) mobileMenu.classList.remove('active');
+  if (mobileMenuOverlay) mobileMenuOverlay.classList.remove('active');
   document.body.style.overflow = '';
 }
 
-// Event listeners
-if (hamburgerBtn) {
-  hamburgerBtn.addEventListener('click', toggleMobileMenu);
-}
+// Initialize event listeners when DOM is ready
+function initializeMobileMenuListeners() {
+  // Get elements
+  hamburgerBtn = document.getElementById('hamburgerBtn');
+  mobileMenu = document.getElementById('mobileMenu');
+  mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+  
+  // Attach event listeners
+  if (hamburgerBtn) {
+    hamburgerBtn.addEventListener('click', toggleMobileMenu);
+  }
 
-if (mobileMenuOverlay) {
-  mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+  if (mobileMenuOverlay) {
+    mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+  }
 }
 
 // Close menu on window resize (if screen becomes larger)
@@ -324,6 +349,9 @@ if (typeof getSupabaseClient === 'function') {
 
 // Initialize: Load cached state on DOM ready (backup - ensures it's applied)
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize event listeners
+  initializeMobileMenuListeners();
+  
   // Apply cached state immediately if available (base default on cache)
   const cached = getCachedAuthState();
   if (cached !== null) {
@@ -341,6 +369,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Also try to initialize immediately if DOM is already ready
+if (document.readyState !== 'loading') {
+  initializeMobileMenuListeners();
+}
 
 // Set up periodic check every 5 minutes (background refresh)
 // This runs continuously and automatically updates cache every 5 minutes
