@@ -43,21 +43,22 @@ function saveCachedAuthState(isLoggedIn, isAdmin) {
 
 // Update dropdown menu based on authentication state
 async function updateDropdownAuthState(forceCheck = false) {
-  // Check cache first (unless forced)
+  // If not forced, check cache first - if valid, use it ABSOLUTELY with NO async operations
   if (!forceCheck) {
     const cached = getCachedAuthState();
     if (cached !== null) {
-      // Use cached state immediately - NO async checks if cache is valid (< 5 minutes)
+      // Cache is valid (< 5 minutes from login) - use it ABSOLUTELY
+      // This is the state from initial login check - NO async operations
       applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
-      return; // Exit early - no auth check needed
+      return; // Exit immediately - NO async checks during 5-minute window
     }
   }
   
   // Only perform auth check if:
-  // 1. Force check is requested (login/logout/auth change)
+  // 1. Force check is requested (login/logout/auth change/5-minute refresh)
   // 2. Cache doesn't exist or is expired (> 5 minutes)
   
-  // Perform actual auth check
+  // Perform actual auth check (only when forced or cache expired)
   let isLoggedIn = false;
   let isAdmin = false;
   
@@ -112,8 +113,15 @@ profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
   // Just toggle the dropdown - uses cached auth state (instant)
   dropdownMenu.classList.toggle('show');
-  // Update UI from cache (no delay)
-  updateDropdownAuthState(false); // false = use cache if available
+  // Use cache directly - NO async checks if cache is valid
+  const cached = getCachedAuthState();
+  if (cached !== null) {
+    // Cache is valid - use it directly, no async operations
+    applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
+  } else {
+    // No cache - check auth
+    updateDropdownAuthState(false);
+  }
 });
 
 // Initialize: Load cached state immediately (no delay, no async checks)
@@ -121,20 +129,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply cached state immediately if available (base default on cache)
   const cached = getCachedAuthState();
   if (cached !== null) {
-    // Use cached state immediately - assume user is logged in and admin (if cached as admin)
+    // Use cached state immediately - ABSOLUTE DEFAULT for next 5 minutes
     // NO async checks - cache is valid for 5 minutes from login
+    // This is the state from initial login check - use it absolutely
     applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
+    // DO NOT call updateDropdownAuthState - cache is absolute for 5 minutes
   } else {
     // No cache - default to logged out state
     applyAuthStateToUI(false, false);
+    // Only check auth if no cache exists
+    updateDropdownAuthState(false).catch(err => {
+      console.error('Error updating auth state:', err);
+    });
   }
-  
-  // Only check auth in background if cache is expired (> 5 minutes) or doesn't exist
-  // This runs async and updates UI when done - no blocking
-  // If cache exists and is valid, this will return early without any async operations
-  updateDropdownAuthState(false).catch(err => {
-    console.error('Error updating auth state:', err);
-  });
 });
 
 // Listen for auth state changes (when user logs in/out)

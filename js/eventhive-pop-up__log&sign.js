@@ -172,8 +172,10 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               
               // Cache auth state with login timestamp (5-minute timer starts from here)
-              if (typeof saveCachedAuthState === 'function') {
-                saveCachedAuthState(isLoggedIn, isAdmin);
+              // This is the ABSOLUTE default state for the next 5 minutes
+              const saveFunction = window.saveCachedAuthState || (typeof saveCachedAuthState !== 'undefined' ? saveCachedAuthState : null);
+              if (saveFunction) {
+                saveFunction(isLoggedIn, isAdmin);
               } else {
                 // Fallback: save directly
                 try {
@@ -187,9 +189,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
               }
               
-              // Update UI immediately with cached state
-              if (typeof applyAuthStateToUI === 'function') {
-                applyAuthStateToUI(isLoggedIn, isAdmin);
+              // Update UI immediately with cached state (ABSOLUTE DEFAULT)
+              const applyFunction = window.applyAuthStateToUI || (typeof applyAuthStateToUI !== 'undefined' ? applyAuthStateToUI : null);
+              if (applyFunction) {
+                applyFunction(isLoggedIn, isAdmin);
               }
               
               // Load and cache profile data (WAIT for this - part of login delay)
