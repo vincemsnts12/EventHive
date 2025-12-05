@@ -28,58 +28,79 @@ function getCachedAuthState() {
   return null;
 }
 
-// IMMEDIATE INITIALIZATION: Apply cache state as soon as script loads
-// This runs IMMEDIATELY to prevent showing wrong state (Log In/Sign Up when logged in)
-(function applyCacheStateImmediately() {
+// Function to apply cache state to UI (synchronous, no async operations)
+function applyCacheStateToUI() {
   const cached = getCachedAuthState();
-  if (cached !== null && cached.isLoggedIn) {
-    // User is logged in - hide guestLinks and show userLinks IMMEDIATELY
-    // This prevents showing "Log In/Sign Up" when user is already logged in
+  if (cached !== null) {
     const gl = document.getElementById('guestLinks');
     const ul = document.getElementById('userLinks');
     const db = document.getElementById('navDashboardBtn');
     
-    if (gl) gl.style.display = 'none';
-    if (ul) ul.style.display = 'block';
-    if (db) db.style.display = cached.isAdmin ? 'block' : 'none';
-  } else if (cached !== null && !cached.isLoggedIn) {
-    // User is logged out - show guestLinks and hide userLinks
-    const gl = document.getElementById('guestLinks');
-    const ul = document.getElementById('userLinks');
-    const db = document.getElementById('navDashboardBtn');
-    
-    if (gl) gl.style.display = 'block';
-    if (ul) ul.style.display = 'none';
-    if (db) db.style.display = 'none';
+    if (cached.isLoggedIn) {
+      // USER IS LOGGED IN - THIS IS THE ABSOLUTE DEFAULT STATE
+      // Hide guestLinks and show userLinks IMMEDIATELY
+      if (gl) {
+        gl.style.display = 'none';
+      }
+      if (ul) {
+        ul.style.display = 'block';
+      }
+      if (db) {
+        db.style.display = cached.isAdmin ? 'block' : 'none';
+      }
+    } else {
+      // USER IS LOGGED OUT
+      if (gl) {
+        gl.style.display = 'block';
+      }
+      if (ul) {
+        ul.style.display = 'none';
+      }
+      if (db) {
+        db.style.display = 'none';
+      }
+    }
   }
-  // If no cache, leave HTML defaults (guestLinks visible)
-})();
+}
 
 // IMMEDIATE INITIALIZATION: Apply cache state as soon as script loads
 // This runs IMMEDIATELY to prevent showing wrong state (Log In/Sign Up when logged in)
+// Uses multiple strategies to ensure it runs as early as possible
 (function applyCacheStateImmediately() {
-  const cached = getCachedAuthState();
-  if (cached !== null && cached.isLoggedIn) {
-    // User is logged in - hide guestLinks and show userLinks IMMEDIATELY
-    // This prevents showing "Log In/Sign Up" when user is already logged in
-    const gl = document.getElementById('guestLinks');
-    const ul = document.getElementById('userLinks');
-    const db = document.getElementById('navDashboardBtn');
-    
-    if (gl) gl.style.display = 'none';
-    if (ul) ul.style.display = 'block';
-    if (db) db.style.display = cached.isAdmin ? 'block' : 'none';
-  } else if (cached !== null && !cached.isLoggedIn) {
-    // User is logged out - show guestLinks and hide userLinks
-    const gl = document.getElementById('guestLinks');
-    const ul = document.getElementById('userLinks');
-    const db = document.getElementById('navDashboardBtn');
-    
-    if (gl) gl.style.display = 'block';
-    if (ul) ul.style.display = 'none';
-    if (db) db.style.display = 'none';
+  // Try immediately (if DOM is ready)
+  applyCacheStateToUI();
+  
+  // Try when DOM is interactive (earlier than DOMContentLoaded)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyCacheStateToUI, { once: true });
+  } else {
+    // DOM already loaded, apply immediately
+    applyCacheStateToUI();
   }
-  // If no cache, leave HTML defaults (guestLinks visible)
+  
+  // Also try on next frame (catches elements added dynamically)
+  requestAnimationFrame(applyCacheStateToUI);
+  
+  // Also try after a tiny delay (catches late-loading elements)
+  setTimeout(applyCacheStateToUI, 0);
+  
+  // Use MutationObserver to catch elements as soon as they're added to DOM
+  const observer = new MutationObserver(() => {
+    applyCacheStateToUI();
+  });
+  
+  // Observe the document body for changes
+  if (document.body) {
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+    // Stop observing after 2 seconds (elements should be loaded by then)
+    setTimeout(() => {
+      observer.disconnect();
+    }, 2000);
+  }
 })();
 
 // Save auth state to localStorage
@@ -179,7 +200,7 @@ profileIcon.addEventListener('click', (e) => {
   }
 });
 
-// Initialize: Load cached state on DOM ready (backup - in case IIFE didn't catch it)
+// Initialize: Load cached state on DOM ready (backup - ensures it's applied)
 document.addEventListener('DOMContentLoaded', () => {
   // Apply cached state immediately if available (base default on cache)
   const cached = getCachedAuthState();
