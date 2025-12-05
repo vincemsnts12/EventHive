@@ -42,17 +42,13 @@ async function updateDropdownAuthState() {
   }
 }
 
-profileIcon.addEventListener('click', async (e) => {
+profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
-
-  // Update auth state before showing menu
-  await updateDropdownAuthState();
-
-  // Toggle menu visibility
+  // Just toggle the dropdown - auth state is already checked on page load
   dropdownMenu.classList.toggle('show');
 });
 
-// Initialize auth state on page load
+// Initialize auth state on page load (when HTML loads)
 document.addEventListener('DOMContentLoaded', async () => {
   await updateDropdownAuthState();
 });
