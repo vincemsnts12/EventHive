@@ -149,29 +149,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 logSecurityEvent('FAILED_LOGIN', { email: email, error: error.message }, 'User login attempt failed');
               }
             } else {
-              // Success - close modal and update UI
-              loginModal.style.display = 'none';
-              emailInput.value = '';
-              passwordInput.value = '';
+              // Success - wait for both auth and profile to load BEFORE completing login
+              // This ensures dropdown is functional immediately after login
               
-              // Wait longer for session to be fully established
+              // Wait for session to be fully established
               await new Promise(resolve => setTimeout(resolve, 500));
               
-              // Update UI and cache auth state (includes dashboard/admin status)
-              // Wait for this to complete to ensure isAdmin is loaded
-              if (typeof updateDropdownAuthState === 'function') {
-                await updateDropdownAuthState(true); // Force update after login - this caches auth state
-              }
-              if (typeof updateMobileMenuAuthState === 'function') {
-                await updateMobileMenuAuthState();
+              // Load and cache auth state (includes dashboard/admin status)
+              // WAIT for this to complete - this is the login delay
+              let isLoggedIn = false;
+              let isAdmin = false;
+              
+              if (typeof getCurrentUser === 'function') {
+                const userResult = await getCurrentUser();
+                isLoggedIn = userResult.success && userResult.user !== null;
+                
+                // Check if user is admin (WAIT for this)
+                if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
+                  const adminResult = await checkIfUserIsAdmin();
+                  isAdmin = adminResult.success && adminResult.isAdmin === true;
+                }
               }
               
-              // Load and cache profile data immediately after login (wait for completion)
+              // Cache auth state with login timestamp (5-minute timer starts from here)
+              if (typeof saveCachedAuthState === 'function') {
+                saveCachedAuthState(isLoggedIn, isAdmin);
+              } else {
+                // Fallback: save directly
+                try {
+                  const cache = {
+                    timestamp: Date.now(), // Login time - 5-minute timer starts here
+                    state: { isLoggedIn, isAdmin }
+                  };
+                  localStorage.setItem('eventhive_auth_cache', JSON.stringify(cache));
+                } catch (e) {
+                  console.error('Error caching auth state:', e);
+                }
+              }
+              
+              // Update UI immediately with cached state
+              if (typeof applyAuthStateToUI === 'function') {
+                applyAuthStateToUI(isLoggedIn, isAdmin);
+              }
+              
+              // Load and cache profile data (WAIT for this - part of login delay)
               if (typeof getUserProfile === 'function') {
                 try {
                   const profileResult = await getUserProfile();
                   if (profileResult.success && profileResult.profile) {
-                    // Cache profile data in localStorage for instant loading
+                    // Cache profile data in localStorage
                     try {
                       const profileCache = {
                         timestamp: Date.now(),
@@ -188,9 +214,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
               }
               
-              // Ensure 5-minute auth checker is running (it should already be set up, but verify)
-              // The setInterval in eventhive-dropdownmenu.js should already be running
-              console.log('Login complete - auth cache and profile cache loaded, 5-minute checker active');
+              // Update mobile menu
+              if (typeof updateMobileMenuAuthState === 'function') {
+                await updateMobileMenuAuthState();
+              }
+              
+              // Now close modal and complete login (both auth and profile are loaded)
+              loginModal.style.display = 'none';
+              emailInput.value = '';
+              passwordInput.value = '';
+              
+              console.log('Login complete - auth cache and profile cache loaded, 5-minute timer started');
               
               // Log security event
               if (typeof logSecurityEvent === 'function') {

@@ -14,10 +14,10 @@ function getCachedAuthState() {
     if (cached) {
       const parsed = JSON.parse(cached);
       const now = Date.now();
-      const timeSinceLastCheck = now - parsed.timestamp;
+      const timeSinceLogin = now - parsed.timestamp;
       
-      // Return cache if it's less than 5 minutes old
-      if (timeSinceLastCheck < AUTH_CHECK_INTERVAL) {
+      // Return cache if it's less than 5 minutes old (timer starts from login)
+      if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
         return parsed.state;
       }
     }
@@ -28,10 +28,11 @@ function getCachedAuthState() {
 }
 
 // Save auth state to localStorage
+// Made globally accessible for login script
 function saveCachedAuthState(isLoggedIn, isAdmin) {
   try {
     const cache = {
-      timestamp: Date.now(),
+      timestamp: Date.now(), // Login time - 5-minute timer starts from here
       state: { isLoggedIn, isAdmin }
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
@@ -46,11 +47,15 @@ async function updateDropdownAuthState(forceCheck = false) {
   if (!forceCheck) {
     const cached = getCachedAuthState();
     if (cached !== null) {
-      // Use cached state - instant UI update
+      // Use cached state immediately - NO async checks if cache is valid (< 5 minutes)
       applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
-      return;
+      return; // Exit early - no auth check needed
     }
   }
+  
+  // Only perform auth check if:
+  // 1. Force check is requested (login/logout/auth change)
+  // 2. Cache doesn't exist or is expired (> 5 minutes)
   
   // Perform actual auth check
   let isLoggedIn = false;
@@ -67,7 +72,7 @@ async function updateDropdownAuthState(forceCheck = false) {
     }
   }
   
-  // Save to cache
+  // Save to cache with current timestamp (resets 5-minute timer)
   saveCachedAuthState(isLoggedIn, isAdmin);
   
   // Update UI
@@ -97,6 +102,12 @@ function applyAuthStateToUI(isLoggedIn, isAdmin) {
   }
 }
 
+// Make functions globally accessible for login script
+if (typeof window !== 'undefined') {
+  window.saveCachedAuthState = saveCachedAuthState;
+  window.applyAuthStateToUI = applyAuthStateToUI;
+}
+
 profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
   // Just toggle the dropdown - uses cached auth state (instant)
@@ -105,20 +116,22 @@ profileIcon.addEventListener('click', (e) => {
   updateDropdownAuthState(false); // false = use cache if available
 });
 
-// Initialize: Load cached state immediately (no delay)
+// Initialize: Load cached state immediately (no delay, no async checks)
 document.addEventListener('DOMContentLoaded', () => {
   // Apply cached state immediately if available (base default on cache)
   const cached = getCachedAuthState();
   if (cached !== null) {
-    // Use cached state as default (includes isAdmin for dashboard)
+    // Use cached state immediately - assume user is logged in and admin (if cached as admin)
+    // NO async checks - cache is valid for 5 minutes from login
     applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
   } else {
     // No cache - default to logged out state
     applyAuthStateToUI(false, false);
   }
   
-  // Then check auth in background (only if cache expired or doesn't exist)
+  // Only check auth in background if cache is expired (> 5 minutes) or doesn't exist
   // This runs async and updates UI when done - no blocking
+  // If cache exists and is valid, this will return early without any async operations
   updateDropdownAuthState(false).catch(err => {
     console.error('Error updating auth state:', err);
   });
@@ -136,10 +149,29 @@ if (typeof getSupabaseClient === 'function') {
 }
 
 // Set up periodic check every 5 minutes (background refresh)
-// This runs continuously and checks auth state every 5 minutes
+// This runs continuously and automatically updates cache every 5 minutes
+// Timer starts from login time (stored in cache timestamp)
 let authCheckInterval = setInterval(() => {
-  updateDropdownAuthState(true); // Force check every 5 minutes
-}, AUTH_CHECK_INTERVAL);
+  // Check if cache exists and if 5 minutes have passed since login
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const timeSinceLogin = Date.now() - parsed.timestamp;
+      
+      if (timeSinceLogin >= AUTH_CHECK_INTERVAL) {
+        // 5 minutes have passed since login - refresh cache in background
+        updateDropdownAuthState(true);
+      }
+      // If less than 5 minutes, do nothing - use cache only
+    } else {
+      // No cache - check auth
+      updateDropdownAuthState(true);
+    }
+  } catch (e) {
+    console.error('Error in periodic auth check:', e);
+  }
+}, 60000); // Check every minute to see if 5 minutes have passed since login
 
 // Ensure interval is cleared on logout to prevent unnecessary checks
 // (It will restart on next page load if user is logged in)
