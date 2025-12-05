@@ -2,8 +2,8 @@
 // TODO: Replace these with your actual Supabase project credentials
 // Get these from: https://app.supabase.com/project/_/settings/api
 
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // e.g., 'https://xxxxx.supabase.co'
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Your anon/public key
+const SUPABASE_URL = 'https://uayvdfmkjuxnfsoavwud.supabase.co'; // e.g., 'https://xxxxx.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVheXZkZm1ranV4bmZzb2F2d3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5MzIzOTMsImV4cCI6MjA4MDUwODM5M30.dlWCOgRnGSDLHT21EWI1NZyfP0z0uFQpyYy1TlOpcCU'; // Your anon/public key
 
 // Initialize Supabase client
 // Note: You'll need to include the Supabase JS library in your HTML:
