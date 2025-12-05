@@ -63,25 +63,27 @@ function getCachedProfile() {
   return null;
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // Wait for Supabase to initialize
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait for Supabase to initialize (non-blocking)
   if (typeof initSupabase === 'function') {
     initSupabase();
   }
 
-  // Try to load from cache first (instant)
+  // Try to load from cache first (instant, synchronous)
   const cachedProfile = getCachedProfile();
   if (cachedProfile) {
-    // Apply cached profile immediately (no delay)
+    // Apply cached profile immediately (no delay, no async)
     applyProfileToUI(cachedProfile);
     console.log('Profile data loaded from cache');
+  } else {
+    // No cache - show default immediately
+    showDefaultProfile();
   }
 
-  // Load profile data from Supabase (in background, updates cache)
+  // Load profile data from Supabase (in background, async - doesn't block)
+  // This updates the UI when done, but doesn't cause delay
   if (typeof getUserProfile === 'function') {
-    try {
-      const result = await getUserProfile();
-      
+    getUserProfile().then(result => {
       if (result.success && result.profile) {
         const profile = result.profile;
         
@@ -102,17 +104,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Profile data loaded from Supabase');
       } else {
         console.warn('Failed to load profile:', result.error);
-        // Show default/placeholder data
+        // Only show default if we didn't have cache
+        if (!cachedProfile) {
+          showDefaultProfile();
+        }
+      }
+    }).catch(error => {
+      console.error('Error loading profile:', error);
+      // Only show default if we didn't have cache
+      if (!cachedProfile) {
         showDefaultProfile();
       }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-      // Show default/placeholder data
+    });
+  } else {
+    // Supabase not available - only show default if no cache
+    if (!cachedProfile) {
       showDefaultProfile();
     }
-  } else {
-    // Supabase not available - show default
-    showDefaultProfile();
   }
 });
 

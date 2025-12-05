@@ -97,6 +97,16 @@ function applyAuthStateToUI(isLoggedIn, isAdmin) {
   }
 }
 
+// Set default state (assume logged in - userLinks visible)
+function setDefaultAuthState() {
+  if (guestLinks) guestLinks.style.display = 'none';
+  if (userLinks) userLinks.style.display = 'block';
+  const dashboardLink = document.getElementById('navDashboardBtn');
+  if (dashboardLink) {
+    dashboardLink.style.display = 'none'; // Hide by default, will show if admin
+  }
+}
+
 profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
   // Just toggle the dropdown - uses cached auth state (instant)
@@ -107,14 +117,20 @@ profileIcon.addEventListener('click', (e) => {
 
 // Initialize: Load cached state immediately (no delay)
 document.addEventListener('DOMContentLoaded', () => {
-  // Apply cached state immediately if available
+  // Set default state first (assume logged in - instant, no delay)
+  setDefaultAuthState();
+  
+  // Apply cached state immediately if available (overrides default)
   const cached = getCachedAuthState();
   if (cached !== null) {
     applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
   }
   
   // Then check auth in background (only if cache expired or doesn't exist)
-  updateDropdownAuthState(false);
+  // This runs async and updates UI when done - no blocking
+  updateDropdownAuthState(false).catch(err => {
+    console.error('Error updating auth state:', err);
+  });
 });
 
 // Listen for auth state changes (when user logs in/out)
