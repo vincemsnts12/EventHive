@@ -119,11 +119,19 @@ async function handleOAuthCallback() {
       if (!isAllowedEmailDomain(email)) {
         await supabaseClient.auth.signOut();
         alert('Only TUP email addresses (@tup.edu.ph) are allowed to sign up.');
-        // Clean up the URL
+        // Clean up the URL (remove hash and query params)
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
+      
+      // Clean up the URL after successful OAuth
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
+  }
+  
+  // Also clean up any query parameters that might be left from form submissions
+  if (window.location.search) {
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
   }
 }
 
