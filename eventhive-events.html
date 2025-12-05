@@ -235,9 +235,9 @@
           <svg class="likes-heart-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
-          <span class="likes-count" id="likesCount">42</span>
+          <span class="likes-count" id="likesCount">0</span>
         </div>
-        <span class="comments-count" id="commentsCount">3 comments</span>
+        <span class="comments-count" id="commentsCount">0 comments</span>
       </div>
     </div>
 
@@ -267,49 +267,7 @@
 
     <!-- Comments List (Oldest First) -->
     <div class="comments-list" id="commentsList">
-      
-      <!-- Comment 1 - Oldest -->
-      <div class="comment-item" data-user-id="user-3">
-        <a href="eventhive-profile.html?user=gvan" class="comment-avatar">
-          <img src="images/gvan.JPG" alt="User avatar">
-        </a>
-        <div class="comment-content">
-          <div class="comment-header">
-            <a href="eventhive-profile.html?user=gvan" class="comment-author">Gvan Santos</a>
-            <span class="comment-timestamp">1 day ago</span>
-          </div>
-          <p class="comment-text">Was there representing COS! Such a proud moment for our college. The energy was unreal!</p>
-        </div>
-      </div>
-
-      <!-- Comment 2 -->
-      <div class="comment-item" data-user-id="user-2">
-        <a href="eventhive-profile.html?user=vince" class="comment-avatar">
-          <img src="images/vince.JPG" alt="User avatar">
-        </a>
-        <div class="comment-content">
-          <div class="comment-header">
-            <a href="eventhive-profile.html?user=vince" class="comment-author">Vince Marcelo</a>
-            <span class="comment-timestamp">5 hours ago</span>
-          </div>
-          <p class="comment-text">Congrats to all the winners! TUP really knows how to put on a show. 🎉</p>
-        </div>
-      </div>
-
-      <!-- Comment 3 - Newest -->
-      <div class="comment-item" data-user-id="user-1">
-        <a href="eventhive-profile.html?user=axel" class="comment-avatar">
-          <img src="images/axel.JPG" alt="User avatar">
-        </a>
-        <div class="comment-content">
-          <div class="comment-header">
-            <a href="eventhive-profile.html?user=axel" class="comment-author">Axel Rodriguez</a>
-            <span class="comment-timestamp">2 hours ago</span>
-          </div>
-          <p class="comment-text">This event was absolutely amazing! Can't wait for next year's pageant. The performances were top-notch! 👑✨</p>
-        </div>
-      </div>
-
+      <!-- Comments will be loaded dynamically from Supabase -->
     </div>
 
   </div>
@@ -462,10 +420,15 @@
       </div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <!-- SUPABASE CLIENT -->
+    <script src="js/eventhive-supabase.js"></script> <!-- SUPABASE CONFIGURATION -->
+    <script src="js/eventhive-supabase-services.js"></script> <!-- SUPABASE SERVICES (LIKES, COMMENTS, PROFILES) -->
     <script src="js/eventhive-dropdownmenu.js"></script> <!-- PROFILE ICON DROPDOWN JS FILE -->
     <script src="js/eventhive-pop-up__log&sign.js"></script> <!-- POP UP PROFILE SIGN IN AND LOG IN JS FILE -->
     <script src="js/eventhive-pop-up__join-us.js"></script> <!-- POP UP JOIN US JS FILE -->
-    <script src="js/eventhive-events.js"></script>
+    <script src="js/eventhive-date-utils.js"></script> <!-- DATE UTILITY FUNCTIONS -->
+    <script src="js/eventhive-events.js"></script> <!-- EVENT DETAILS PAGE LOGIC -->
+    <script src="js/eventhive-comments-likes.js"></script> <!-- COMMENTS AND LIKES INTEGRATION -->
     <script src="js/eventhive-hamburger.js"></script> <!-- HAMBURGER MENU JS FILE -->
 </body>
 </html>

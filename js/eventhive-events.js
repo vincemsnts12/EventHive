@@ -1,17 +1,25 @@
 // ===== SAMPLE EVENT DATA =====
-const eventsData = { 
+// Note: This will be replaced with database queries in production
+// For now, we enrich this data with parsed dates and calculated fields
+const eventsDataRaw = { 
   'event-1': {
     title: 'EduTech Summit on Campus with Collab',
     description: 'Event in the College of Science to promote knowledge and participation through interactive workshops, keynote speakers, and networking opportunities for students and faculty.',
     location: 'College of Industrial Education – TUP Teachers on Grounds',
     date: 'November 7, 2025 (Friday) | 12:00 NN - 4:00 PM',
-    status: 'Upcoming',
-    statusColor: 'upcoming',
+    status: 'Upcoming', // Will be recalculated from dates
+    isFeatured: true,
+    likes: 186,
     college: 'COS',
     collegeColor: 'cos',
     organization: 'AWS Learning Club - TUP Manila',
     images: ['images/event-1.jpg', 'images/event-1-2.jpg', 'images/event-1-3.jpg'],
-    universityLogo: 'images/tup.png' 
+    universityLogo: 'images/tup.png',
+    // Database fields (will be populated from database in production)
+    id: 'event-1',
+    createdAt: null,
+    updatedAt: null,
+    createdBy: null
   },
   'event-2': {
     title: 'Tech Innovation Conference 2024',
@@ -19,7 +27,8 @@ const eventsData = {
     location: 'College of Engineering – Main Auditorium',
     date: 'November 15, 2025 (Saturday) | 9:00 AM - 5:00 PM',
     status: 'Ongoing',
-    statusColor: 'ongoing',
+    likes: 142,
+    isFeatured: false,
     college: 'COE',
     collegeColor: 'coe',
     organization: 'Google Developer Groups on Campus TUP Manila',
@@ -32,7 +41,8 @@ const eventsData = {
     location: 'TUP Manila – Grounds',
     date: 'December 4, 2025 (Thursday) | 6:00 PM - 9:00 PM',
     status: 'Concluded',
-    statusColor: 'concluded',
+    likes: 118,
+    isFeatured: false,
     college: 'TUP',
     collegeColor: 'tup',
     organization: 'TUP USG Manila',
@@ -45,7 +55,8 @@ const eventsData = {
     location: 'TUP Manila – Grounds',
     date: 'November 27, 2025 (Thursday) | 5:30 PM - 9:30 PM',
     status: 'Concluded',
-    statusColor: 'concluded',
+    likes: 133,
+    isFeatured: false,
     college: 'TUP',
     collegeColor: 'tup',
     organization: 'TUP USG Manila',
@@ -58,7 +69,8 @@ const eventsData = {
     location: 'TUP Administration – AVR',
     date: 'November 6, 2025 (Thursday) | 1:00 PM - 4:00 PM',
     status: 'Concluded',
-    statusColor: 'concluded',
+    likes: 104,
+    isFeatured: false,
     college: 'COS',
     collegeColor: 'cos',
     organization: 'Google Developer Groups on Campus TUP Manila',
@@ -66,6 +78,59 @@ const eventsData = {
     universityLogo: 'images/tup.png'
   }
 };
+
+// ===== ENRICH EVENTS DATA WITH PARSED DATES =====
+// This function enriches eventsData with parsed date fields and calculated status
+function enrichEventsData(rawData) {
+  const enriched = {};
+  
+  for (const [eventId, event] of Object.entries(rawData)) {
+    // Parse date string into structured date/time fields
+    const parsedDate = parseDateString(event.date);
+    
+    // Calculate status from dates (if dates are available)
+    let calculatedStatus = event.status;
+    
+    if (parsedDate) {
+      calculatedStatus = calculateEventStatus(
+        parsedDate.startDate, 
+        parsedDate.endDate, 
+        event.status === 'Pending' ? 'Pending' : null
+      );
+    }
+    
+    // Calculate statusColor from status (derived, not stored)
+    const calculatedStatusColor = getStatusColor(calculatedStatus);
+    
+    // Create enriched event object
+    enriched[eventId] = {
+      ...event,
+      // Keep original date string for display
+      date: event.date,
+      // Add parsed date fields for database compatibility
+      startDate: parsedDate ? parsedDate.startDate : null,
+      endDate: parsedDate ? parsedDate.endDate : null,
+      startTime: parsedDate ? parsedDate.startTime : null,
+      endTime: parsedDate ? parsedDate.endTime : null,
+      // Use calculated status (from dates) instead of stored status
+      status: calculatedStatus,
+      // statusColor is derived from status, not stored in raw data
+      statusColor: calculatedStatusColor,
+      // Ensure all required fields exist
+      id: event.id || eventId,
+      isFeatured: event.isFeatured || false,
+      likes: event.likes || 0,
+      createdAt: event.createdAt || null,
+      updatedAt: event.updatedAt || null,
+      createdBy: event.createdBy || null
+    };
+  }
+  
+  return enriched;
+}
+
+// Enriched events data with parsed dates and calculated fields
+const eventsData = enrichEventsData(eventsDataRaw);
 
 // Current image index for the carousel
 let currentImageIndex = 0;
@@ -110,12 +175,24 @@ function updateEventDetails(eventId) {
   if(document.getElementById('event-location')) document.getElementById('event-location').textContent = event.location;
   if(document.getElementById('event-date')) document.getElementById('event-date').textContent = event.date;
   
-  // 2. Update Image (first image in array)
+  // 2. Update Image (use thumbnail index if available)
   currentImageIndex = 0;
   const imageElement = document.getElementById('event-image');
-  if (imageElement && event.images && event.images.length > 0) {
-    imageElement.src = event.images[0];
+  if (imageElement) {
+    let thumbnailUrl = 'images/tup.png';
+    if (event.images && event.images.length > 0) {
+      const thumbnailIndex = (event.thumbnailIndex !== undefined && event.thumbnailIndex < event.images.length) 
+        ? event.thumbnailIndex 
+        : 0;
+      thumbnailUrl = event.images[thumbnailIndex];
+      currentImageIndex = thumbnailIndex;
+    } else if (event.universityLogo) {
+      thumbnailUrl = event.universityLogo;
+    }
+    imageElement.src = thumbnailUrl;
     imageElement.alt = event.title;
+    imageElement.style.objectFit = 'cover';
+    imageElement.style.objectPosition = 'center';
     imageElement.onerror = function() {
         this.src = 'images/tup.png'; 
     };
@@ -131,9 +208,11 @@ function updateEventDetails(eventId) {
   const statusContainer = document.querySelector('.event-slider__status');
   const statusText = document.getElementById('status-text');
   
-  if (statusContainer && event.statusColor) {
+  if (statusContainer && event.status) {
     statusContainer.className = 'event-slider__status'; 
-    statusContainer.classList.add(event.statusColor);
+    // Derive statusColor from status
+    const statusColor = getStatusColor(event.status);
+    statusContainer.classList.add(statusColor);
   }
 
   if (statusText) {
@@ -158,6 +237,11 @@ function updateEventDetails(eventId) {
 
   // 7. Setup Image Carousel Dots
   setupImageCarousel(event);
+  
+  // 8. Reload comments and likes for this event (if Supabase is available)
+  if (typeof initializeCommentsAndLikes === 'function') {
+    initializeCommentsAndLikes(eventId);
+  }
 }
 
 // ===== IMAGE CAROUSEL FOR SINGLE EVENT =====
@@ -256,7 +340,7 @@ function setupCommentCharCounter() {
 }
 
 // ===== INITIALIZE ON PAGE LOAD =====
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   
   if (document.querySelector('.details-btn')) {
     setupEventCardButtons();
@@ -272,6 +356,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // This now also sets up the image carousel
     updateEventDetails(eventToShow);
+    
+    // Initialize comments and likes for this event
+    if (typeof initializeCommentsAndLikes === 'function') {
+      await initializeCommentsAndLikes(eventToShow);
+    }
   }
   
   // Setup comment character counter

@@ -4,9 +4,10 @@
 const availableColleges = [
   { code: 'COS', name: 'College of Science', color: 'cos' },
   { code: 'COE', name: 'College of Engineering', color: 'coe' },
-  { code: 'CAFA', name: 'College of Architecture', color: 'cafa' },
+  { code: 'CAFA', name: 'College of Architecture and Fine Arts', color: 'cafa' },
   { code: 'CLA', name: 'College of Liberal Arts', color: 'cla' },
   { code: 'CIE', name: 'College of Industrial Education', color: 'cie' },
+  { code: 'CIT', name: 'College of Industrial Technology', color: 'cit' },
   { code: 'TUP', name: 'TUP System-wide', color: 'tup' }
 ];
 
@@ -21,19 +22,25 @@ let availableOrganizations = [
 ];
 
 // Pending Events (from Google Forms submissions)
-const pendingEventsData = {
+// Raw data - will be enriched with parsed dates
+const pendingEventsDataRaw = {
   'pending-1': {
     title: 'Hackathon 2025: Code Your Future',
     description: 'A 48-hour coding competition where students will build innovative solutions to real-world problems. Prizes and mentorship opportunities await!',
     location: 'College of Engineering – Computer Lab',
     date: 'January 15, 2026 (Thursday) | 8:00 AM - 6:00 PM',
     status: 'Pending',
-    statusColor: 'pending',
+    isFeatured: false, // Default for pending events
+    likes: 0, // Default for pending events
     college: 'COE',
     collegeColor: 'coe',
     organization: 'TUP Programming Club',
     images: ['images/tup.png'],
-    universityLogo: 'images/tup.png'
+    universityLogo: 'images/tup.png',
+    id: 'pending-1',
+    createdAt: null,
+    updatedAt: null,
+    createdBy: null
   },
   'pending-2': {
     title: 'Art Exhibition: Colors of Innovation',
@@ -41,12 +48,17 @@ const pendingEventsData = {
     location: 'College of Architecture – Gallery Hall',
     date: 'February 10, 2026 (Tuesday) | 10:00 AM - 7:00 PM',
     status: 'Pending',
-    statusColor: 'pending',
+    isFeatured: false, // Default for pending events
+    likes: 0, // Default for pending events
     college: 'CAFA',
     collegeColor: 'cafa',
     organization: 'TUP Visual Arts Society',
     images: ['images/tup.png'],
-    universityLogo: 'images/tup.png'
+    universityLogo: 'images/tup.png',
+    id: 'pending-2',
+    createdAt: null,
+    updatedAt: null,
+    createdBy: null
   },
   'pending-3': {
     title: 'Science Fair 2026: Innovation Showcase',
@@ -54,14 +66,25 @@ const pendingEventsData = {
     location: 'College of Science – Main Hall',
     date: 'March 5, 2026 (Thursday) | 9:00 AM - 4:00 PM',
     status: 'Pending',
-    statusColor: 'pending',
+    isFeatured: false, // Default for pending events
+    likes: 0, // Default for pending events
     college: 'COS',
     collegeColor: 'cos',
     organization: 'TUP Science Society',
     images: ['images/tup.png'],
-    universityLogo: 'images/tup.png'
+    universityLogo: 'images/tup.png',
+    id: 'pending-3',
+    createdAt: null,
+    updatedAt: null,
+    createdBy: null
   }
 };
+
+// Enrich pending events data with parsed dates and calculated fields
+// Note: This will be re-enriched when new events are added
+let pendingEventsData = typeof enrichEventsData !== 'undefined' 
+  ? enrichEventsData(pendingEventsDataRaw)
+  : pendingEventsDataRaw;
 
 // Current editing state
 let currentEditingEventId = null;
@@ -130,7 +153,11 @@ function populatePublishedEventsTable() {
   
   sortedEvents.forEach(([eventId, event]) => {
     const row = document.createElement('tr');
+    row.setAttribute('data-event-id', eventId);
     const isEnded = event.status === 'Concluded';
+    if (event.isFeatured) {
+      row.classList.add('featured-event');
+    }
     if (isEnded) {
       row.classList.add('ended-event');
     }
@@ -195,12 +222,22 @@ function populatePublishedEventsTable() {
     locationCell.appendChild(locationIcon);
     row.appendChild(locationCell);
     
-    // Date & Time
+    // Date & Time (clickable)
     const dateCell = document.createElement('td');
     dateCell.className = 'date-cell';
     dateCell.setAttribute('data-label', 'Date & Time');
     const dateDisplay = document.createElement('div');
     dateDisplay.className = 'date-display';
+    dateDisplay.style.cursor = 'pointer';
+    dateDisplay.setAttribute('data-event-id', eventId);
+    dateDisplay.addEventListener('click', () => {
+      if (rowsInEditMode.has(eventId)) {
+        currentEditingTable = 'published';
+        openEditDateModal(eventId, event);
+      } else {
+        openViewDateModal(event.date);
+      }
+    });
     const dateIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     dateIcon.setAttribute('class', 'date-icon');
     dateIcon.setAttribute('viewBox', '0 0 24 24');
@@ -258,10 +295,44 @@ function populatePublishedEventsTable() {
     statusCell.className = 'status-cell';
     statusCell.setAttribute('data-label', 'Status');
     const statusBadge = document.createElement('span');
-    statusBadge.className = `status-badge ${event.statusColor}`;
+    // Derive statusColor from status
+    const statusColor = typeof getStatusColor !== 'undefined' 
+      ? getStatusColor(event.status) 
+      : event.status.toLowerCase();
+    statusBadge.className = `status-badge ${statusColor}`;
     statusBadge.innerHTML = `<span class="status-dot"></span> ${event.status}`;
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
+    
+    // Images (clickable icon)
+    const imagesCell = document.createElement('td');
+    imagesCell.className = 'images-cell';
+    imagesCell.setAttribute('data-label', 'Images');
+    const imagesIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    imagesIcon.setAttribute('class', 'images-icon');
+    imagesIcon.setAttribute('viewBox', '0 0 24 24');
+    imagesIcon.setAttribute('fill', 'currentColor');
+    imagesIcon.setAttribute('width', '24');
+    imagesIcon.setAttribute('height', '24');
+    imagesIcon.innerHTML = '<path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>';
+    imagesIcon.style.cursor = 'pointer';
+    imagesIcon.style.fill = '#666';
+    imagesIcon.style.transition = 'all 0.2s ease';
+    imagesIcon.setAttribute('data-event-id', eventId);
+    imagesIcon.addEventListener('click', () => {
+      currentEditingTable = 'published';
+      openImagesModal(eventId, event);
+    });
+    imagesIcon.addEventListener('mouseenter', () => {
+      imagesIcon.style.fill = '#B81E20';
+      imagesIcon.style.transform = 'scale(1.1)';
+    });
+    imagesIcon.addEventListener('mouseleave', () => {
+      imagesIcon.style.fill = '#666';
+      imagesIcon.style.transform = 'scale(1)';
+    });
+    imagesCell.appendChild(imagesIcon);
+    row.appendChild(imagesCell);
     
     // Actions
     const actionsCell = document.createElement('td');
@@ -303,6 +374,134 @@ function populatePublishedEventsTable() {
   });
 }
 
+// ===== GENERATE UNIQUE PENDING EVENT ID =====
+function generatePendingEventId() {
+  const existingIds = Object.keys(pendingEventsDataRaw);
+  let counter = 1;
+  let newId = `pending-${counter}`;
+  
+  while (existingIds.includes(newId)) {
+    counter++;
+    newId = `pending-${counter}`;
+  }
+  
+  return newId;
+}
+
+// ===== FORMAT TODAY'S DATE FOR EVENT =====
+function formatTodayDate() {
+  const today = new Date();
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  const dayName = dayNames[today.getDay()];
+  const month = monthNames[today.getMonth()];
+  const day = today.getDate();
+  const year = today.getFullYear();
+  
+  // Default time: 9:00 AM - 5:00 PM
+  const dateString = `${month} ${day}, ${year} (${dayName}) | 9:00 AM - 5:00 PM`;
+  
+  return dateString;
+}
+
+// ===== CREATE NEW PENDING EVENT =====
+function createNewPendingEvent() {
+  const newId = generatePendingEventId();
+  const todayDate = formatTodayDate();
+  
+  // Create new event with default values
+  const newEvent = {
+    title: 'Add Title',
+    description: 'Add Description',
+    location: 'Add Location',
+    date: todayDate,
+    status: 'Pending',
+    isFeatured: false,
+    likes: 0,
+    college: 'TUP',
+    collegeColor: 'tup',
+    organization: 'TUP USG Manila',
+    images: ['images/tup.png'], // Default placeholder image
+    thumbnailIndex: 0, // First image is thumbnail
+    universityLogo: 'images/tup.png',
+    id: newId,
+    createdAt: null,
+    updatedAt: null,
+    createdBy: null
+  };
+  
+  // Add to raw data
+  pendingEventsDataRaw[newId] = newEvent;
+  
+  // Re-enrich the data
+  if (typeof enrichEventsData !== 'undefined') {
+    // Re-enrich all pending events data
+    pendingEventsData = enrichEventsData(pendingEventsDataRaw);
+  } else {
+    // Fallback: just add to pendingEventsData directly
+    pendingEventsData[newId] = newEvent;
+  }
+  
+  // Re-render the table
+  populatePendingEventsTable();
+  
+  // Scroll to the new row (optional, but nice UX)
+  setTimeout(() => {
+    const newRow = document.querySelector(`tr[data-event-id="${newId}"]`);
+    if (newRow) {
+      newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, 100);
+}
+
+// ===== BUILD ADD NEW EVENT ROW =====
+function buildAddNewEventRow() {
+  const row = document.createElement('tr');
+  row.className = 'add-new-event-row';
+  row.style.cursor = 'pointer';
+  row.style.backgroundColor = '#f5f5f5';
+  
+  row.addEventListener('click', () => {
+    createNewPendingEvent();
+  });
+  
+  row.addEventListener('mouseenter', () => {
+    row.style.backgroundColor = '#e8e8e8';
+  });
+  
+  row.addEventListener('mouseleave', () => {
+    row.style.backgroundColor = '#f5f5f5';
+  });
+  
+  // Create a single cell that spans all columns
+  const cell = document.createElement('td');
+  cell.colSpan = 9; // Title, Description, Location, Date & Time, College, Organization, Status, Images, Actions
+  cell.style.textAlign = 'center';
+  cell.style.padding = '20px';
+  cell.style.fontSize = '1.2rem';
+  cell.style.color = '#666';
+  
+  // Add plus icon
+  const plusIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  plusIcon.setAttribute('width', '32');
+  plusIcon.setAttribute('height', '32');
+  plusIcon.setAttribute('viewBox', '0 0 24 24');
+  plusIcon.setAttribute('fill', 'currentColor');
+  plusIcon.style.verticalAlign = 'middle';
+  plusIcon.style.marginRight = '10px';
+  plusIcon.innerHTML = '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>';
+  
+  const text = document.createTextNode('Add New Event');
+  
+  cell.appendChild(plusIcon);
+  cell.appendChild(text);
+  row.appendChild(cell);
+  
+  return row;
+}
+
 // ===== POPULATE PENDING EVENTS TABLE =====
 function populatePendingEventsTable() {
   const tbody = document.getElementById('pendingEventsTableBody');
@@ -314,6 +513,7 @@ function populatePendingEventsTable() {
   
   sortedPending.forEach(([eventId, event]) => {
     const row = document.createElement('tr');
+    row.setAttribute('data-event-id', eventId);
     
     // Title (scrollable, clickable)
     const titleCell = document.createElement('td');
@@ -366,12 +566,19 @@ function populatePendingEventsTable() {
     locationCell.appendChild(locationIcon);
     row.appendChild(locationCell);
     
-    // Date & Time
+    // Date & Time (clickable - always editable for pending events)
     const dateCell = document.createElement('td');
     dateCell.className = 'date-cell';
     dateCell.setAttribute('data-label', 'Date & Time');
     const dateDisplay = document.createElement('div');
     dateDisplay.className = 'date-display';
+    dateDisplay.style.cursor = 'pointer';
+    dateDisplay.setAttribute('data-event-id', eventId);
+    dateDisplay.addEventListener('click', () => {
+      // Pending events are always editable (no edit mode needed)
+      currentEditingTable = 'pending';
+      openEditDateModal(eventId, event);
+    });
     const dateIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     dateIcon.setAttribute('class', 'date-icon');
     dateIcon.setAttribute('viewBox', '0 0 24 24');
@@ -430,6 +637,36 @@ function populatePendingEventsTable() {
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
     
+    // Images (clickable icon)
+    const imagesCell = document.createElement('td');
+    imagesCell.className = 'images-cell';
+    imagesCell.setAttribute('data-label', 'Images');
+    const imagesIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    imagesIcon.setAttribute('class', 'images-icon');
+    imagesIcon.setAttribute('viewBox', '0 0 24 24');
+    imagesIcon.setAttribute('fill', 'currentColor');
+    imagesIcon.setAttribute('width', '24');
+    imagesIcon.setAttribute('height', '24');
+    imagesIcon.innerHTML = '<path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>';
+    imagesIcon.style.cursor = 'pointer';
+    imagesIcon.style.fill = '#666';
+    imagesIcon.style.transition = 'all 0.2s ease';
+    imagesIcon.setAttribute('data-event-id', eventId);
+    imagesIcon.addEventListener('click', () => {
+      currentEditingTable = 'pending';
+      openImagesModal(eventId, event);
+    });
+    imagesIcon.addEventListener('mouseenter', () => {
+      imagesIcon.style.fill = '#B81E20';
+      imagesIcon.style.transform = 'scale(1.1)';
+    });
+    imagesIcon.addEventListener('mouseleave', () => {
+      imagesIcon.style.fill = '#666';
+      imagesIcon.style.transform = 'scale(1)';
+    });
+    imagesCell.appendChild(imagesIcon);
+    row.appendChild(imagesCell);
+    
     // Actions (Approve & Reject)
     const actionsCell = document.createElement('td');
     actionsCell.className = 'actions-cell';
@@ -458,6 +695,10 @@ function populatePendingEventsTable() {
     
     tbody.appendChild(row);
   });
+  
+  // Add the "+" row at the bottom
+  const addRow = buildAddNewEventRow();
+  tbody.appendChild(addRow);
 }
 
 // ===== APPROVE PENDING EVENT =====
@@ -472,8 +713,8 @@ function approvePendingEvent(eventId) {
   // Move to published events with status "Upcoming"
   eventsData[newEventId] = {
     ...pendingEvent,
-    status: 'Upcoming',
-    statusColor: 'upcoming'
+    status: 'Upcoming'
+    // statusColor will be derived from status in enrichEventsData
   };
   
   // Remove from pending
@@ -611,6 +852,13 @@ function openEditTitleModal(eventId, currentTitle) {
   currentEditingField = 'title';
   if (!currentEditingTable) currentEditingTable = 'published';
   document.getElementById('editTitleInput').value = currentTitle;
+  
+  const featureCheckbox = document.getElementById('featureEventCheckbox');
+  if (featureCheckbox) {
+    const source = currentEditingTable === 'pending' ? pendingEventsData : eventsData;
+    const eventData = source?.[eventId];
+    featureCheckbox.checked = !!eventData?.isFeatured;
+  }
   document.getElementById('editTitleModal').classList.add('active');
 }
 
@@ -690,6 +938,48 @@ function openEditOrgModal(eventId, currentOrg) {
   document.getElementById('editOrgModal').classList.add('active');
 }
 
+function openViewDateModal(dateString) {
+  document.getElementById('viewDateText').textContent = dateString;
+  document.getElementById('viewDateModal').classList.add('active');
+}
+
+function openEditDateModal(eventId, event) {
+  currentEditingEventId = eventId;
+  currentEditingField = 'date';
+  if (!currentEditingTable) currentEditingTable = 'published';
+  
+  // Parse the current date to populate the form
+  const parsedDate = parseDateString(event.date);
+  
+  if (parsedDate) {
+    // Format dates for input fields (YYYY-MM-DD)
+    const startDateInput = document.getElementById('editStartDate');
+    const startTimeInput = document.getElementById('editStartTime');
+    const endDateInput = document.getElementById('editEndDate');
+    const endTimeInput = document.getElementById('editEndTime');
+    
+    if (startDateInput && parsedDate.startDate) {
+      const startDate = new Date(parsedDate.startDate);
+      startDateInput.value = startDate.toISOString().split('T')[0];
+    }
+    
+    if (startTimeInput && parsedDate.startTime) {
+      startTimeInput.value = parsedDate.startTime.substring(0, 5); // HH:MM format
+    }
+    
+    if (endDateInput && parsedDate.endDate) {
+      const endDate = new Date(parsedDate.endDate);
+      endDateInput.value = endDate.toISOString().split('T')[0];
+    }
+    
+    if (endTimeInput && parsedDate.endTime) {
+      endTimeInput.value = parsedDate.endTime.substring(0, 5); // HH:MM format
+    }
+  }
+  
+  document.getElementById('editDateModal').classList.add('active');
+}
+
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
   currentEditingEventId = null;
@@ -719,13 +1009,17 @@ function openViewLocationModal(location) {
 function saveTitleEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const newTitle = document.getElementById('editTitleInput').value.trim();
+  const featureCheckbox = document.getElementById('featureEventCheckbox');
+  const isFeatured = featureCheckbox ? featureCheckbox.checked : false;
   if (newTitle) {
     if (currentEditingTable === 'published' && eventsData[currentEditingEventId]) {
       eventsData[currentEditingEventId].title = newTitle;
+      eventsData[currentEditingEventId].isFeatured = isFeatured;
       rowsInEditMode.delete(currentEditingEventId);
       populatePublishedEventsTable();
     } else if (currentEditingTable === 'pending' && pendingEventsData[currentEditingEventId]) {
       pendingEventsData[currentEditingEventId].title = newTitle;
+      pendingEventsData[currentEditingEventId].isFeatured = isFeatured;
       populatePendingEventsTable();
     }
     closeModal('editTitleModal');
@@ -809,6 +1103,386 @@ function saveOrgEdit() {
   }
 }
 
+function saveDateEdit() {
+  if (!currentEditingEventId || !currentEditingTable) return;
+  
+  const startDateInput = document.getElementById('editStartDate');
+  const startTimeInput = document.getElementById('editStartTime');
+  const endDateInput = document.getElementById('editEndDate');
+  const endTimeInput = document.getElementById('editEndTime');
+  
+  if (!startDateInput || !startTimeInput || !endDateInput || !endTimeInput) {
+    alert('Please fill in all date and time fields');
+    return;
+  }
+  
+  const startDate = startDateInput.value;
+  const startTime = startTimeInput.value;
+  const endDate = endDateInput.value;
+  const endTime = endTimeInput.value;
+  
+  if (!startDate || !startTime || !endDate || !endTime) {
+    alert('Please fill in all date and time fields');
+    return;
+  }
+  
+  // Combine date and time into Date objects
+  const startDateTime = new Date(`${startDate}T${startTime}`);
+  const endDateTime = new Date(`${endDate}T${endTime}`);
+  
+  if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+    alert('Invalid date or time format');
+    return;
+  }
+  
+  if (endDateTime < startDateTime) {
+    alert('End date/time must be after start date/time');
+    return;
+  }
+  
+  // Format the date string for display (using formatDateRangeForDisplay)
+  const formattedDate = typeof formatDateRangeForDisplay !== 'undefined' 
+    ? formatDateRangeForDisplay(startDateTime, endDateTime)
+    : `${startDate} ${startTime} - ${endDate} ${endTime}`;
+  
+  // Update the event data
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (event) {
+    // Update the date string
+    event.date = formattedDate;
+    
+    // Update parsed date fields
+    event.startDate = startDateTime;
+    event.endDate = endDateTime;
+    event.startTime = `${startTime}:00`;
+    event.endTime = `${endTime}:00`;
+    
+    // Recalculate status from dates
+    if (typeof calculateEventStatus !== 'undefined') {
+      event.status = calculateEventStatus(startDateTime, endDateTime, event.status === 'Pending' ? 'Pending' : null);
+    }
+    
+    // Re-enrich the event to ensure all fields are updated
+    if (typeof enrichEventsData !== 'undefined') {
+      const enriched = enrichEventsData({ [currentEditingEventId]: event });
+      Object.assign(event, enriched[currentEditingEventId]);
+    }
+    
+    if (currentEditingTable === 'published') {
+      rowsInEditMode.delete(currentEditingEventId);
+    }
+  }
+  
+  closeModal('editDateModal');
+  
+  // Refresh the table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
+  }
+  
+  // TODO: Save to Supabase
+}
+
+// ===== IMAGES MANAGEMENT =====
+let currentEditingImages = [];
+let currentThumbnailIndex = 0;
+
+function openImagesModal(eventId, event) {
+  currentEditingEventId = eventId;
+  if (!currentEditingTable) currentEditingTable = 'published';
+  
+  // Check if in edit mode (for published events only)
+  const isEditMode = currentEditingTable === 'published' 
+    ? rowsInEditMode.has(eventId) 
+    : true; // Pending events are always editable
+  
+  // Initialize images array (use event.images or default to universityLogo)
+  currentEditingImages = event.images && event.images.length > 0 
+    ? [...event.images] 
+    : [event.universityLogo || 'images/tup.png'];
+  
+  // Get thumbnail index (first image is thumbnail by default, or check if there's a thumbnailIndex property)
+  currentThumbnailIndex = event.thumbnailIndex !== undefined ? event.thumbnailIndex : 0;
+  
+  // Ensure thumbnail index is valid
+  if (currentThumbnailIndex >= currentEditingImages.length) {
+    currentThumbnailIndex = 0;
+  }
+  
+  // Update modal title based on edit mode
+  const modalTitle = document.querySelector('#imagesModal .admin-modal-header h2');
+  if (modalTitle) {
+    modalTitle.textContent = isEditMode ? 'Manage Event Images' : 'Event Images';
+  }
+  
+  // Show/hide upload section and action buttons based on edit mode
+  const uploadSection = document.querySelector('.images-upload-section');
+  const actionButtons = document.querySelector('#imagesModal .admin-modal-actions');
+  
+  if (uploadSection) {
+    uploadSection.style.display = isEditMode ? 'block' : 'none';
+  }
+  
+  if (actionButtons) {
+    // Hide Cancel/Save buttons in view mode, show Close button instead
+    if (!isEditMode) {
+      // Remove existing buttons
+      actionButtons.innerHTML = '';
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'admin-btn admin-btn--cancel';
+      closeBtn.textContent = 'Close';
+      closeBtn.addEventListener('click', () => closeModal('imagesModal'));
+      actionButtons.appendChild(closeBtn);
+    } else {
+      // Restore Cancel/Save buttons
+      actionButtons.innerHTML = '';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'admin-btn admin-btn--cancel';
+      cancelBtn.id = 'cancelImagesEdit';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.addEventListener('click', () => closeModal('imagesModal'));
+      
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'admin-btn admin-btn--save';
+      saveBtn.id = 'saveImagesEdit';
+      saveBtn.textContent = 'Save';
+      saveBtn.addEventListener('click', saveImagesEdit);
+      
+      actionButtons.appendChild(cancelBtn);
+      actionButtons.appendChild(saveBtn);
+    }
+  }
+  
+  renderImagesGallery(isEditMode);
+  document.getElementById('imagesModal').classList.add('active');
+}
+
+function renderImagesGallery(isEditMode = true) {
+  const gallery = document.getElementById('imagesGallery');
+  if (!gallery) return;
+  
+  gallery.innerHTML = '';
+  
+  if (currentEditingImages.length === 0) {
+    const emptyMsg = document.createElement('p');
+    emptyMsg.className = 'images-empty-message';
+    emptyMsg.textContent = isEditMode 
+      ? 'No images uploaded. Upload images to get started.' 
+      : 'No images available.';
+    gallery.appendChild(emptyMsg);
+    return;
+  }
+  
+  currentEditingImages.forEach((imageUrl, index) => {
+    const imageItem = document.createElement('div');
+    imageItem.className = 'image-item';
+    if (index === currentThumbnailIndex) {
+      imageItem.classList.add('image-item--thumbnail');
+    }
+    
+    const imageWrapper = document.createElement('div');
+    imageWrapper.className = 'image-wrapper';
+    
+    // Make image clickable to view larger (both modes)
+    imageWrapper.style.cursor = 'pointer';
+    imageWrapper.addEventListener('click', (e) => {
+      // Only open in new tab if not clicking on action buttons
+      if (!e.target.closest('.image-actions')) {
+        window.open(imageUrl, '_blank');
+      }
+    });
+    
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = `Event image ${index + 1}`;
+    img.onerror = function() {
+      this.src = 'images/tup.png';
+    };
+    
+    // Only show overlay and actions in edit mode
+    if (isEditMode) {
+      const overlay = document.createElement('div');
+      overlay.className = 'image-overlay';
+      
+      const thumbnailBadge = document.createElement('div');
+      thumbnailBadge.className = 'thumbnail-badge';
+      thumbnailBadge.textContent = 'Thumbnail';
+      thumbnailBadge.style.display = index === currentThumbnailIndex ? 'block' : 'none';
+      
+      const actions = document.createElement('div');
+      actions.className = 'image-actions';
+      
+      const setThumbnailBtn = document.createElement('button');
+      setThumbnailBtn.className = 'image-action-btn';
+      setThumbnailBtn.textContent = index === currentThumbnailIndex ? '✓ Thumbnail' : 'Set as Thumbnail';
+      setThumbnailBtn.disabled = index === currentThumbnailIndex;
+      setThumbnailBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setThumbnail(index);
+      });
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'image-action-btn image-action-btn--delete';
+      deleteBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteImage(index);
+      });
+      
+      actions.appendChild(setThumbnailBtn);
+      actions.appendChild(deleteBtn);
+      
+      overlay.appendChild(thumbnailBadge);
+      overlay.appendChild(actions);
+      
+      imageWrapper.appendChild(overlay);
+    } else {
+      // View mode: just show thumbnail badge if it's the thumbnail
+      if (index === currentThumbnailIndex) {
+        const thumbnailBadge = document.createElement('div');
+        thumbnailBadge.className = 'thumbnail-badge';
+        thumbnailBadge.textContent = 'Thumbnail';
+        thumbnailBadge.style.position = 'absolute';
+        thumbnailBadge.style.top = '10px';
+        thumbnailBadge.style.left = '10px';
+        thumbnailBadge.style.zIndex = '2';
+        imageWrapper.appendChild(thumbnailBadge);
+      }
+    }
+    
+    imageWrapper.appendChild(img);
+    imageItem.appendChild(imageWrapper);
+    
+    gallery.appendChild(imageItem);
+  });
+}
+
+function setThumbnail(index) {
+  if (index >= 0 && index < currentEditingImages.length) {
+    currentThumbnailIndex = index;
+    // Re-render with edit mode (always true when this function is called)
+    renderImagesGallery(true);
+  }
+}
+
+function deleteImage(index) {
+  if (currentEditingImages.length <= 1) {
+    alert('You must have at least one image. Upload a replacement before deleting.');
+    return;
+  }
+  
+  if (confirm('Are you sure you want to delete this image?')) {
+    currentEditingImages.splice(index, 1);
+    
+    // Adjust thumbnail index if needed
+    if (currentThumbnailIndex >= currentEditingImages.length) {
+      currentThumbnailIndex = Math.max(0, currentEditingImages.length - 1);
+    } else if (currentThumbnailIndex > index) {
+      currentThumbnailIndex--;
+    }
+    
+    // Re-render with edit mode (always true when this function is called)
+    renderImagesGallery(true);
+  }
+}
+
+function handleImageUpload(event) {
+  const files = Array.from(event.target.files);
+  const errorDiv = document.getElementById('imageUploadError');
+  
+  // Validate file count
+  const totalImages = currentEditingImages.length + files.length;
+  if (totalImages > 5) {
+    errorDiv.textContent = `You can only upload up to 5 images. Currently have ${currentEditingImages.length}, trying to add ${files.length}.`;
+    errorDiv.style.display = 'block';
+    event.target.value = ''; // Reset input
+    return;
+  }
+  
+  // Validate file types
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+  const invalidFiles = files.filter(file => !validTypes.includes(file.type));
+  
+  if (invalidFiles.length > 0) {
+    errorDiv.textContent = `Invalid file type(s). Only JPG and PNG files are allowed.`;
+    errorDiv.style.display = 'block';
+    event.target.value = ''; // Reset input
+    return;
+  }
+  
+  // Hide error if validation passes
+  errorDiv.style.display = 'none';
+  
+  // Process files (for now, create object URLs - will be replaced with Supabase URLs in production)
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // For now, store as data URL or object URL
+      // In production, upload to Supabase Storage and get URL
+      const imageUrl = e.target.result;
+      currentEditingImages.push(imageUrl);
+      
+      // If this is the first image, set it as thumbnail
+      if (currentEditingImages.length === 1) {
+        currentThumbnailIndex = 0;
+      }
+      
+      renderImagesGallery();
+    };
+    reader.onerror = () => {
+      errorDiv.textContent = 'Error reading file. Please try again.';
+      errorDiv.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+  
+  // Reset input
+  event.target.value = '';
+}
+
+function saveImagesEdit() {
+  if (!currentEditingEventId || !currentEditingTable) return;
+  
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (event) {
+    // Update images array
+    event.images = [...currentEditingImages];
+    
+    // Store thumbnail index (for future use when rendering cards)
+    event.thumbnailIndex = currentThumbnailIndex;
+    
+    // Ensure thumbnail index is valid
+    if (event.thumbnailIndex >= event.images.length) {
+      event.thumbnailIndex = 0;
+    }
+    
+    // If no images, use universityLogo as fallback
+    if (event.images.length === 0) {
+      event.images = [event.universityLogo || 'images/tup.png'];
+      event.thumbnailIndex = 0;
+    }
+  }
+  
+  closeModal('imagesModal');
+  
+  // Refresh the table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
+  }
+  
+  // TODO: Upload images to Supabase Storage and save URLs to database
+  console.log('Images saved:', currentEditingImages);
+  console.log('Thumbnail index:', currentThumbnailIndex);
+}
+
 function addNewOrganization() {
   const input = document.getElementById('newOrgInput');
   const newOrg = input.value.trim();
@@ -841,6 +1515,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('closeViewLocationModal')?.addEventListener('click', () => closeModal('viewLocationModal'));
   document.getElementById('closeViewLocationBtn')?.addEventListener('click', () => closeModal('viewLocationModal'));
   
+  // View Date Modal
+  document.getElementById('closeViewDateModal')?.addEventListener('click', () => closeModal('viewDateModal'));
+  document.getElementById('closeViewDateBtn')?.addEventListener('click', () => closeModal('viewDateModal'));
+  
   // Title Modal
   document.getElementById('closeTitleModal')?.addEventListener('click', () => closeModal('editTitleModal'));
   document.getElementById('cancelTitleEdit')?.addEventListener('click', () => closeModal('editTitleModal'));
@@ -855,6 +1533,27 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('closeLocationModal')?.addEventListener('click', () => closeModal('editLocationModal'));
   document.getElementById('cancelLocationEdit')?.addEventListener('click', () => closeModal('editLocationModal'));
   document.getElementById('saveLocationEdit')?.addEventListener('click', saveLocationEdit);
+  
+  // Date Modal
+  document.getElementById('closeDateModal')?.addEventListener('click', () => closeModal('editDateModal'));
+  document.getElementById('cancelDateEdit')?.addEventListener('click', () => closeModal('editDateModal'));
+  document.getElementById('saveDateEdit')?.addEventListener('click', saveDateEdit);
+  
+  // Images Modal
+  document.getElementById('closeImagesModal')?.addEventListener('click', () => closeModal('imagesModal'));
+  document.getElementById('cancelImagesEdit')?.addEventListener('click', () => closeModal('imagesModal'));
+  document.getElementById('saveImagesEdit')?.addEventListener('click', saveImagesEdit);
+  const imageUploadInput = document.getElementById('imageUploadInput');
+  if (imageUploadInput) {
+    imageUploadInput.addEventListener('change', handleImageUpload);
+  }
+  const imageUploadLabel = document.querySelector('.image-upload-label');
+  if (imageUploadLabel && imageUploadInput) {
+    imageUploadLabel.addEventListener('click', (e) => {
+      e.preventDefault();
+      imageUploadInput.click();
+    });
+  }
   
   // College Modal
   document.getElementById('closeCollegeModal')?.addEventListener('click', () => closeModal('editCollegeModal'));

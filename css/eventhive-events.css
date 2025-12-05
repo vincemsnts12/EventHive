@@ -317,6 +317,11 @@
   box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
 }
 
+.event-slider__tag--college.cit {
+  background-color: #0891b2;
+  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.3);
+}
+
 /* TUP System-wide Tag (Hollow/Outline Style) */
 .event-slider__tag--college.tup {
   background-color: #ffffff;

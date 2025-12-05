@@ -162,9 +162,6 @@
 
 /* 3. Scrollable Card Wrapper */
 .liked-scroll-wrapper {
-  display: flex;
-  gap: 20px; 
-  
   /* Enables Horizontal Scrolling */
   overflow-x: auto; 
   overflow-y: hidden;
@@ -191,9 +188,22 @@
   background: #B81E20;
 }
 
-/* Ensure Cards don't shrink */
-.event-card {
-  flex: 0 0 auto; 
+/* 3x3 grid scrolling horizontally */
+.liked-events-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 375px; /* column width */
+  grid-template-rows: repeat(3, auto);
+  column-gap: 20px;
+  row-gap: 20px;
+  width: max-content; /* extend horizontally */
+}
+
+.liked-events-list .event-card {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  flex: none;
 }
 
 /* ===== MOBILE RESPONSIVENESS ===== */
@@ -262,5 +272,28 @@
 
   .liked-title {
     font-size: 1.2rem;
+  }
+
+  /* Mobile: horizontal scroll with 3 rows (3 cards max vertically) */
+  .liked-scroll-wrapper {
+    max-width: none;
+    overflow-x: auto;   /* horizontal scroll */
+    overflow-y: hidden; /* prevent extra vertical scroll */
+  }
+
+  .liked-events-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: clamp(260px, 80vw, 360px); /* keep width responsive but capped */
+    grid-template-rows: repeat(3, auto);   /* max 3 cards vertically */
+    column-gap: 16px;
+    row-gap: 16px;
+    width: max-content;
+  }
+
+  .liked-events-list .event-card {
+    width: 100%;
+    max-width: 360px; /* prevent stretching wider than intended */
+    min-width: 0;
   }
 }

@@ -131,12 +131,13 @@
           <thead class="table-header--published">
             <tr>
               <th>Title</th>
-              <th>Description</th>
+              <th><svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></th>
               <th>Location</th>
               <th>Date & Time</th>
               <th>College</th>
               <th>Organization</th>
               <th>Status</th>
+              <th>Images</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -153,12 +154,13 @@
           <thead class="table-header--pending">
             <tr>
               <th>Title</th>
-              <th>Description</th>
+              <th><svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></th>
               <th>Location</th>
               <th>Date & Time</th>
               <th>College</th>
               <th>Organization</th>
               <th>Status</th>
+              <th>Images</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -254,6 +256,10 @@
       </div>
       <div class="admin-modal-body">
         <textarea class="admin-modal-input" id="editTitleInput" rows="2"></textarea>
+        <label class="feature-event-toggle" id="featureEventOption">
+          <input type="checkbox" id="featureEventCheckbox">
+          <span>Feature Event?</span>
+        </label>
         <div class="admin-modal-actions">
           <button class="admin-btn admin-btn--cancel" id="cancelTitleEdit">Cancel</button>
           <button class="admin-btn admin-btn--save" id="saveTitleEdit">Save</button>
@@ -291,6 +297,88 @@
         <div class="admin-modal-actions">
           <button class="admin-btn admin-btn--cancel" id="cancelLocationEdit">Cancel</button>
           <button class="admin-btn admin-btn--save" id="saveLocationEdit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Date & Time Modal (Read-only) -->
+  <div class="admin-modal-overlay" id="viewDateModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Event Date & Time</h2>
+        <button class="admin-modal-close" id="closeViewDateModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <p class="view-only-text" id="viewDateText"></p>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="closeViewDateBtn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Date & Time Modal -->
+  <div class="admin-modal-overlay" id="editDateModal">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Edit Date & Time</h2>
+        <button class="admin-modal-close" id="closeDateModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="date-time-input-group">
+          <div class="date-time-field">
+            <label for="editStartDate">Start Date</label>
+            <input type="date" class="admin-modal-input" id="editStartDate">
+          </div>
+          <div class="date-time-field">
+            <label for="editStartTime">Start Time</label>
+            <input type="time" class="admin-modal-input" id="editStartTime">
+          </div>
+          <div class="date-time-field">
+            <label for="editEndDate">End Date</label>
+            <input type="date" class="admin-modal-input" id="editEndDate">
+          </div>
+          <div class="date-time-field">
+            <label for="editEndTime">End Time</label>
+            <input type="time" class="admin-modal-input" id="editEndTime">
+          </div>
+        </div>
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="cancelDateEdit">Cancel</button>
+          <button class="admin-btn admin-btn--save" id="saveDateEdit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Images Management Modal -->
+  <div class="admin-modal-overlay" id="imagesModal">
+    <div class="admin-modal-container admin-modal-container--images">
+      <div class="admin-modal-header">
+        <h2>Manage Event Images</h2>
+        <button class="admin-modal-close" id="closeImagesModal">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="images-upload-section">
+          <label for="imageUploadInput" class="image-upload-label">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/>
+            </svg>
+            Upload Images (JPG/PNG only, max 5)
+          </label>
+          <input type="file" id="imageUploadInput" accept="image/jpeg,image/jpg,image/png" multiple style="display: none;">
+          <p class="image-upload-hint">You can upload up to 5 images. The first image will be used as the thumbnail.</p>
+          <div id="imageUploadError" class="image-upload-error" style="display: none;"></div>
+        </div>
+        
+        <div class="images-gallery" id="imagesGallery">
+          <!-- Images will be populated here -->
+        </div>
+        
+        <div class="admin-modal-actions">
+          <button class="admin-btn admin-btn--cancel" id="cancelImagesEdit">Cancel</button>
+          <button class="admin-btn admin-btn--save" id="saveImagesEdit">Save</button>
         </div>
       </div>
     </div>
@@ -342,6 +430,7 @@
   <script src="js/eventhive-dropdownmenu.js"></script>
   <script src="js/eventhive-pop-up__log&sign.js"></script>
   <script src="js/eventhive-hamburger.js"></script>
+  <script src="js/eventhive-date-utils.js"></script> <!-- DATE UTILITY FUNCTIONS -->
   <script src="js/eventhive-events.js"></script>
   <script src="js/eventhive-admin.js"></script>
 </body>

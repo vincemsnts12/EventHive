@@ -4,11 +4,11 @@ const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
 // Change to true to simulate logged-in view
-let isLoggedIn = false;
+let isLoggedIn = true;
 
 // Change to true to simulate admin view (for testing)
 // In production, this should be a function that checks user role in database
-let isChecker = false; 
+let isChecker = true; 
 
 profileIcon.addEventListener('click', (e) => {
   e.preventDefault();
