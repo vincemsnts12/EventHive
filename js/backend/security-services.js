@@ -506,8 +506,8 @@ async function handleSessionTimeout() {
         
         // Clear all caches
         try {
-          sessionStorage.removeItem('eventhive_auth_cache');
-          sessionStorage.removeItem('eventhive_profile_cache');
+          localStorage.removeItem('eventhive_auth_cache');
+          localStorage.removeItem('eventhive_profile_cache');
         } catch (e) {
           console.error('Error clearing caches on timeout:', e);
         }

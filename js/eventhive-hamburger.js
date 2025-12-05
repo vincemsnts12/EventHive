@@ -5,47 +5,47 @@ const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
 const mobileGuestLinks = document.getElementById('mobileGuestLinks');
 const mobileUserLinks = document.getElementById('mobileUserLinks');
 
-// Use same cache as desktop dropdown (shared localStorage)
-const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
-const CACHE_KEY = 'eventhive_auth_cache';
-
-// Get cached auth state from localStorage (shared with desktop)
-function getCachedAuthState() {
+// Function to update mobile menu based on login state
+async function updateMobileMenuAuthState() {
+  // Check if user is logged in using Supabase
+  let loggedIn = false;
+  let isAdmin = false;
+  
   try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      const now = Date.now();
-      const timeSinceLastCheck = now - parsed.timestamp;
+    // Method 1: Try using getCurrentUser function
+    if (typeof getCurrentUser === 'function') {
+      const userResult = await getCurrentUser();
+      loggedIn = userResult.success && userResult.user !== null;
       
-      // Return cache if it's less than 5 minutes old
-      if (timeSinceLastCheck < AUTH_CHECK_INTERVAL) {
-        return parsed.state;
+      // Check if user is admin
+      if (loggedIn && typeof checkIfUserIsAdmin === 'function') {
+        const adminResult = await checkIfUserIsAdmin();
+        isAdmin = adminResult.success && adminResult.isAdmin === true;
+      }
+    } 
+    // Method 2: Fallback - check Supabase session directly
+    else if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        loggedIn = !!(session && session.user);
+        
+        // Check if user is admin
+        if (loggedIn && typeof checkIfUserIsAdmin === 'function') {
+          const adminResult = await checkIfUserIsAdmin();
+          isAdmin = adminResult.success && adminResult.isAdmin === true;
+        }
       }
     }
-  } catch (e) {
-    console.error('Error reading auth cache:', e);
+  } catch (error) {
+    console.error('Error checking mobile menu auth state:', error);
+    // Default to logged out on error
+    loggedIn = false;
+    isAdmin = false;
   }
-  return null;
-}
-
-// Save auth state to localStorage (shared with desktop)
-function saveCachedAuthState(isLoggedIn, isAdmin) {
-  try {
-    const cache = {
-      timestamp: Date.now(),
-      state: { isLoggedIn, isAdmin }
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {
-    console.error('Error saving auth cache:', e);
-  }
-}
-
-// Apply auth state to mobile menu UI
-function applyMobileAuthStateToUI(isLoggedIn, isAdmin) {
+  
   if (mobileGuestLinks && mobileUserLinks) {
-    if (isLoggedIn) {
+    if (loggedIn) {
       mobileGuestLinks.style.display = 'none';
       mobileUserLinks.style.display = 'block';
       
@@ -65,50 +65,18 @@ function applyMobileAuthStateToUI(isLoggedIn, isAdmin) {
       }
     }
   }
-}
-
-// Function to update mobile menu based on login state (uses cache)
-async function updateMobileMenuAuthState(forceCheck = false) {
-  // Check cache first (unless forced)
-  if (!forceCheck) {
-    const cached = getCachedAuthState();
-    if (cached !== null) {
-      // Use cached state - instant UI update
-      applyMobileAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
-      return;
-    }
-  }
   
-  // Perform actual auth check
-  let loggedIn = false;
-  let isAdmin = false;
-  
-  if (typeof getCurrentUser === 'function') {
-    const userResult = await getCurrentUser();
-    loggedIn = userResult.success && userResult.user !== null;
-    
-    // Check if user is admin
-    if (loggedIn && typeof checkIfUserIsAdmin === 'function') {
-      const adminResult = await checkIfUserIsAdmin();
-      isAdmin = adminResult.success && adminResult.isAdmin === true;
-    }
-  }
-  
-  // Save to cache (shared with desktop)
-  saveCachedAuthState(loggedIn, isAdmin);
-  
-  // Update UI
-  applyMobileAuthStateToUI(loggedIn, isAdmin);
+  console.log('Mobile menu auth state updated:', { loggedIn, isAdmin });
 }
 
 // Toggle mobile menu
-function toggleMobileMenu() {
+async function toggleMobileMenu() {
   hamburgerBtn.classList.toggle('active');
   mobileMenu.classList.toggle('active');
   mobileMenuOverlay.classList.toggle('active');
   
-  // Update auth state from cache (instant, no delay)
-  updateMobileMenuAuthState(false); // false = use cache if available
+  // Update auth state when opening menu
+  await updateMobileMenuAuthState();
   
   // Prevent body scroll when menu is open
   if (mobileMenu.classList.contains('active')) {
@@ -217,37 +185,20 @@ window.addEventListener('beforeunload', () => {
   clearAllCaches();
 });
 
-// Initialize: Load cached state immediately (no delay)
-document.addEventListener('DOMContentLoaded', () => {
-  // Apply cached state immediately if available
-  const cached = getCachedAuthState();
-  if (cached !== null) {
-    applyMobileAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
-  }
-  
-  // Then check auth in background (only if cache expired or doesn't exist)
-  updateMobileMenuAuthState(false);
-});
-
 // Listen for auth state changes (when user logs in/out)
-// Force check when auth state changes (bypasses 5-minute cache)
 if (typeof getSupabaseClient === 'function') {
   const supabase = getSupabaseClient();
   if (supabase) {
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        // User logged out - clear caches and update UI
-        clearAllCaches();
-        applyMobileAuthStateToUI(false, false);
-      } else {
-        updateMobileMenuAuthState(true); // Force check on auth state change
-      }
+    supabase.auth.onAuthStateChange(() => {
+      updateMobileMenuAuthState();
     });
   }
 }
 
-// Set up periodic check every 5 minutes (background refresh)
-setInterval(() => {
-  updateMobileMenuAuthState(true); // Force check every 5 minutes
-}, AUTH_CHECK_INTERVAL);
+// Initialize auth state on page load
+document.addEventListener('DOMContentLoaded', async () => {
+  // Wait a bit for Supabase to initialize
+  await new Promise(resolve => setTimeout(resolve, 200));
+  await updateMobileMenuAuthState();
+});
 

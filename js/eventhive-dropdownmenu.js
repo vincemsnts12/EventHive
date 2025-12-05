@@ -3,7 +3,7 @@ const dropdownMenu = document.getElementById('dropdownMenu');
 const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
-// Cache for auth state (5 minutes) - persisted across page loads in same tab (localStorage for instant access)
+// Cache for auth state (5 minutes) - persisted across page loads
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CACHE_KEY = 'eventhive_auth_cache';
 
@@ -107,63 +107,26 @@ profileIcon.addEventListener('click', (e) => {
 
 // Initialize: Load cached state immediately (no delay)
 document.addEventListener('DOMContentLoaded', () => {
-  // Apply cached state immediately if available (instant UI update)
+  // Apply cached state immediately if available
   const cached = getCachedAuthState();
   if (cached !== null) {
-    // Cache exists and is valid - use it immediately
     applyAuthStateToUI(cached.isLoggedIn, cached.isAdmin);
-    // Don't check auth - cache persists across HTML pages in same tab
-    // Background refresh will happen every 5 minutes via setInterval
-    return; // Exit early, cache is valid
   }
   
-  // Only check auth if cache is expired or doesn't exist
-  // This will save to cache for future page loads
+  // Then check auth in background (only if cache expired or doesn't exist)
   updateDropdownAuthState(false);
 });
 
 // Listen for auth state changes (when user logs in/out)
-// Only update on actual auth state changes, not on page load
-let isInitialAuthCheck = true;
-
-// Set up auth state listener after DOM loads (ensures Supabase is ready)
-document.addEventListener('DOMContentLoaded', () => {
-  // Wait a bit for Supabase to initialize
-  setTimeout(() => {
-    if (typeof getSupabaseClient === 'function') {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        supabase.auth.onAuthStateChange((event, session) => {
-          // Skip the initial check on page load (it's just Supabase initializing)
-          // This prevents overwriting cache when switching HTML pages
-          if (isInitialAuthCheck) {
-            isInitialAuthCheck = false;
-            // Only update if we don't have a valid cache
-            // If cache exists, it means we just switched HTML pages - keep using cache
-            const cached = getCachedAuthState();
-            if (cached === null) {
-              // No cache - do initial check
-              updateDropdownAuthState(true);
-            }
-            // If cache exists, do nothing - it persists across HTML pages
-            return;
-          }
-          
-          // Actual auth state change (login/logout) - not just page navigation
-          if (event === 'SIGNED_OUT') {
-            clearAllCaches();
-            if (dropdownMenu) {
-              dropdownMenu.classList.remove('show');
-            }
-            applyAuthStateToUI(false, false);
-          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            updateDropdownAuthState(true); // Force check on login
-          }
-        });
-      }
-    }
-  }, 100);
-});
+// Force check when auth state changes (bypasses 5-minute cache)
+if (typeof getSupabaseClient === 'function') {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    supabase.auth.onAuthStateChange(() => {
+      updateDropdownAuthState(true); // Force check on auth state change
+    });
+  }
+}
 
 // Set up periodic check every 5 minutes (background refresh)
 setInterval(() => {
@@ -212,7 +175,25 @@ if (logoutBtn) {
   });
 }
 
-// Duplicate listener removed - handled above
+// Listen for auth state changes (when user logs in/out)
+// Force check when auth state changes (bypasses 5-minute cache)
+if (typeof getSupabaseClient === 'function') {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        // User logged out - clear caches and close dropdown
+        clearAllCaches();
+        if (dropdownMenu) {
+          dropdownMenu.classList.remove('show');
+        }
+        applyAuthStateToUI(false, false);
+      } else {
+        updateDropdownAuthState(true); // Force check on auth state change
+      }
+    });
+  }
+}
 
 // Clear caches when tab closes
 window.addEventListener('beforeunload', () => {

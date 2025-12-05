@@ -46,7 +46,7 @@ function applyProfileToUI(profile, userEmail = null) {
 // Get cached profile data
 function getCachedProfile() {
   try {
-    const cached = sessionStorage.getItem('eventhive_profile_cache');
+    const cached = localStorage.getItem('eventhive_profile_cache');
     if (cached) {
       const parsed = JSON.parse(cached);
       const now = Date.now();
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             timestamp: Date.now(),
             profile: profile
           };
-          sessionStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+          localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
         } catch (e) {
           console.error('Error caching profile:', e);
         }

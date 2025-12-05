@@ -169,13 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
               if (typeof getUserProfile === 'function') {
                 getUserProfile().then(result => {
                   if (result.success && result.profile) {
-                    // Cache profile data in sessionStorage for instant loading
+                    // Cache profile data in localStorage for instant loading
                     try {
                       const profileCache = {
                         timestamp: Date.now(),
                         profile: result.profile
                       };
-                      sessionStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+                      localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
                     } catch (e) {
                       console.error('Error caching profile:', e);
                     }

@@ -43,7 +43,7 @@
             </a>
 
              <!-- drop down menu-->
-          <div class="dropdown-menu" id="dropdownMenu">
+         <div class="dropdown-menu" id="dropdownMenu">
              
              <div id="guestLinks">
                <a href="#" id="navLoginBtn">Log In</a>
@@ -57,36 +57,6 @@
              </div>
 
           </div>
-          <script>
-            (function() {
-              try {
-                const cached = localStorage.getItem('eventhive_auth_cache');
-                if (cached) {
-                  const parsed = JSON.parse(cached);
-                  const now = Date.now();
-                  if (now - parsed.timestamp < 5 * 60 * 1000 && parsed.state) {
-                    const state = parsed.state;
-                    const guestLinks = document.getElementById('guestLinks');
-                    const userLinks = document.getElementById('userLinks');
-                    const dashboardLink = document.getElementById('navDashboardBtn');
-                    if (guestLinks && userLinks) {
-                      if (state.isLoggedIn) {
-                        guestLinks.style.display = 'none';
-                        userLinks.style.display = 'block';
-                        if (dashboardLink) dashboardLink.style.display = state.isAdmin ? 'block' : 'none';
-                      } else {
-                        guestLinks.style.display = 'block';
-                        userLinks.style.display = 'none';
-                        if (dashboardLink) dashboardLink.style.display = 'none';
-                      }
-                    }
-                  }
-                }
-              } catch (e) {
-                // Silently fail - main script will handle it
-              }
-            })();
-          </script>
         
         </div>
 
