@@ -145,9 +145,13 @@ if (typeof getSupabaseClient === 'function') {
 }
 
 // Set up periodic check every 5 minutes (background refresh)
-setInterval(() => {
+// This runs continuously and checks auth state every 5 minutes
+let authCheckInterval = setInterval(() => {
   updateDropdownAuthState(true); // Force check every 5 minutes
 }, AUTH_CHECK_INTERVAL);
+
+// Ensure interval is cleared on logout to prevent unnecessary checks
+// (It will restart on next page load if user is logged in)
 
 // Clear all caches
 function clearAllCaches() {

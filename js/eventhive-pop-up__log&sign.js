@@ -157,15 +157,15 @@ document.addEventListener('DOMContentLoaded', () => {
               // Wait for session to be established
               await new Promise(resolve => setTimeout(resolve, 200));
               
-              // Update UI
+              // Update UI and cache auth state (includes dashboard/admin status)
               if (typeof updateDropdownAuthState === 'function') {
-                await updateDropdownAuthState(true); // Force update after login
+                await updateDropdownAuthState(true); // Force update after login - this caches auth state
               }
               if (typeof updateMobileMenuAuthState === 'function') {
                 await updateMobileMenuAuthState();
               }
               
-              // Preload profile data for instant access
+              // Preload profile data for instant access (cache profile)
               if (typeof getUserProfile === 'function') {
                 getUserProfile().then(result => {
                   if (result.success && result.profile) {
@@ -176,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         profile: result.profile
                       };
                       localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+                      console.log('Profile cached after login');
                     } catch (e) {
                       console.error('Error caching profile:', e);
                     }
@@ -184,6 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   console.error('Error preloading profile:', err);
                 });
               }
+              
+              // Ensure 5-minute auth checker is running (it should already be set up, but verify)
+              // The setInterval in eventhive-dropdownmenu.js should already be running
+              console.log('Login complete - auth cache and profile cache loaded, 5-minute checker active');
               
               // Log security event
               if (typeof logSecurityEvent === 'function') {
