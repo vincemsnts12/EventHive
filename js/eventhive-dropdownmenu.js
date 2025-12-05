@@ -3,9 +3,24 @@ const dropdownMenu = document.getElementById('dropdownMenu');
 const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
+// Cache for auth state (5 minutes)
+let lastAuthCheck = 0;
+let cachedAuthState = { isLoggedIn: false, isAdmin: false };
+const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
 // Update dropdown menu based on authentication state
-async function updateDropdownAuthState() {
-  // Check if user is logged in using Supabase
+async function updateDropdownAuthState(forceCheck = false) {
+  const now = Date.now();
+  const timeSinceLastCheck = now - lastAuthCheck;
+  
+  // Only check if forced or if 5 minutes have passed
+  if (!forceCheck && timeSinceLastCheck < AUTH_CHECK_INTERVAL) {
+    // Use cached state
+    applyAuthStateToUI(cachedAuthState.isLoggedIn, cachedAuthState.isAdmin);
+    return;
+  }
+  
+  // Perform actual auth check
   let isLoggedIn = false;
   let isAdmin = false;
   
@@ -20,7 +35,16 @@ async function updateDropdownAuthState() {
     }
   }
   
-  // Update UI based on auth state
+  // Update cache
+  lastAuthCheck = now;
+  cachedAuthState = { isLoggedIn, isAdmin };
+  
+  // Update UI
+  applyAuthStateToUI(isLoggedIn, isAdmin);
+}
+
+// Apply auth state to UI
+function applyAuthStateToUI(isLoggedIn, isAdmin) {
   if (isLoggedIn) {
     if (guestLinks) guestLinks.style.display = 'none';
     if (userLinks) userLinks.style.display = 'block';
@@ -54,14 +78,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Listen for auth state changes (when user logs in/out)
+// Force check when auth state changes (bypasses 5-minute cache)
 if (typeof getSupabaseClient === 'function') {
   const supabase = getSupabaseClient();
   if (supabase) {
     supabase.auth.onAuthStateChange(() => {
-      updateDropdownAuthState();
+      updateDropdownAuthState(true); // Force check on auth state change
     });
   }
 }
+
+// Set up periodic check every 5 minutes
+setInterval(() => {
+  updateDropdownAuthState(true); // Force check every 5 minutes
+}, AUTH_CHECK_INTERVAL);
 
 // Close dropdown when clicking outside
 window.addEventListener('click', (e) => {
