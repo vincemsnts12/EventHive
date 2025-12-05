@@ -45,23 +45,25 @@ async function updateDropdownAuthState() {
 profileIcon.addEventListener('click', async (e) => {
   e.preventDefault();
 
-  // Update auth state before showing menu
-  await updateDropdownAuthState();
-
-  // Toggle menu visibility
+  // Toggle menu visibility first (so it opens immediately)
   dropdownMenu.classList.toggle('show');
+  
+  // Update auth state in background (non-blocking)
+  updateDropdownAuthState().catch(err => {
+    console.error('Error updating dropdown auth state:', err);
+  });
 });
 
 // Initialize auth state on page load
 document.addEventListener('DOMContentLoaded', async () => {
   // Wait a bit for Supabase to initialize
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, 200));
   await updateDropdownAuthState();
 });
 
 // Listen for auth state changes (when user logs in/out)
 // Set up listener after Supabase is initialized
-function setupAuthStateListener() {
+function setupDropdownAuthListener() {
   if (typeof getSupabaseClient === 'function') {
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -72,19 +74,24 @@ function setupAuthStateListener() {
           await updateMobileMenuAuthState();
         }
       });
-    } else {
-      // Retry if Supabase not ready yet
-      setTimeout(setupAuthStateListener, 200);
+      return true; // Successfully set up
     }
-  } else {
-    // Retry if function not available yet
-    setTimeout(setupAuthStateListener, 200);
   }
+  return false; // Not ready yet
 }
 
-// Set up auth state listener after DOM loads
+// Try to set up auth state listener
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(setupAuthStateListener, 300);
+  // Try immediately
+  if (!setupDropdownAuthListener()) {
+    // Retry after a delay if not ready
+    setTimeout(() => {
+      if (!setupDropdownAuthListener()) {
+        // One more retry
+        setTimeout(setupDropdownAuthListener, 500);
+      }
+    }, 300);
+  }
 });
 
 // Close dropdown when clicking outside

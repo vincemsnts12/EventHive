@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
               passwordInput.value = '';
               
               // Wait a moment for session to be established
-              await new Promise(resolve => setTimeout(resolve, 100));
+              await new Promise(resolve => setTimeout(resolve, 200));
               
               // Update UI immediately
               if (typeof updateDropdownAuthState === 'function') {
@@ -158,10 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
               if (typeof updateMobileMenuAuthState === 'function') {
                 await updateMobileMenuAuthState();
               }
-              
-              // Force a page refresh of the UI elements (in case they're cached)
-              // Trigger a custom event that other components can listen to
-              window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { loggedIn: true } }));
               
               // Log security event
               if (typeof logSecurityEvent === 'function') {
