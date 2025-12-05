@@ -9,37 +9,15 @@ async function updateDropdownAuthState() {
   let isLoggedIn = false;
   let isAdmin = false;
   
-  try {
-    // Method 1: Try using getCurrentUser function
-    if (typeof getCurrentUser === 'function') {
-      const userResult = await getCurrentUser();
-      isLoggedIn = userResult.success && userResult.user !== null;
-      
-      // Check if user is admin
-      if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
-        const adminResult = await checkIfUserIsAdmin();
-        isAdmin = adminResult.success && adminResult.isAdmin === true;
-      }
-    } 
-    // Method 2: Fallback - check Supabase session directly
-    else if (typeof getSupabaseClient === 'function') {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        isLoggedIn = !!(session && session.user);
-        
-        // Check if user is admin
-        if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
-          const adminResult = await checkIfUserIsAdmin();
-          isAdmin = adminResult.success && adminResult.isAdmin === true;
-        }
-      }
+  if (typeof getCurrentUser === 'function') {
+    const userResult = await getCurrentUser();
+    isLoggedIn = userResult.success && userResult.user !== null;
+    
+    // Check if user is admin
+    if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
+      const adminResult = await checkIfUserIsAdmin();
+      isAdmin = adminResult.success && adminResult.isAdmin === true;
     }
-  } catch (error) {
-    console.error('Error checking auth state:', error);
-    // Default to logged out on error
-    isLoggedIn = false;
-    isAdmin = false;
   }
   
   // Update UI based on auth state
@@ -62,61 +40,32 @@ async function updateDropdownAuthState() {
       dashboardLink.style.display = 'none';
     }
   }
-  
-  console.log('Dropdown auth state updated:', { isLoggedIn, isAdmin });
 }
 
 profileIcon.addEventListener('click', async (e) => {
   e.preventDefault();
 
-  // Toggle menu visibility first (so it opens immediately)
+  // Update auth state before showing menu
+  await updateDropdownAuthState();
+
+  // Toggle menu visibility
   dropdownMenu.classList.toggle('show');
-  
-  // Update auth state in background (non-blocking)
-  updateDropdownAuthState().catch(err => {
-    console.error('Error updating dropdown auth state:', err);
-  });
 });
 
 // Initialize auth state on page load
 document.addEventListener('DOMContentLoaded', async () => {
-  // Wait a bit for Supabase to initialize
-  await new Promise(resolve => setTimeout(resolve, 200));
   await updateDropdownAuthState();
 });
 
 // Listen for auth state changes (when user logs in/out)
-// Set up listener after Supabase is initialized
-function setupDropdownAuthListener() {
-  if (typeof getSupabaseClient === 'function') {
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.auth.onAuthStateChange(async () => {
-        await updateDropdownAuthState();
-        // Also update mobile menu
-        if (typeof updateMobileMenuAuthState === 'function') {
-          await updateMobileMenuAuthState();
-        }
-      });
-      return true; // Successfully set up
-    }
+if (typeof getSupabaseClient === 'function') {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    supabase.auth.onAuthStateChange(() => {
+      updateDropdownAuthState();
+    });
   }
-  return false; // Not ready yet
 }
-
-// Try to set up auth state listener
-document.addEventListener('DOMContentLoaded', () => {
-  // Try immediately
-  if (!setupDropdownAuthListener()) {
-    // Retry after a delay if not ready
-    setTimeout(() => {
-      if (!setupDropdownAuthListener()) {
-        // One more retry
-        setTimeout(setupDropdownAuthListener, 500);
-      }
-    }, 300);
-  }
-});
 
 // Close dropdown when clicking outside
 window.addEventListener('click', (e) => {
