@@ -3,14 +3,14 @@ const dropdownMenu = document.getElementById('dropdownMenu');
 const guestLinks = document.getElementById('guestLinks');
 const userLinks = document.getElementById('userLinks');
 
-// Cache for auth state (5 minutes) - persisted across page loads
+// Cache for auth state (5 minutes) - persisted across page loads in same tab (sessionStorage)
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CACHE_KEY = 'eventhive_auth_cache';
 
-// Get cached auth state from localStorage
+// Get cached auth state from sessionStorage
 function getCachedAuthState() {
   try {
-    const cached = localStorage.getItem(CACHE_KEY);
+    const cached = sessionStorage.getItem(CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
       const now = Date.now();
@@ -27,14 +27,14 @@ function getCachedAuthState() {
   return null;
 }
 
-// Save auth state to localStorage
+// Save auth state to sessionStorage
 function saveCachedAuthState(isLoggedIn, isAdmin) {
   try {
     const cache = {
       timestamp: Date.now(),
       state: { isLoggedIn, isAdmin }
     };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   } catch (e) {
     console.error('Error saving auth cache:', e);
   }
@@ -132,6 +132,73 @@ if (typeof getSupabaseClient === 'function') {
 setInterval(() => {
   updateDropdownAuthState(true); // Force check every 5 minutes
 }, AUTH_CHECK_INTERVAL);
+
+// Clear all caches
+function clearAllCaches() {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+    sessionStorage.removeItem('eventhive_profile_cache');
+  } catch (e) {
+    console.error('Error clearing caches:', e);
+  }
+}
+
+// Desktop Logout Button Handler
+const logoutBtn = document.getElementById('navLogoutBtn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    // Close dropdown immediately
+    if (dropdownMenu) {
+      dropdownMenu.classList.remove('show');
+    }
+    
+    // Sign out using Supabase
+    if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    }
+    
+    // Clear all caches
+    clearAllCaches();
+    
+    // Update UI immediately
+    applyAuthStateToUI(false, false);
+    
+    // Also update mobile menu if function exists
+    if (typeof updateMobileMenuAuthState === 'function') {
+      await updateMobileMenuAuthState();
+    }
+  });
+}
+
+// Listen for auth state changes (when user logs in/out)
+// Force check when auth state changes (bypasses 5-minute cache)
+if (typeof getSupabaseClient === 'function') {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        // User logged out - clear caches and close dropdown
+        clearAllCaches();
+        if (dropdownMenu) {
+          dropdownMenu.classList.remove('show');
+        }
+        applyAuthStateToUI(false, false);
+      } else {
+        updateDropdownAuthState(true); // Force check on auth state change
+      }
+    });
+  }
+}
+
+// Clear caches when tab closes
+window.addEventListener('beforeunload', () => {
+  clearAllCaches();
+});
 
 // Close dropdown when clicking outside
 window.addEventListener('click', (e) => {

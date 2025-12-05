@@ -462,11 +462,28 @@ function updateLastActivity() {
 /**
  * Check if session has timed out
  */
-function checkSessionTimeout() {
+async function checkSessionTimeout() {
   const timeSinceLastActivity = Date.now() - lastActivityTime;
   
   if (timeSinceLastActivity >= SESSION_TIMEOUT) {
-    handleSessionTimeout();
+    // Verify session is still valid before timing out
+    if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Only timeout if session is actually expired or invalid
+        if (!session || error) {
+          handleSessionTimeout();
+        } else {
+          // Session is still valid, reset activity time
+          lastActivityTime = Date.now();
+        }
+      }
+    } else {
+      // If we can't verify, assume timeout
+      handleSessionTimeout();
+    }
   }
 }
 
@@ -486,6 +503,14 @@ async function handleSessionTimeout() {
           userId: user.id,
           timeoutDuration: SESSION_TIMEOUT
         }, 'Session timed out due to inactivity');
+        
+        // Clear all caches
+        try {
+          sessionStorage.removeItem('eventhive_auth_cache');
+          sessionStorage.removeItem('eventhive_profile_cache');
+        } catch (e) {
+          console.error('Error clearing caches on timeout:', e);
+        }
         
         // Sign out user
         await supabase.auth.signOut();
