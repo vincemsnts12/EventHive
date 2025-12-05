@@ -662,3 +662,4 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
   }
 }
 
+

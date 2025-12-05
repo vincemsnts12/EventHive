@@ -179,3 +179,4 @@ The application is now ready to start with a clean database. All events and user
 
 **All changes complete!** 🎉
 
+

@@ -192,3 +192,4 @@ const subscription = supabase
 - [ ] Profile page loads user data
 - [ ] Liked events section shows correct events
 
+

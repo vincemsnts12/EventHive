@@ -142,3 +142,4 @@ Your code already restricts sign-ups to `@tup.edu.ph` emails. This happens in:
 
 **Once you have the Client ID and Secret from Google Cloud Console, paste them into the Supabase form and click "Save"!**
 
+

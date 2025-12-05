@@ -257,3 +257,4 @@ function getEventImageUrl(filePath) {
   return data?.publicUrl || null;
 }
 
+

@@ -180,10 +180,10 @@ if (mobileLogoutBtn) {
   });
 }
 
-// Clear caches when tab closes
-window.addEventListener('beforeunload', () => {
-  clearAllCaches();
-});
+// Note: We do NOT clear caches on beforeunload because:
+// 1. It fires on navigation between HTML pages (we want cache to persist)
+// 2. The Supabase auth token persists across navigation, so our cache should too
+// 3. Cache is already cleared on explicit logout and SIGNED_OUT events
 
 // Listen for auth state changes (when user logs in/out)
 if (typeof getSupabaseClient === 'function') {
