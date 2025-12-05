@@ -159,10 +159,30 @@ document.addEventListener('DOMContentLoaded', () => {
               
               // Update UI
               if (typeof updateDropdownAuthState === 'function') {
-                await updateDropdownAuthState();
+                await updateDropdownAuthState(true); // Force update after login
               }
               if (typeof updateMobileMenuAuthState === 'function') {
                 await updateMobileMenuAuthState();
+              }
+              
+              // Preload profile data for instant access
+              if (typeof getUserProfile === 'function') {
+                getUserProfile().then(result => {
+                  if (result.success && result.profile) {
+                    // Cache profile data in localStorage for instant loading
+                    try {
+                      const profileCache = {
+                        timestamp: Date.now(),
+                        profile: result.profile
+                      };
+                      localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+                    } catch (e) {
+                      console.error('Error caching profile:', e);
+                    }
+                  }
+                }).catch(err => {
+                  console.error('Error preloading profile:', err);
+                });
               }
               
               // Log security event
