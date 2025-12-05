@@ -95,18 +95,51 @@ function setupAuthStateListener() {
   });
 }
 
+// ===== HANDLE OAUTH CALLBACK =====
+// Process OAuth callback when page loads with access token in URL
+async function handleOAuthCallback() {
+  if (!supabaseClient) {
+    supabaseClient = initSupabase();
+    if (!supabaseClient) return;
+  }
+
+  // Check if this is an OAuth callback (has hash fragment with access_token)
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  if (hashParams.has('access_token')) {
+    // Get the current session to check email
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    
+    if (session?.user?.email) {
+      const email = session.user.email;
+      
+      // Check email domain immediately
+      if (!isAllowedEmailDomain(email)) {
+        await supabaseClient.auth.signOut();
+        alert('Only TUP email addresses (@tup.edu.ph) are allowed to sign up.');
+        // Clean up the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+    }
+  }
+}
+
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Wait for Supabase library to load
   if (typeof supabase !== 'undefined') {
     initSupabase();
     setupAuthStateListener();
+    // Handle OAuth callback if present
+    await handleOAuthCallback();
   } else {
     // Retry after a short delay if library hasn't loaded yet
-    setTimeout(() => {
+    setTimeout(async () => {
       if (typeof supabase !== 'undefined') {
         initSupabase();
         setupAuthStateListener();
+        // Handle OAuth callback if present
+        await handleOAuthCallback();
       }
     }, 100);
   }
