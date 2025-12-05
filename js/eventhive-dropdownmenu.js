@@ -3,8 +3,13 @@ const profileIcon = document.getElementById('profile-icon');
 const dropdownMenu = document.getElementById('dropdownMenu');
 
 // Cache for auth state (5 minutes) - persisted across page loads
+// Expose to window so hamburger menu can use them too
 const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CACHE_KEY = 'eventhive_auth_cache';
+if (typeof window !== 'undefined') {
+  window.AUTH_CHECK_INTERVAL = AUTH_CHECK_INTERVAL;
+  window.CACHE_KEY = CACHE_KEY;
+}
 
 // Get cached auth state from localStorage
 function getCachedAuthState() {
