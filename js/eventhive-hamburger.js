@@ -154,5 +154,14 @@ if (typeof getSupabaseClient === 'function') {
 }
 
 // Initialize auth state on page load
-document.addEventListener('DOMContentLoaded', updateMobileMenuAuthState);
+document.addEventListener('DOMContentLoaded', async () => {
+  // Wait a bit for Supabase to initialize
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await updateMobileMenuAuthState();
+});
+
+// Listen for auth state changes
+window.addEventListener('authStateChanged', async () => {
+  await updateMobileMenuAuthState();
+});
 

@@ -148,13 +148,20 @@ document.addEventListener('DOMContentLoaded', () => {
               emailInput.value = '';
               passwordInput.value = '';
               
-              // Update UI (dropdown menu and mobile menu will update via auth state listener)
+              // Wait a moment for session to be established
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              // Update UI immediately
               if (typeof updateDropdownAuthState === 'function') {
                 await updateDropdownAuthState();
               }
               if (typeof updateMobileMenuAuthState === 'function') {
                 await updateMobileMenuAuthState();
               }
+              
+              // Force a page refresh of the UI elements (in case they're cached)
+              // Trigger a custom event that other components can listen to
+              window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { loggedIn: true } }));
               
               // Log security event
               if (typeof logSecurityEvent === 'function') {

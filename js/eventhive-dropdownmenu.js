@@ -53,17 +53,39 @@ profileIcon.addEventListener('click', async (e) => {
 });
 
 // Initialize auth state on page load
-document.addEventListener('DOMContentLoaded', updateDropdownAuthState);
+document.addEventListener('DOMContentLoaded', async () => {
+  // Wait a bit for Supabase to initialize
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await updateDropdownAuthState();
+});
 
 // Listen for auth state changes (when user logs in/out)
-if (typeof getSupabaseClient === 'function') {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    supabase.auth.onAuthStateChange(() => {
-      updateDropdownAuthState();
-    });
+// Set up listener after Supabase is initialized
+function setupAuthStateListener() {
+  if (typeof getSupabaseClient === 'function') {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.auth.onAuthStateChange(async () => {
+        await updateDropdownAuthState();
+        // Also update mobile menu
+        if (typeof updateMobileMenuAuthState === 'function') {
+          await updateMobileMenuAuthState();
+        }
+      });
+    } else {
+      // Retry if Supabase not ready yet
+      setTimeout(setupAuthStateListener, 200);
+    }
+  } else {
+    // Retry if function not available yet
+    setTimeout(setupAuthStateListener, 200);
   }
 }
+
+// Set up auth state listener after DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(setupAuthStateListener, 300);
+});
 
 // Close dropdown when clicking outside
 window.addEventListener('click', (e) => {
