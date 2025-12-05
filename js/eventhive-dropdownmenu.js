@@ -1,3 +1,4 @@
+// Get elements (may be null if DOM not ready yet)
 const profileIcon = document.getElementById('profile-icon');
 const dropdownMenu = document.getElementById('dropdownMenu');
 const guestLinks = document.getElementById('guestLinks');
@@ -26,6 +27,60 @@ function getCachedAuthState() {
   }
   return null;
 }
+
+// IMMEDIATE INITIALIZATION: Apply cache state as soon as script loads
+// This runs IMMEDIATELY to prevent showing wrong state (Log In/Sign Up when logged in)
+(function applyCacheStateImmediately() {
+  const cached = getCachedAuthState();
+  if (cached !== null && cached.isLoggedIn) {
+    // User is logged in - hide guestLinks and show userLinks IMMEDIATELY
+    // This prevents showing "Log In/Sign Up" when user is already logged in
+    const gl = document.getElementById('guestLinks');
+    const ul = document.getElementById('userLinks');
+    const db = document.getElementById('navDashboardBtn');
+    
+    if (gl) gl.style.display = 'none';
+    if (ul) ul.style.display = 'block';
+    if (db) db.style.display = cached.isAdmin ? 'block' : 'none';
+  } else if (cached !== null && !cached.isLoggedIn) {
+    // User is logged out - show guestLinks and hide userLinks
+    const gl = document.getElementById('guestLinks');
+    const ul = document.getElementById('userLinks');
+    const db = document.getElementById('navDashboardBtn');
+    
+    if (gl) gl.style.display = 'block';
+    if (ul) ul.style.display = 'none';
+    if (db) db.style.display = 'none';
+  }
+  // If no cache, leave HTML defaults (guestLinks visible)
+})();
+
+// IMMEDIATE INITIALIZATION: Apply cache state as soon as script loads
+// This runs IMMEDIATELY to prevent showing wrong state (Log In/Sign Up when logged in)
+(function applyCacheStateImmediately() {
+  const cached = getCachedAuthState();
+  if (cached !== null && cached.isLoggedIn) {
+    // User is logged in - hide guestLinks and show userLinks IMMEDIATELY
+    // This prevents showing "Log In/Sign Up" when user is already logged in
+    const gl = document.getElementById('guestLinks');
+    const ul = document.getElementById('userLinks');
+    const db = document.getElementById('navDashboardBtn');
+    
+    if (gl) gl.style.display = 'none';
+    if (ul) ul.style.display = 'block';
+    if (db) db.style.display = cached.isAdmin ? 'block' : 'none';
+  } else if (cached !== null && !cached.isLoggedIn) {
+    // User is logged out - show guestLinks and hide userLinks
+    const gl = document.getElementById('guestLinks');
+    const ul = document.getElementById('userLinks');
+    const db = document.getElementById('navDashboardBtn');
+    
+    if (gl) gl.style.display = 'block';
+    if (ul) ul.style.display = 'none';
+    if (db) db.style.display = 'none';
+  }
+  // If no cache, leave HTML defaults (guestLinks visible)
+})();
 
 // Save auth state to localStorage
 // Made globally accessible for login script
@@ -124,7 +179,7 @@ profileIcon.addEventListener('click', (e) => {
   }
 });
 
-// Initialize: Load cached state immediately (no delay, no async checks)
+// Initialize: Load cached state on DOM ready (backup - in case IIFE didn't catch it)
 document.addEventListener('DOMContentLoaded', () => {
   // Apply cached state immediately if available (base default on cache)
   const cached = getCachedAuthState();
