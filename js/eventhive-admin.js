@@ -1466,10 +1466,11 @@ function openImagesModal(eventId, event) {
     ? rowsInEditMode.has(eventId) 
     : true; // Pending events are always editable
   
-  // Initialize images array (use event.images or default to universityLogo)
+  // Initialize images array (use event.images or default to universityLogo as example only)
+  // Only show default logo if there are no real images uploaded
   currentEditingImages = event.images && event.images.length > 0 
     ? [...event.images] 
-    : [event.universityLogo || 'images/tup.png'];
+    : []; // Start with empty array - default logo is just for display, not in editing array
   
   // Get thumbnail index (first image is thumbnail by default, or check if there's a thumbnailIndex property)
   currentThumbnailIndex = event.thumbnailIndex !== undefined ? event.thumbnailIndex : 0;
@@ -1533,12 +1534,47 @@ function renderImagesGallery(isEditMode = true) {
   
   gallery.innerHTML = '';
   
+  // Show example image if no real images uploaded (only in edit mode)
+  if (currentEditingImages.length === 0 && isEditMode) {
+    const exampleItem = document.createElement('div');
+    exampleItem.className = 'image-item';
+    exampleItem.style.opacity = '0.6';
+    
+    const exampleWrapper = document.createElement('div');
+    exampleWrapper.className = 'image-wrapper';
+    
+    const exampleImg = document.createElement('img');
+    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+    const event = source[currentEditingEventId];
+    exampleImg.src = event?.universityLogo || 'images/tup.png';
+    exampleImg.alt = 'Example image';
+    exampleImg.style.opacity = '0.5';
+    
+    const exampleLabel = document.createElement('div');
+    exampleLabel.style.position = 'absolute';
+    exampleLabel.style.top = '50%';
+    exampleLabel.style.left = '50%';
+    exampleLabel.style.transform = 'translate(-50%, -50%)';
+    exampleLabel.style.background = 'rgba(0, 0, 0, 0.7)';
+    exampleLabel.style.color = 'white';
+    exampleLabel.style.padding = '8px 16px';
+    exampleLabel.style.borderRadius = '4px';
+    exampleLabel.style.fontSize = '0.85rem';
+    exampleLabel.style.fontWeight = '600';
+    exampleLabel.style.zIndex = '10';
+    exampleLabel.textContent = 'Example - Upload images to replace';
+    
+    exampleWrapper.appendChild(exampleImg);
+    exampleWrapper.appendChild(exampleLabel);
+    exampleItem.appendChild(exampleWrapper);
+    gallery.appendChild(exampleItem);
+    return;
+  }
+  
   if (currentEditingImages.length === 0) {
     const emptyMsg = document.createElement('p');
     emptyMsg.className = 'images-empty-message';
-    emptyMsg.textContent = isEditMode 
-      ? 'No images uploaded. Upload images to get started.' 
-      : 'No images available.';
+    emptyMsg.textContent = 'No images available.';
     gallery.appendChild(emptyMsg);
     return;
   }
@@ -1694,10 +1730,14 @@ async function handleImageUpload(event) {
       const uploadResult = await uploadEventImages(files, currentEditingEventId);
       
       if (uploadResult.success && uploadResult.urls.length > 0) {
+        // Remove default logo if it exists (it's just an example)
+        const defaultLogo = 'images/tup.png';
+        currentEditingImages = currentEditingImages.filter(img => img !== defaultLogo);
+        
         // Add uploaded URLs to current editing images
         currentEditingImages.push(...uploadResult.urls);
         
-        // If this is the first image, set it as thumbnail
+        // If this is the first real image, set it as thumbnail
         if (currentEditingImages.length === uploadResult.urls.length) {
           currentThumbnailIndex = 0;
         }
@@ -1725,6 +1765,10 @@ async function handleImageUpload(event) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageUrl = e.target.result;
+        // Remove default logo if it exists (it's just an example)
+        const defaultLogo = 'images/tup.png';
+        currentEditingImages = currentEditingImages.filter(img => img !== defaultLogo);
+        
         currentEditingImages.push(imageUrl);
         if (currentEditingImages.length === 1) {
           currentThumbnailIndex = 0;
@@ -1756,15 +1800,8 @@ async function saveImagesEdit() {
       currentThumbnailIndex = 0;
     }
     
-    // If no images, use universityLogo as fallback
-    if (currentEditingImages.length === 0) {
-      const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
-      const event = source[currentEditingEventId];
-      if (event) {
-        currentEditingImages = [event.universityLogo || 'images/tup.png'];
-        currentThumbnailIndex = 0;
-      }
-    }
+    // Don't add default logo - if no images, save empty array
+    // The default logo is only for display purposes as an example
     
     // Update event in Supabase if functions are available
     if (typeof updateEvent === 'function') {

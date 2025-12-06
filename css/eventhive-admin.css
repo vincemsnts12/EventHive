@@ -1219,6 +1219,8 @@
   padding: 10px;
   opacity: 0;
   transition: opacity 0.2s ease;
+  z-index: 10;
+  pointer-events: none;
 }
 
 .image-item:hover .image-overlay {
@@ -1240,6 +1242,8 @@
   flex-direction: column;
   gap: 8px;
   align-self: flex-end;
+  pointer-events: auto;
+  z-index: 11;
 }
 
 .image-action-btn {
@@ -1255,6 +1259,8 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  position: relative;
+  z-index: 12;
 }
 
 .image-action-btn:hover:not(:disabled) {
