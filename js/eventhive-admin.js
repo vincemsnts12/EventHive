@@ -1725,9 +1725,20 @@ async function saveImagesEdit() {
         }
       }
     } else {
-      // For pending events, only update local pending data. Do NOT persist to event_images yet.
+      // For pending events: persist images to event_images table immediately (so they survive reloads)
       const source = pendingEventsData;
       const event = source[currentEditingEventId];
+      
+      if (event && isValidUUID(currentEditingEventId) && typeof saveEventImages === 'function') {
+        // Attempt to persist images to database
+        const saveResult = await saveEventImages(currentEditingEventId, currentEditingImages, currentThumbnailIndex);
+        if (!saveResult.success) {
+          console.warn('Failed to persist pending images:', saveResult.error);
+          // Still update local copy for UI consistency
+        }
+      }
+      
+      // Update local data
       if (event) {
         event.images = [...currentEditingImages];
         event.thumbnailIndex = currentThumbnailIndex;
