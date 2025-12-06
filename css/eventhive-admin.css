@@ -732,6 +732,7 @@
 .date-time-field input[type="time"] {
   width: 100%;
   padding: 10px 14px;
+  padding-right: 40px; /* Make room for icon, but keep input clickable */
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -739,6 +740,11 @@
   outline: none;
   transition: border-color 0.3s ease;
   box-sizing: border-box;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .date-time-field input[type="date"]:focus,
