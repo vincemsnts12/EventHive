@@ -378,24 +378,14 @@ async function createNewPendingEvent() {
     return;
   }
 
-  const today = new Date();
   const todayDate = formatTodayDate();
-  
-  // Create start and end dates (default: today 9:00 AM - 5:00 PM)
-  const startDate = new Date(today);
-  startDate.setHours(9, 0, 0, 0);
-  
-  const endDate = new Date(today);
-  endDate.setHours(17, 0, 0, 0);
 
-  // Create new event with default values
+  // Create new event with default values (matching old implementation structure)
   const newEvent = {
     title: 'Add Title',
     description: 'Add Description',
     location: 'Add Location',
-    date: todayDate, // For display purposes
-    startDate: startDate, // For database (required)
-    endDate: endDate, // For database (required)
+    date: todayDate,
     status: 'Pending',
     isFeatured: false,
     likes: 0,
@@ -404,7 +394,10 @@ async function createNewPendingEvent() {
     organization: 'TUP USG Manila',
     images: [], // Empty images array
     thumbnailIndex: 0,
-    universityLogo: 'images/tup.png'
+    universityLogo: 'images/tup.png',
+    createdAt: null,
+    updatedAt: null,
+    createdBy: null
   };
 
   // Show loading state - change cursor to loading
