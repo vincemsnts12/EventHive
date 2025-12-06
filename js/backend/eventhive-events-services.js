@@ -254,6 +254,22 @@ async function createEvent(eventData) {
       location: location
     });
     
+    // Validate that dates were successfully parsed (required by database)
+    // If parsing failed, provide default dates (today 9 AM - 5 PM) as fallback
+    if (!dbEvent.start_date || !dbEvent.end_date) {
+      console.warn('Date parsing failed, using default dates. Event data:', eventData);
+      const today = new Date();
+      const startDate = new Date(today);
+      startDate.setHours(9, 0, 0, 0);
+      const endDate = new Date(today);
+      endDate.setHours(17, 0, 0, 0);
+      
+      dbEvent.start_date = formatDateForDatabase(startDate);
+      dbEvent.end_date = formatDateForDatabase(endDate);
+      
+      logSecurityEvent('INVALID_INPUT', { userId: user.id, field: 'date' }, 'Failed to parse event dates, using defaults');
+    }
+    
     // Set created_by
     dbEvent.created_by = user.id;
     
