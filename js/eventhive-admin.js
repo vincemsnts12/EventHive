@@ -331,29 +331,6 @@ function populatePublishedEventsTable() {
   });
 }
 
-// ===== GENERATE UNIQUE PENDING EVENT ID =====
-function generatePendingEventId() {
-  // Generate a valid UUID v4 format
-  // Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-  function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
-  
-  let newId = generateUUID();
-  const existingIds = Object.keys(pendingEventsData);
-  
-  // Ensure uniqueness (very unlikely to collide, but just in case)
-  while (existingIds.includes(newId)) {
-    newId = generateUUID();
-  }
-  
-  return newId;
-}
-
 // ===== FORMAT TODAY'S DATE FOR EVENT =====
 function formatTodayDate() {
   const today = new Date();
@@ -372,12 +349,38 @@ function formatTodayDate() {
   return dateString;
 }
 
+// ===== COUNT UNEDITED EVENTS =====
+// Counts events that still have default values (not yet edited)
+function countUneditedEvents() {
+  let count = 0;
+  for (const eventId in pendingEventsData) {
+    const event = pendingEventsData[eventId];
+    // Check if event has default values (unedited)
+    if (event.title === 'Add Title' || event.description === 'Add Description') {
+      count++;
+    }
+  }
+  return count;
+}
+
 // ===== CREATE NEW PENDING EVENT =====
-function createNewPendingEvent() {
-  const localId = generatePendingEventId();
+async function createNewPendingEvent() {
+  // Check if we've reached the maximum of 3 unedited events
+  const uneditedCount = countUneditedEvents();
+  if (uneditedCount >= 3) {
+    alert('You can only have a maximum of 3 unedited events. Please edit or delete existing events before creating new ones.');
+    return;
+  }
+
+  // Check if createEvent function is available
+  if (typeof createEvent !== 'function') {
+    alert('An error has occurred, a new event was not created.');
+    return;
+  }
+
   const todayDate = formatTodayDate();
 
-  // Create new event with default values (no images saved yet)
+  // Create new event with default values
   const newEvent = {
     title: 'Add Title',
     description: 'Add Description',
@@ -389,71 +392,59 @@ function createNewPendingEvent() {
     college: 'TUP',
     collegeColor: 'tup',
     organization: 'TUP USG Manila',
-    images: [], // Do not persist images yet; uploads go to storage and will be associated on approval
-    thumbnailIndex: 0, // First image is thumbnail
-    universityLogo: 'images/tup.png',
-    id: localId,
-    createdAt: null,
-    updatedAt: null,
-    createdBy: null
+    images: [], // Empty images array
+    thumbnailIndex: 0,
+    universityLogo: 'images/tup.png'
   };
 
-  // Optimistically add to pending events for immediate UI feedback
-  pendingEventsData[localId] = newEvent;
-  populatePendingEventsTable();
+  // Show loading state - change cursor to loading
+  document.body.style.cursor = 'wait';
+  const addRow = document.querySelector('.add-new-event-row');
+  if (addRow) {
+    addRow.style.opacity = '0.5';
+    addRow.style.pointerEvents = 'none';
+  }
 
-  // Attempt to persist the pending event to the database so it survives reloads
-  // Use createEvent if available; it will create a Pending event without images
-  (async () => {
-    if (typeof createEvent === 'function') {
-      try {
-        const createPayload = { ...newEvent };
-        // Ensure images array is empty for now; uploads happen separately
-        createPayload.images = [];
-        createPayload.thumbnailIndex = 0;
-
-        const result = await createEvent(createPayload);
-        if (result.success && result.event && result.event.id) {
-          // Replace local pending key with real DB id
-          const dbId = result.event.id;
-          
-          // Ensure the event data is properly formatted before adding
-          if (result.event && typeof result.event === 'object') {
-            // Atomically replace local entry with DB entry to prevent disappearing
-            // Step 1: Add DB entry first (ensures it exists before removing local)
-            pendingEventsData[dbId] = result.event;
-            
-            // Step 2: Remove local entry only after DB entry is confirmed
-            if (pendingEventsData[dbId]) {
-              delete pendingEventsData[localId];
-              
-              // Step 3: Refresh table after both operations complete
-              // Small delay ensures data operations complete before DOM update
-              setTimeout(() => {
-                populatePendingEventsTable();
-                setTimeout(() => {
-                  const newRow = document.querySelector(`tr[data-event-id="${dbId}"]`);
-                  if (newRow) newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 50);
-              }, 0);
-            } else {
-              console.warn('Failed to add event with DB ID, keeping local version');
-            }
-          } else {
-            console.warn('Invalid event data returned from createEvent');
-          }
-          return;
-        } else {
-          console.warn('createEvent failed:', result.error || 'Unknown error');
-        }
-      } catch (err) {
-        console.warn('Failed to persist pending event:', err && err.message ? err.message : err);
-        // keep optimistic local version
-      }
+  try {
+    // Create event directly in database
+    const result = await createEvent(newEvent);
+    
+    // Restore cursor
+    document.body.style.cursor = '';
+    if (addRow) {
+      addRow.style.opacity = '1';
+      addRow.style.pointerEvents = 'auto';
     }
 
-    // If createEvent isn't available or failed, keep local optimistic draft (already added)
-  })();
+    if (result.success && result.event && result.event.id) {
+      // Add event to pendingEventsData with DB ID
+      pendingEventsData[result.event.id] = result.event;
+      
+      // Refresh table and scroll to new event
+      populatePendingEventsTable();
+      setTimeout(() => {
+        const newRow = document.querySelector(`tr[data-event-id="${result.event.id}"]`);
+        if (newRow) {
+          newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+    } else {
+      // Show error message
+      alert('An error has occurred, a new event was not created.');
+      console.error('Failed to create event:', result.error || 'Unknown error');
+    }
+  } catch (error) {
+    // Restore cursor on error
+    document.body.style.cursor = '';
+    if (addRow) {
+      addRow.style.opacity = '1';
+      addRow.style.pointerEvents = 'auto';
+    }
+    
+    // Show error message
+    alert('An error has occurred, a new event was not created.');
+    console.error('Error creating event:', error);
+  }
 }
 
 // ===== BUILD ADD NEW EVENT ROW =====
