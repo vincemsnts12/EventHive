@@ -6,13 +6,15 @@ function initPasswordToggles() {
     passwordToggles.forEach(toggle => {
         const targetId = toggle.getAttribute('data-target');
         const input = document.getElementById(targetId);
+        const showIcon = toggle.querySelector('.icon-show');
+        const hideIcon = toggle.querySelector('.icon-hide');
         if (input) {
             if (input.type === 'text') {
-                toggle.classList.add('visible');
-                toggle.setAttribute('aria-label', 'Hide password');
+                if (showIcon) showIcon.style.display = 'none';
+                if (hideIcon) hideIcon.style.display = 'inline-block';
             } else {
-                toggle.classList.remove('visible');
-                toggle.setAttribute('aria-label', 'Show password');
+                if (showIcon) showIcon.style.display = 'inline-block';
+                if (hideIcon) hideIcon.style.display = 'none';
             }
         }
         toggle.addEventListener('click', (e) => {
@@ -22,11 +24,11 @@ function initPasswordToggles() {
                 const wasPassword = tgt.type === 'password';
                 tgt.type = wasPassword ? 'text' : 'password';
                 if (wasPassword) {
-                    toggle.classList.add('visible');
-                    toggle.setAttribute('aria-label', 'Hide password');
+                    if (showIcon) showIcon.style.display = 'none';
+                    if (hideIcon) hideIcon.style.display = 'inline-block';
                 } else {
-                    toggle.classList.remove('visible');
-                    toggle.setAttribute('aria-label', 'Show password');
+                    if (showIcon) showIcon.style.display = 'inline-block';
+                    if (hideIcon) hideIcon.style.display = 'none';
                 }
             }
         });

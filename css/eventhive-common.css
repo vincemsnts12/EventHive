@@ -433,14 +433,6 @@ body {
 .password-toggle .icon-hide {
   display: none;
 }
-
-.password-toggle.visible .icon-show {
-  display: none;
-}
-
-.password-toggle.visible .icon-hide {
-  display: inline-block;
-
 .auth-modal__submit {
   background-color: #B81E20;
   color: #FFFBF0;

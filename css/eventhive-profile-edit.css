@@ -191,8 +191,6 @@
 
 .password-form-wrapper .password-toggle .icon { width: 20px; height: 20px; display:inline-block; }
 .password-form-wrapper .password-toggle .icon-hide { display: none; }
-.password-form-wrapper .password-toggle.visible .icon-show { display: none; }
-.password-form-wrapper .password-toggle.visible .icon-hide { display: inline-block; }
 
 
 .save-pass-btn {
