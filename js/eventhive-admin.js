@@ -378,14 +378,24 @@ async function createNewPendingEvent() {
     return;
   }
 
+  const today = new Date();
   const todayDate = formatTodayDate();
+  
+  // Create start and end dates (default: today 9:00 AM - 5:00 PM)
+  const startDate = new Date(today);
+  startDate.setHours(9, 0, 0, 0);
+  
+  const endDate = new Date(today);
+  endDate.setHours(17, 0, 0, 0);
 
   // Create new event with default values
   const newEvent = {
     title: 'Add Title',
     description: 'Add Description',
     location: 'Add Location',
-    date: todayDate,
+    date: todayDate, // For display purposes
+    startDate: startDate, // For database (required)
+    endDate: endDate, // For database (required)
     status: 'Pending',
     isFeatured: false,
     likes: 0,
@@ -429,9 +439,11 @@ async function createNewPendingEvent() {
         }
       }, 100);
     } else {
-      // Show error message
+      // Show error message with more details in console
+      const errorMsg = result.error || 'Unknown error';
+      console.error('Failed to create event:', errorMsg);
+      console.error('Event data that failed:', newEvent);
       alert('An error has occurred, a new event was not created.');
-      console.error('Failed to create event:', result.error || 'Unknown error');
     }
   } catch (error) {
     // Restore cursor on error
@@ -441,9 +453,10 @@ async function createNewPendingEvent() {
       addRow.style.pointerEvents = 'auto';
     }
     
-    // Show error message
-    alert('An error has occurred, a new event was not created.');
+    // Show error message with details
     console.error('Error creating event:', error);
+    console.error('Event data that failed:', newEvent);
+    alert('An error has occurred, a new event was not created.');
   }
 }
 
