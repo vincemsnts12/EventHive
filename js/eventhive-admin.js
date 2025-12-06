@@ -999,9 +999,9 @@ function openEditDateModal(eventId, event) {
     // Format dates for input fields (YYYY-MM-DD)
     const startDateInput = document.getElementById('editStartDate');
     const startTimeInput = document.getElementById('editStartTime');
-    const endDateInput = document.getElementById('editEndDate');
     const endTimeInput = document.getElementById('editEndTime');
     
+    // Use start date for the single date field (both start and end use the same date)
     if (startDateInput && parsedDate.startDate) {
       const startDate = new Date(parsedDate.startDate);
       startDateInput.value = startDate.toISOString().split('T')[0];
@@ -1009,11 +1009,6 @@ function openEditDateModal(eventId, event) {
     
     if (startTimeInput && parsedDate.startTime) {
       startTimeInput.value = parsedDate.startTime.substring(0, 5); // HH:MM format
-    }
-    
-    if (endDateInput && parsedDate.endDate) {
-      const endDate = new Date(parsedDate.endDate);
-      endDateInput.value = endDate.toISOString().split('T')[0];
     }
     
     if (endTimeInput && parsedDate.endTime) {
@@ -1367,27 +1362,25 @@ async function saveDateEdit() {
   
   const startDateInput = document.getElementById('editStartDate');
   const startTimeInput = document.getElementById('editStartTime');
-  const endDateInput = document.getElementById('editEndDate');
   const endTimeInput = document.getElementById('editEndTime');
   
-  if (!startDateInput || !startTimeInput || !endDateInput || !endTimeInput) {
+  if (!startDateInput || !startTimeInput || !endTimeInput) {
     alert('Please fill in all date and time fields');
     return;
   }
   
-  const startDate = startDateInput.value;
+  const date = startDateInput.value;
   const startTime = startTimeInput.value;
-  const endDate = endDateInput.value;
   const endTime = endTimeInput.value;
   
-  if (!startDate || !startTime || !endDate || !endTime) {
+  if (!date || !startTime || !endTime) {
     alert('Please fill in all date and time fields');
     return;
   }
   
-  // Combine date and time into Date objects
-  const startDateTime = new Date(`${startDate}T${startTime}`);
-  const endDateTime = new Date(`${endDate}T${endTime}`);
+  // Combine date and time into Date objects (using the same date for both start and end)
+  const startDateTime = new Date(`${date}T${startTime}`);
+  const endDateTime = new Date(`${date}T${endTime}`);
   
   if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
     alert('Invalid date or time format');
@@ -1395,7 +1388,7 @@ async function saveDateEdit() {
   }
   
   if (endDateTime < startDateTime) {
-    alert('End date/time must be after start date/time');
+    alert('End time must be after start time');
     return;
   }
   
@@ -1406,7 +1399,7 @@ async function saveDateEdit() {
     // Format the date string for display (using formatDateRangeForDisplay)
     const formattedDate = typeof formatDateRangeForDisplay !== 'undefined' 
       ? formatDateRangeForDisplay(startDateTime, endDateTime)
-      : `${startDate} ${startTime} - ${endDate} ${endTime}`;
+      : `${date} ${startTime} - ${endTime}`;
     
     // Update the event data
     const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
