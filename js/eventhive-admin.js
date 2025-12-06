@@ -660,17 +660,33 @@ async function approvePendingEvent(eventId) {
   const pendingEvent = pendingEventsData[eventId];
   
   // Approve in Supabase if function available
-  if (typeof approveEvent === 'function') {
-    const result = await approveEvent(eventId);
-    if (!result.success) {
-      alert(`Error approving event: ${result.error}`);
+  if (typeof createEvent === 'function' && typeof approveEvent === 'function') {
+    // First, create the event in the database using existing backend function.
+    // createEvent expects frontend-style event data; pendingEvent already holds that shape.
+    const createResult = await createEvent(pendingEvent);
+    if (!createResult.success) {
+      alert(`Error creating event: ${createResult.error}`);
       return;
     }
-    
+
+    // createResult.event contains the inserted event (still pending)
+    const createdEvent = createResult.event;
+    if (!createdEvent || !createdEvent.id) {
+      alert('Error: created event missing id');
+      return;
+    }
+
+    // Now approve the newly created event (this will set approved_at, approved_by, and status)
+    const approveResult = await approveEvent(createdEvent.id);
+    if (!approveResult.success) {
+      alert(`Error approving event: ${approveResult.error}`);
+      return;
+    }
+
     // Update local data with approved event
-    if (result.event) {
-      const newEventId = result.event.id;
-      eventsData[newEventId] = result.event;
+    if (approveResult.event) {
+      const newEventId = approveResult.event.id;
+      eventsData[newEventId] = approveResult.event;
       delete pendingEventsData[eventId];
     }
   } else {
@@ -1604,26 +1620,36 @@ async function saveImagesEdit() {
   
   // Update event in Supabase if functions are available
   if (typeof updateEvent === 'function') {
-    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
-    const event = source[currentEditingEventId];
-    
-    if (event) {
-      // Update event with new images and thumbnail index
-      const updatedEvent = {
-        ...event,
-        images: [...currentEditingImages],
-        thumbnailIndex: currentThumbnailIndex
-      };
-      
-      const result = await updateEvent(currentEditingEventId, updatedEvent);
-      
-      if (result.success) {
-        // Update local data
+    if (currentEditingTable === 'published') {
+      const source = eventsData;
+      const event = source[currentEditingEventId];
+
+      if (event) {
+        // Update event with new images and thumbnail index
+        const updatedEvent = {
+          ...event,
+          images: [...currentEditingImages],
+          thumbnailIndex: currentThumbnailIndex
+        };
+
+        const result = await updateEvent(currentEditingEventId, updatedEvent);
+
+        if (result.success) {
+          // Update local data
+          event.images = [...currentEditingImages];
+          event.thumbnailIndex = currentThumbnailIndex;
+        } else {
+          alert(`Error saving images: ${result.error}`);
+          return;
+        }
+      }
+    } else {
+      // For pending events, only update local pending data. Do NOT persist to event_images yet.
+      const source = pendingEventsData;
+      const event = source[currentEditingEventId];
+      if (event) {
         event.images = [...currentEditingImages];
         event.thumbnailIndex = currentThumbnailIndex;
-      } else {
-        alert(`Error saving images: ${result.error}`);
-        return;
       }
     }
   } else {

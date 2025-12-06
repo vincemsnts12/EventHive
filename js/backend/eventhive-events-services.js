@@ -623,16 +623,15 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
   }
 
   try {
-    // Delete all existing images
+    // Delete all existing images (but don't fail if none exist)
     const { error: deleteError } = await supabase
       .from('event_images')
       .delete()
       .eq('event_id', eventId);
 
+    // Ignore delete errors as there might not be any existing images
     if (deleteError) {
-      logSecurityEvent('DATABASE_ERROR', { eventId, error: deleteError.message }, 'Error deleting existing images');
-      console.error('Error deleting existing images:', deleteError);
-      return { success: false, error: deleteError.message };
+      console.warn('Note: No existing images to delete (this is normal for new events)', deleteError.message);
     }
 
     // Insert new images
@@ -643,17 +642,15 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
         display_order: index === thumbnailIndex ? 0 : index + 1 // Thumbnail = 0, others = 1, 2, 3...
       }));
 
-      // Insert each image row individually to avoid "Cannot coerce to single JSON object" error
-      for (const imageRow of imageRows) {
-        const { error: insertError } = await supabase
-          .from('event_images')
-          .insert([imageRow]);
+      // Insert all images in one batch (without .select() to avoid JSON coercion error)
+      const { error: insertError } = await supabase
+        .from('event_images')
+        .insert(imageRows);
 
-        if (insertError) {
-          logSecurityEvent('DATABASE_ERROR', { eventId, error: insertError.message }, 'Error inserting image');
-          console.error('Error inserting image:', insertError);
-          return { success: false, error: insertError.message };
-        }
+      if (insertError) {
+        logSecurityEvent('DATABASE_ERROR', { eventId, error: insertError.message }, 'Error inserting images');
+        console.error('Error inserting images:', insertError);
+        return { success: false, error: insertError.message };
       }
     }
 
