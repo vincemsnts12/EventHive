@@ -416,17 +416,35 @@ function createNewPendingEvent() {
         if (result.success && result.event && result.event.id) {
           // Replace local pending key with real DB id
           const dbId = result.event.id;
-          pendingEventsData[dbId] = result.event;
-          // Remove the optimistic local id entry
-          delete pendingEventsData[localId];
-
-          // Re-render and scroll to the created row
-          populatePendingEventsTable();
-          setTimeout(() => {
-            const newRow = document.querySelector(`tr[data-event-id="${dbId}"]`);
-            if (newRow) newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 100);
+          
+          // Ensure the event data is properly formatted before adding
+          if (result.event && typeof result.event === 'object') {
+            // Atomically replace local entry with DB entry to prevent disappearing
+            // Step 1: Add DB entry first (ensures it exists before removing local)
+            pendingEventsData[dbId] = result.event;
+            
+            // Step 2: Remove local entry only after DB entry is confirmed
+            if (pendingEventsData[dbId]) {
+              delete pendingEventsData[localId];
+              
+              // Step 3: Refresh table after both operations complete
+              // Small delay ensures data operations complete before DOM update
+              setTimeout(() => {
+                populatePendingEventsTable();
+                setTimeout(() => {
+                  const newRow = document.querySelector(`tr[data-event-id="${dbId}"]`);
+                  if (newRow) newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 50);
+              }, 0);
+            } else {
+              console.warn('Failed to add event with DB ID, keeping local version');
+            }
+          } else {
+            console.warn('Invalid event data returned from createEvent');
+          }
           return;
+        } else {
+          console.warn('createEvent failed:', result.error || 'Unknown error');
         }
       } catch (err) {
         console.warn('Failed to persist pending event:', err && err.message ? err.message : err);
