@@ -712,7 +712,7 @@
 .date-time-input-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
