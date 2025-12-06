@@ -42,35 +42,52 @@ function isValidUUID(id) {
 
 // Helper: Refresh events from database
 async function refreshEventsFromDatabase(tableType) {
-  if (tableType === 'published') {
-    if (typeof getPublishedEvents === 'function') {
-      const result = await getPublishedEvents();
-      if (result.success) {
-        // Clear existing events
-        Object.keys(eventsData).forEach(key => delete eventsData[key]);
-        // Add fresh events from database
-        result.events.forEach(event => {
-          eventsData[event.id] = event;
-        });
-        populatePublishedEventsTable();
+  try {
+    if (tableType === 'published') {
+      if (typeof getPublishedEvents === 'function') {
+        const result = await getPublishedEvents();
+        if (result.success && result.events) {
+          // Clear all existing events from eventsData (on admin dashboard, this should only contain published events)
+          Object.keys(eventsData).forEach(key => {
+            delete eventsData[key];
+          });
+          // Add fresh published events from database
+          result.events.forEach(event => {
+            eventsData[event.id] = event;
+          });
+          // Repopulate the table
+          populatePublishedEventsTable();
+          console.log('Published events refreshed:', result.events.length);
+        } else {
+          console.error('Failed to refresh published events:', result.error);
+          alert('Failed to refresh events. Please refresh the page.');
+        }
       } else {
-        console.warn('Failed to refresh published events:', result.error);
+        console.error('getPublishedEvents function not available');
+      }
+    } else if (tableType === 'pending') {
+      if (typeof getPendingEvents === 'function') {
+        const result = await getPendingEvents();
+        if (result.success && result.events) {
+          // Replace with fresh data from database
+          pendingEventsData = {};
+          result.events.forEach(event => {
+            pendingEventsData[event.id] = event;
+          });
+          // Repopulate the table
+          populatePendingEventsTable();
+          console.log('Pending events refreshed:', result.events.length);
+        } else {
+          console.error('Failed to refresh pending events:', result.error);
+          alert('Failed to refresh events. Please refresh the page.');
+        }
+      } else {
+        console.error('getPendingEvents function not available');
       }
     }
-  } else if (tableType === 'pending') {
-    if (typeof getPendingEvents === 'function') {
-      const result = await getPendingEvents();
-      if (result.success) {
-        // Replace with fresh data from database
-        pendingEventsData = {};
-        result.events.forEach(event => {
-          pendingEventsData[event.id] = event;
-        });
-        populatePendingEventsTable();
-      } else {
-        console.warn('Failed to refresh pending events:', result.error);
-      }
-    }
+  } catch (error) {
+    console.error('Error refreshing events from database:', error);
+    alert('An error occurred while refreshing events. Please refresh the page.');
   }
 }
 
@@ -1114,12 +1131,18 @@ async function saveTitleEdit() {
         return;
       }
       rowsInEditMode.delete(currentEditingEventId);
+      
+      // Close modal
+      closeModal('editTitleModal');
+      
+      // Small delay to ensure database update propagates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh from database
+      await refreshEventsFromDatabase(currentEditingTable);
+    } else {
+      closeModal('editTitleModal');
     }
-    
-    closeModal('editTitleModal');
-    
-    // Refresh from database
-    await refreshEventsFromDatabase(currentEditingTable);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -1162,12 +1185,18 @@ async function saveDescEdit() {
         return;
       }
       rowsInEditMode.delete(currentEditingEventId);
+      
+      // Close modal
+      closeModal('editDescModal');
+      
+      // Small delay to ensure database update propagates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh from database
+      await refreshEventsFromDatabase(currentEditingTable);
+    } else {
+      closeModal('editDescModal');
     }
-    
-    closeModal('editDescModal');
-    
-    // Refresh from database
-    await refreshEventsFromDatabase(currentEditingTable);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -1210,12 +1239,18 @@ async function saveLocationEdit() {
         return;
       }
       rowsInEditMode.delete(currentEditingEventId);
+      
+      // Close modal
+      closeModal('editLocationModal');
+      
+      // Small delay to ensure database update propagates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh from database
+      await refreshEventsFromDatabase(currentEditingTable);
+    } else {
+      closeModal('editLocationModal');
     }
-    
-    closeModal('editLocationModal');
-    
-    // Refresh from database
-    await refreshEventsFromDatabase(currentEditingTable);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -1266,12 +1301,18 @@ async function saveCollegeEdit() {
         return;
       }
       rowsInEditMode.delete(currentEditingEventId);
+      
+      // Close modal
+      closeModal('editCollegeModal');
+      
+      // Small delay to ensure database update propagates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh from database
+      await refreshEventsFromDatabase(currentEditingTable);
+    } else {
+      closeModal('editCollegeModal');
     }
-    
-    closeModal('editCollegeModal');
-    
-    // Refresh from database
-    await refreshEventsFromDatabase(currentEditingTable);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -1317,12 +1358,18 @@ async function saveOrgEdit() {
         return;
       }
       rowsInEditMode.delete(currentEditingEventId);
+      
+      // Close modal
+      closeModal('editOrgModal');
+      
+      // Small delay to ensure database update propagates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh from database
+      await refreshEventsFromDatabase(currentEditingTable);
+    } else {
+      closeModal('editOrgModal');
     }
-    
-    closeModal('editOrgModal');
-    
-    // Refresh from database
-    await refreshEventsFromDatabase(currentEditingTable);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -1410,12 +1457,18 @@ async function saveDateEdit() {
         return;
       }
       rowsInEditMode.delete(currentEditingEventId);
+      
+      // Close modal
+      closeModal('editDateModal');
+      
+      // Small delay to ensure database update propagates
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refresh from database
+      await refreshEventsFromDatabase(currentEditingTable);
+    } else {
+      closeModal('editDateModal');
     }
-    
-    closeModal('editDateModal');
-    
-    // Refresh from database
-    await refreshEventsFromDatabase(currentEditingTable);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -1755,6 +1808,17 @@ async function saveImagesEdit() {
           alert(`Error saving images: ${result.error}`);
           return;
         }
+        
+        // Close modal
+        closeModal('imagesModal');
+        
+        // Small delay to ensure database update propagates
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Refresh from database
+        await refreshEventsFromDatabase(currentEditingTable);
+      } else {
+        closeModal('imagesModal');
       }
     } else {
       // For pending events: persist images to event_images table
@@ -1764,13 +1828,19 @@ async function saveImagesEdit() {
           alert(`Error saving images: ${saveResult.error}`);
           return;
         }
+        
+        // Close modal
+        closeModal('imagesModal');
+        
+        // Small delay to ensure database update propagates
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Refresh from database
+        await refreshEventsFromDatabase(currentEditingTable);
+      } else {
+        closeModal('imagesModal');
       }
     }
-  
-    closeModal('imagesModal');
-    
-    // Refresh from database
-    await refreshEventsFromDatabase(currentEditingTable);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
