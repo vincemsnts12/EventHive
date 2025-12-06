@@ -32,6 +32,14 @@ let currentEditingField = null;
 let currentEditingTable = null; // 'published' or 'pending'
 let rowsInEditMode = new Set(); // Track which rows are in edit mode
 
+// Helper: validate UUID (use existing validateUUID if available)
+function isValidUUID(id) {
+  if (!id || typeof id !== 'string') return false;
+  if (typeof validateUUID === 'function') return validateUUID(id);
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
 // ===== FORMAT DATE TO SHORTENED VERSION =====
 function formatShortDate(dateString) {
   // Input: "November 7, 2025 (Friday) | 12:00 NN - 4:00 PM"
@@ -1046,18 +1054,23 @@ async function saveTitleEdit() {
     const result = await updateEvent(currentEditingEventId, event);
     if (!result.success) {
       alert(`Error saving title: ${result.error}`);
-      // Revert local change
-      event.title = event.title; // Keep as is for now
       return;
     }
-    // Update local data with response
-    if (result.event) {
-      Object.assign(event, result.event);
-    }
+    if (result.event) Object.assign(event, result.event);
     rowsInEditMode.delete(currentEditingEventId);
-  } else if (typeof createEvent === 'function' && currentEditingTable === 'pending') {
-    // For pending events, we can update locally (they'll be saved when approved)
-    // Or create/update if it's a new event
+  } else if (currentEditingTable === 'pending') {
+    // For pending events: if we have a valid DB id, attempt to persist edits immediately.
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
+      if (!result.success) {
+        // Persist failed (likely RLS) - keep local change and inform the user
+        console.warn('Failed to persist pending edit:', result.error);
+        // Optionally show a non-blocking notice
+        showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+      } else if (result.event) {
+        Object.assign(event, result.event);
+      }
+    }
   }
   
   closeModal('editTitleModal');
@@ -1097,10 +1110,18 @@ async function saveDescEdit() {
       alert(`Error saving description: ${result.error}`);
       return;
     }
-    if (result.event) {
-      Object.assign(event, result.event);
-    }
+    if (result.event) Object.assign(event, result.event);
     rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
+      if (!result.success) {
+        console.warn('Failed to persist pending description edit:', result.error);
+        showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+      } else if (result.event) {
+        Object.assign(event, result.event);
+      }
+    }
   }
   
   closeModal('editDescModal');
@@ -1140,10 +1161,18 @@ async function saveLocationEdit() {
       alert(`Error saving location: ${result.error}`);
       return;
     }
-    if (result.event) {
-      Object.assign(event, result.event);
-    }
+    if (result.event) Object.assign(event, result.event);
     rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
+      if (!result.success) {
+        console.warn('Failed to persist pending location edit:', result.error);
+        showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+      } else if (result.event) {
+        Object.assign(event, result.event);
+      }
+    }
   }
   
   closeModal('editLocationModal');
@@ -1191,10 +1220,18 @@ async function saveCollegeEdit() {
       alert(`Error saving college: ${result.error}`);
       return;
     }
-    if (result.event) {
-      Object.assign(event, result.event);
-    }
+    if (result.event) Object.assign(event, result.event);
     rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
+      if (!result.success) {
+        console.warn('Failed to persist pending college edit:', result.error);
+        showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+      } else if (result.event) {
+        Object.assign(event, result.event);
+      }
+    }
   }
   
   closeModal('editCollegeModal');
@@ -1237,10 +1274,18 @@ async function saveOrgEdit() {
       alert(`Error saving organization: ${result.error}`);
       return;
     }
-    if (result.event) {
-      Object.assign(event, result.event);
-    }
+    if (result.event) Object.assign(event, result.event);
     rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
+      if (!result.success) {
+        console.warn('Failed to persist pending organization edit:', result.error);
+        showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+      } else if (result.event) {
+        Object.assign(event, result.event);
+      }
+    }
   }
   
   closeModal('editOrgModal');
@@ -1253,7 +1298,7 @@ async function saveOrgEdit() {
   }
 }
 
-function saveDateEdit() {
+async function saveDateEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   
   const startDateInput = document.getElementById('editStartDate');
@@ -1319,6 +1364,17 @@ function saveDateEdit() {
     
     if (currentEditingTable === 'published') {
       rowsInEditMode.delete(currentEditingEventId);
+    } else if (currentEditingTable === 'pending') {
+      // Persist pending date edits if possible
+      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+        const result = await updateEvent(event.id, event);
+        if (!result.success) {
+          console.warn('Failed to persist pending date edit:', result.error);
+          showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+        } else if (result.event) {
+          Object.assign(event, result.event);
+        }
+      }
     }
   }
   
