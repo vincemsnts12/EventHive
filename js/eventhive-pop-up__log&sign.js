@@ -3,14 +3,32 @@ document.addEventListener('DOMContentLoaded', () => {
   // ===== PASSWORD TOGGLE FUNCTIONALITY =====
   const passwordToggles = document.querySelectorAll('.password-toggle');
   passwordToggles.forEach(toggle => {
+    const targetId = toggle.getAttribute('data-target');
+    const input = document.getElementById(targetId);
+    // initialize state
+    if (input) {
+      if (input.type === 'text') {
+        toggle.classList.add('visible');
+        toggle.setAttribute('aria-label', 'Hide password');
+      } else {
+        toggle.classList.remove('visible');
+        toggle.setAttribute('aria-label', 'Show password');
+      }
+    }
+
     toggle.addEventListener('click', (e) => {
       e.preventDefault();
-      const targetId = toggle.getAttribute('data-target');
-      const input = document.getElementById(targetId);
-      if (input) {
-        const isPassword = input.type === 'password';
-        input.type = isPassword ? 'text' : 'password';
-        toggle.textContent = isPassword ? '🙈' : '👁️';
+      const tgt = document.getElementById(toggle.getAttribute('data-target'));
+      if (tgt) {
+        const wasPassword = tgt.type === 'password';
+        tgt.type = wasPassword ? 'text' : 'password';
+        if (wasPassword) {
+          toggle.classList.add('visible');
+          toggle.setAttribute('aria-label', 'Hide password');
+        } else {
+          toggle.classList.remove('visible');
+          toggle.setAttribute('aria-label', 'Show password');
+        }
       }
     });
   });
