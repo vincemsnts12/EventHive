@@ -325,13 +325,22 @@ function populatePublishedEventsTable() {
 
 // ===== GENERATE UNIQUE PENDING EVENT ID =====
 function generatePendingEventId() {
-  const existingIds = Object.keys(pendingEventsData);
-  let counter = 1;
-  let newId = `pending-${counter}`;
+  // Generate a valid UUID v4 format
+  // Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
   
+  let newId = generateUUID();
+  const existingIds = Object.keys(pendingEventsData);
+  
+  // Ensure uniqueness (very unlikely to collide, but just in case)
   while (existingIds.includes(newId)) {
-    counter++;
-    newId = `pending-${counter}`;
+    newId = generateUUID();
   }
   
   return newId;
