@@ -643,14 +643,17 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
         display_order: index === thumbnailIndex ? 0 : index + 1 // Thumbnail = 0, others = 1, 2, 3...
       }));
 
-      const { error: insertError } = await supabase
-        .from('event_images')
-        .insert(imageRows);
+      // Insert each image row individually to avoid "Cannot coerce to single JSON object" error
+      for (const imageRow of imageRows) {
+        const { error: insertError } = await supabase
+          .from('event_images')
+          .insert([imageRow]);
 
-      if (insertError) {
-        logSecurityEvent('DATABASE_ERROR', { eventId, error: insertError.message }, 'Error inserting images');
-        console.error('Error inserting images:', insertError);
-        return { success: false, error: insertError.message };
+        if (insertError) {
+          logSecurityEvent('DATABASE_ERROR', { eventId, error: insertError.message }, 'Error inserting image');
+          console.error('Error inserting image:', insertError);
+          return { success: false, error: insertError.message };
+        }
       }
     }
 
