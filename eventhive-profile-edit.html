@@ -157,15 +157,24 @@
     <div class="password-form-wrapper">
       <div class="form-group">
         <label>Current Password</label>
-        <input type="password" class="pass-input" placeholder="Enter current password">
+        <div class="password-input-wrapper">
+          <input type="password" class="pass-input" id="current-password" placeholder="Enter current password">
+          <button type="button" class="password-toggle" data-target="current-password" aria-label="Toggle password visibility">👁️</button>
+        </div>
       </div>
       <div class="form-group">
         <label>New Password</label>
-        <input type="password" class="pass-input" placeholder="Enter new password">
+        <div class="password-input-wrapper">
+          <input type="password" class="pass-input" id="new-password" placeholder="Enter new password">
+          <button type="button" class="password-toggle" data-target="new-password" aria-label="Toggle password visibility">👁️</button>
+        </div>
       </div>
       <div class="form-group">
         <label>Confirm New Password</label>
-        <input type="password" class="pass-input" placeholder="Confirm new password">
+        <div class="password-input-wrapper">
+          <input type="password" class="pass-input" id="confirm-new-password" placeholder="Confirm new password">
+          <button type="button" class="password-toggle" data-target="confirm-new-password" aria-label="Toggle password visibility">👁️</button>
+        </div>
       </div>
       <button type="button" class="save-pass-btn" id="savePassBtn">Save Password</button>
     </div>

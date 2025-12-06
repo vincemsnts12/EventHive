@@ -1,5 +1,24 @@
 /* =========================================
-   1. Image Preview Logic
+   1. Password Toggle Functionality
+   ========================================= */
+function initPasswordToggles() {
+    const passwordToggles = document.querySelectorAll('.password-toggle');
+    passwordToggles.forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = toggle.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (input) {
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                toggle.textContent = isPassword ? '🙈' : '👁️';
+            }
+        });
+    });
+}
+
+/* =========================================
+   2. Image Preview Logic
    Triggered via onchange="previewImage(...)" in HTML
    ========================================= */
 function previewImage(input, imgId) {
@@ -18,7 +37,7 @@ function previewImage(input, imgId) {
 }
 
 /* =========================================
-   2. Main Profile "Confirm Changes" Logic
+   3. Main Profile "Confirm Changes" Logic
    Triggered via onclick="return confirmMainChanges()" in HTML
    ========================================= */
 // confirmMainChanges is now defined in eventhive-profile-edit-save.js
@@ -29,10 +48,13 @@ function confirmMainChanges() {
 }
 
 /* =========================================
-   3. Password Confirmation Modal Logic
+   4. Password Confirmation Modal Logic
    Waits for DOM to load to ensure elements exist
    ========================================= */
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // Initialize password toggles
+    initPasswordToggles();
     
     const savePassBtn = document.getElementById('savePassBtn');
     const modal = document.getElementById('passConfirmModal');

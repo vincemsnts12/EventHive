@@ -1,5 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+  // ===== PASSWORD TOGGLE FUNCTIONALITY =====
+  const passwordToggles = document.querySelectorAll('.password-toggle');
+  passwordToggles.forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetId = toggle.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      if (input) {
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        toggle.textContent = isPassword ? '🙈' : '👁️';
+      }
+    });
+  });
+
   // ===== ELEMENTS =====
   const loginModal = document.getElementById('loginModal');
   const signupModal = document.getElementById('signupModal');
@@ -109,18 +124,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
-      const email = emailInput.value.trim();
+      const inputValue = emailInput.value.trim();
       const password = passwordInput.value;
       
-      // Validate email domain
-      if (typeof isAllowedEmailDomain === 'function') {
-        if (!isAllowedEmailDomain(email)) {
+      // Determine if input is email or username
+      const isEmail = inputValue.includes('@');
+      const email = isEmail ? inputValue : null;
+      const username = !isEmail ? inputValue : null;
+      
+      // If email provided, validate domain
+      if (email) {
+        if (typeof isAllowedEmailDomain === 'function') {
+          if (!isAllowedEmailDomain(email)) {
+            alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
+            return;
+          }
+        } else if (!email.endsWith('@tup.edu.ph')) {
           alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
           return;
         }
-      } else if (!email.endsWith('@tup.edu.ph')) {
-        alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
-        return;
       }
       
       // Disable submit button
@@ -134,8 +156,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const supabase = getSupabaseClient();
         if (supabase) {
           try {
+            let loginEmail = email;
+            
+            // If username provided, look up email from profiles table
+            if (username) {
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('username', username)
+                .single();
+              
+              if (profileError || !profile || !profile.email) {
+                alert('Username not found or invalid.');
+                if (submitBtn) {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'Login';
+                }
+                return;
+              }
+              
+              loginEmail = profile.email;
+            }
+            
             const { data, error } = await supabase.auth.signInWithPassword({
-              email: email,
+              email: loginEmail,
               password: password
             });
             
@@ -266,22 +310,35 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       
       const emailInput = document.getElementById('signup-email');
+      const usernameInput = document.getElementById('signup-username');
       const passwordInput = document.getElementById('signup-password');
       const confirmPasswordInput = document.getElementById('signup-confirm-password');
       const submitBtn = signupForm.querySelector('.auth-modal__submit');
       
-      if (!emailInput || !passwordInput || !confirmPasswordInput) {
+      if (!emailInput || !passwordInput || !confirmPasswordInput || !usernameInput) {
         alert('Signup form fields not found.');
         return;
       }
       
       const email = emailInput.value.trim();
+      const username = usernameInput.value.trim();
       const password = passwordInput.value;
       const confirmPassword = confirmPasswordInput.value;
       
       // Validate email domain
       if (!email.endsWith('@tup.edu.ph')) {
         alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
+        return;
+      }
+      
+      // Validate username
+      if (!username || username.length < 3) {
+        alert('Username must be at least 3 characters long.');
+        return;
+      }
+      
+      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+        alert('Username can only contain letters, numbers, underscores, and hyphens.');
         return;
       }
       
@@ -308,10 +365,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const supabase = getSupabaseClient();
         if (supabase) {
           try {
+            // Check if username is already taken
+            const { data: existingUser, error: checkError } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('username', username)
+              .single();
+            
+            if (existingUser) {
+              alert('Username is already taken. Please choose another one.');
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign Up';
+              }
+              return;
+            }
+            
             const { data, error } = await supabase.auth.signUp({
               email: email,
               password: password,
               options: {
+                data: {
+                  username: username
+                },
                 emailRedirectTo: window.location.origin + window.location.pathname
               }
             });

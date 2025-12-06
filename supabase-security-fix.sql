@@ -26,9 +26,10 @@ SECURITY DEFINER
 SET search_path = public, pg_catalog
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, full_name, avatar_url, is_admin)
+  INSERT INTO public.profiles (id, email, username, full_name, avatar_url, is_admin)
   VALUES (
     NEW.id,
+    NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
     NEW.raw_user_meta_data->>'avatar_url',

@@ -138,11 +138,14 @@
 
             <!-- Form -->
             <form class="auth-modal-form">
-                <label class="auth-modal__label" for="login-email">Email</label>
-                <input class="auth-modal__input" type="email" id="login-email" placeholder="Enter your email" required>
+                <label class="auth-modal__label" for="login-email">Email or Username</label>
+                <input class="auth-modal__input" type="text" id="login-email" placeholder="Enter your email or username" required>
 
                 <label class="auth-modal__label" for="login-password">Password</label>
-                <input class="auth-modal__input" type="password" id="login-password" placeholder="Enter your password" required>
+                <div class="password-input-wrapper">
+                  <input class="auth-modal__input" type="password" id="login-password" placeholder="Enter your password" required>
+                  <button type="button" class="password-toggle" data-target="login-password" aria-label="Toggle password visibility">👁️</button>
+                </div>
 
                 <button type="submit" class="auth-modal__submit">Login</button>
 
@@ -184,11 +187,20 @@
                 <label class="auth-modal__label" for="signup-email">Email</label>
                 <input class="auth-modal__input" type="email" id="signup-email" placeholder="Enter your email" required>
 
+                <label class="auth-modal__label" for="signup-username">Username</label>
+                <input class="auth-modal__input" type="text" id="signup-username" placeholder="Choose a username" required>
+
                 <label class="auth-modal__label" for="signup-password">Password</label>
-                <input class="auth-modal__input" type="password" id="signup-password" placeholder="Enter your password" required>
+                <div class="password-input-wrapper">
+                  <input class="auth-modal__input" type="password" id="signup-password" placeholder="Enter your password" required>
+                  <button type="button" class="password-toggle" data-target="signup-password" aria-label="Toggle password visibility">👁️</button>
+                </div>
 
                 <label class="auth-modal__label" for="signup-confirm-password">Confirm Password</label>
-                <input class="auth-modal__input" type="password" id="signup-confirm-password" placeholder="Confirm your password" required>
+                <div class="password-input-wrapper">
+                  <input class="auth-modal__input" type="password" id="signup-confirm-password" placeholder="Confirm your password" required>
+                  <button type="button" class="password-toggle" data-target="signup-confirm-password" aria-label="Toggle password visibility">👁️</button>
+                </div>
 
                 <button type="submit" class="auth-modal__submit">Sign Up</button>
 
