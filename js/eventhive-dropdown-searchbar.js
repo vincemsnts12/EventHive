@@ -120,11 +120,10 @@ function populateEvents() {
   if (pastContainer) pastContainer.innerHTML = '';
   allEventCards = [];
   
-  // Convert eventsData to array
-  const eventsArray = Object.entries(eventsData).map(([id, data]) => ({
-    id,
-    ...data
-  }));
+  // Convert eventsData to array and exclude pending drafts
+  const eventsArray = Object.entries(eventsData)
+    .map(([id, data]) => ({ id, ...data }))
+    .filter(ev => !(ev.status && ev.status === 'Pending'));
   
   // Separate active and concluded events
   const activeEvents = eventsArray.filter(ev => ev.status !== 'Concluded');

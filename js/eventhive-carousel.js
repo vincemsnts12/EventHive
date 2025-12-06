@@ -9,7 +9,10 @@ let heroDataCache = [];
 // ---- Helpers ----
 function eventsArray() {
   if (typeof eventsData === 'undefined') return [];
-  return Object.entries(eventsData).map(([id, data]) => ({ id, ...data }));
+  // Exclude pending events from hero carousel and top events
+  return Object.entries(eventsData)
+    .map(([id, data]) => ({ id, ...data }))
+    .filter(ev => !(ev.status && ev.status === 'Pending'));
 }
 
 function getFeaturedEvents() {
