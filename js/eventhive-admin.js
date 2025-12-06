@@ -366,10 +366,10 @@ function formatTodayDate() {
 
 // ===== CREATE NEW PENDING EVENT =====
 function createNewPendingEvent() {
-  const newId = generatePendingEventId();
+  const localId = generatePendingEventId();
   const todayDate = formatTodayDate();
-  
-  // Create new event with default values
+
+  // Create new event with default values (no images saved yet)
   const newEvent = {
     title: 'Add Title',
     description: 'Add Description',
@@ -381,28 +381,53 @@ function createNewPendingEvent() {
     college: 'TUP',
     collegeColor: 'tup',
     organization: 'TUP USG Manila',
-    images: ['images/tup.png'], // Default placeholder image
+    images: [], // Do not persist images yet; uploads go to storage and will be associated on approval
     thumbnailIndex: 0, // First image is thumbnail
     universityLogo: 'images/tup.png',
-    id: newId,
+    id: localId,
     createdAt: null,
     updatedAt: null,
     createdBy: null
   };
-  
-  // Add to pending events data
-  pendingEventsData[newId] = newEvent;
-  
-  // Re-render the table
+
+  // Optimistically add to pending events for immediate UI feedback
+  pendingEventsData[localId] = newEvent;
   populatePendingEventsTable();
-  
-  // Scroll to the new row (optional, but nice UX)
-  setTimeout(() => {
-    const newRow = document.querySelector(`tr[data-event-id="${newId}"]`);
-    if (newRow) {
-      newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Attempt to persist the pending event to the database so it survives reloads
+  // Use createEvent if available; it will create a Pending event without images
+  (async () => {
+    if (typeof createEvent === 'function') {
+      try {
+        const createPayload = { ...newEvent };
+        // Ensure images array is empty for now; uploads happen separately
+        createPayload.images = [];
+        createPayload.thumbnailIndex = 0;
+
+        const result = await createEvent(createPayload);
+        if (result.success && result.event && result.event.id) {
+          // Replace local pending key with real DB id
+          const dbId = result.event.id;
+          pendingEventsData[dbId] = result.event;
+          // Remove the optimistic local id entry
+          delete pendingEventsData[localId];
+
+          // Re-render and scroll to the created row
+          populatePendingEventsTable();
+          setTimeout(() => {
+            const newRow = document.querySelector(`tr[data-event-id="${dbId}"]`);
+            if (newRow) newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+          return;
+        }
+      } catch (err) {
+        console.warn('Failed to persist pending event:', err && err.message ? err.message : err);
+        // keep optimistic local version
+      }
     }
-  }, 100);
+
+    // If createEvent isn't available or failed, keep local optimistic draft (already added)
+  })();
 }
 
 // ===== BUILD ADD NEW EVENT ROW =====
