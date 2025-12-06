@@ -1672,19 +1672,19 @@ function setThumbnail(index) {
 }
 
 function deleteImage(index) {
-  if (currentEditingImages.length <= 1) {
-    alert('You must have at least one image. Upload a replacement before deleting.');
-    return;
-  }
-  
   if (confirm('Are you sure you want to delete this image?')) {
     currentEditingImages.splice(index, 1);
     
-    // Adjust thumbnail index if needed
-    if (currentThumbnailIndex >= currentEditingImages.length) {
-      currentThumbnailIndex = Math.max(0, currentEditingImages.length - 1);
-    } else if (currentThumbnailIndex > index) {
-      currentThumbnailIndex--;
+    // If no images left, reset to empty array (will show example image)
+    if (currentEditingImages.length === 0) {
+      currentThumbnailIndex = 0;
+    } else {
+      // Adjust thumbnail index if needed
+      if (currentThumbnailIndex >= currentEditingImages.length) {
+        currentThumbnailIndex = Math.max(0, currentEditingImages.length - 1);
+      } else if (currentThumbnailIndex > index) {
+        currentThumbnailIndex--;
+      }
     }
     
     // Re-render with edit mode (always true when this function is called)
