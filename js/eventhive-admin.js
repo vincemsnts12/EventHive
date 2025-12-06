@@ -62,12 +62,21 @@ function formatShortDate(dateString) {
   const year = dateMatch[3].slice(-2);
   
   // Format time
-  let timeFormatted = timePart
-    .replace('12:00 NN', '12NN')
-    .replace(' AM', 'AM')
-    .replace(' PM', 'PM')
-    .replace(':', '')
-    .replace(' - ', '-');
+  // Split time range and format each time separately
+  const timeRange = timePart.split(' - ').map(time => {
+    // Handle special case: "12:00 NN" -> "12NN"
+    if (time.trim() === '12:00 NN') {
+      return '12NN';
+    }
+    // Handle special case: "12:00 MN" -> "12MN"
+    if (time.trim() === '12:00 MN') {
+      return '12MN';
+    }
+    // For other times, preserve the colon and remove space before AM/PM
+    return time.trim().replace(' AM', 'AM').replace(' PM', 'PM');
+  });
+  
+  let timeFormatted = timeRange.join('-');
   
   return `${month}/${day}/${year} | ${timeFormatted}`;
 }
