@@ -787,9 +787,13 @@ async function createEvent(eventData) {
       const insertDuration = Date.now() - insertStartTime;
       console.error(`create_event function failed after ${insertDuration}ms:`, error);
       
-      // If function doesn't exist, fall back to direct INSERT with retry logic
-      if (error.message && (error.message.includes('function') || error.message.includes('does not exist'))) {
-        console.log('Database function not found, falling back to direct INSERT...');
+      // If function doesn't exist or timed out, fall back to direct INSERT with retry logic
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('function') || 
+          errorMsg.includes('does not exist') ||
+          errorMsg.includes('timed out') ||
+          errorMsg.includes('timeout')) {
+        console.log('Database function unavailable or timed out, falling back to direct INSERT...');
         
         // Fallback to direct INSERT with retry logic
         const maxRetries = 2;

@@ -1,6 +1,6 @@
 -- ===== CREATE EVENT INSERT FUNCTION (BYPASSES RLS) =====
 -- This function bypasses RLS for event inserts to avoid timeout issues
--- It still validates that the user is an admin before inserting
+-- Admin check is done in JavaScript before calling this function for performance
 
 CREATE OR REPLACE FUNCTION public.create_event(
   p_title VARCHAR(255),
@@ -22,18 +22,9 @@ SET search_path = public
 AS $$
 DECLARE
   v_event_id UUID;
-  v_is_admin BOOLEAN;
 BEGIN
-  -- Check if user is admin (fast check with index)
-  SELECT is_admin INTO v_is_admin
-  FROM profiles
-  WHERE id = p_created_by;
-  
-  IF NOT v_is_admin THEN
-    RAISE EXCEPTION 'Only admins can create events';
-  END IF;
-  
-  -- Insert event
+  -- Insert event directly (admin check done in JavaScript before calling this function)
+  -- This avoids RLS evaluation and profile table queries that cause timeouts
   INSERT INTO events (
     title,
     description,
