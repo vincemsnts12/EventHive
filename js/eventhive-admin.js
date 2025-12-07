@@ -1034,7 +1034,7 @@ function openEditCollegeModal(eventId, currentCollege) {
   rightColumn.style.flex = '1';
   
   const collabLabel = document.createElement('div');
-  collabLabel.textContent = 'Collaboration Colleges (for event description):';
+  collabLabel.textContent = 'Collaboration Colleges:';
   collabLabel.style.marginBottom = '10px';
   collabLabel.style.fontWeight = 'bold';
   collabLabel.style.color = '#333';
