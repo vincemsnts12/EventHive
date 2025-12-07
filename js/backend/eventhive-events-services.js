@@ -47,11 +47,13 @@ function getGuestSupabaseClient() {
   }
   
   // Create a guest client (no session, no auth) - reuse same instance
+  // Use a unique storage key to completely isolate from authenticated client
   guestSupabaseClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
       persistSession: false, // Don't persist session
       autoRefreshToken: false, // Don't auto-refresh
-      detectSessionInUrl: false // Don't detect session in URL
+      detectSessionInUrl: false, // Don't detect session in URL
+      storageKey: 'eventhive-guest-client' // Unique storage key to avoid conflicts
     }
   });
   
