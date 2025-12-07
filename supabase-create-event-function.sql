@@ -1,0 +1,72 @@
+-- ===== CREATE EVENT INSERT FUNCTION (BYPASSES RLS) =====
+-- This function bypasses RLS for event inserts to avoid timeout issues
+-- It still validates that the user is an admin before inserting
+
+CREATE OR REPLACE FUNCTION public.create_event(
+  p_title VARCHAR(255),
+  p_description TEXT,
+  p_location VARCHAR(500),
+  p_start_date TIMESTAMP WITH TIME ZONE,
+  p_end_date TIMESTAMP WITH TIME ZONE,
+  p_college_code VARCHAR(10),
+  p_organization_name VARCHAR(255),
+  p_university_logo_url VARCHAR(500),
+  p_created_by UUID,
+  p_status VARCHAR(20) DEFAULT 'Pending',
+  p_is_featured BOOLEAN DEFAULT FALSE
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER -- This bypasses RLS
+SET search_path = public
+AS $$
+DECLARE
+  v_event_id UUID;
+  v_is_admin BOOLEAN;
+BEGIN
+  -- Check if user is admin (fast check with index)
+  SELECT is_admin INTO v_is_admin
+  FROM profiles
+  WHERE id = p_created_by;
+  
+  IF NOT v_is_admin THEN
+    RAISE EXCEPTION 'Only admins can create events';
+  END IF;
+  
+  -- Insert event
+  INSERT INTO events (
+    title,
+    description,
+    location,
+    start_date,
+    end_date,
+    college_code,
+    organization_name,
+    university_logo_url,
+    created_by,
+    status,
+    is_featured
+  ) VALUES (
+    p_title,
+    p_description,
+    p_location,
+    p_start_date,
+    p_end_date,
+    p_college_code,
+    p_organization_name,
+    p_university_logo_url,
+    p_created_by,
+    p_status,
+    p_is_featured
+  ) RETURNING id INTO v_event_id;
+  
+  RETURN v_event_id;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION public.create_event TO authenticated;
+
+-- Add comment
+COMMENT ON FUNCTION public.create_event IS 'Creates an event with admin validation. Bypasses RLS to avoid timeout issues.';
+
