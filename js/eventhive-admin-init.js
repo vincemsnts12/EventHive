@@ -24,13 +24,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('All events result:', allEventsResult);
       
       if (allEventsResult.success && allEventsResult.events) {
-        // Clear existing data
-        eventsData = {};
-        pendingEventsData = {};
+        // Clear existing data (can't reassign const, so delete all properties)
+        for (const key in eventsData) {
+          delete eventsData[key];
+        }
+        for (const key in pendingEventsData) {
+          delete pendingEventsData[key];
+        }
         
         // Classify events based on status
         allEventsResult.events.forEach(event => {
-          // Store in eventsData for published events (non-pending)
+          // Store in eventsData for all events (for reference)
           eventsData[event.id] = event;
           
           // Also store in pendingEventsData if status is Pending
@@ -47,9 +51,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log(`  - ${pendingCount} pending events`);
       } else {
         console.error('Failed to load events:', allEventsResult.error);
-        // Clear data on error
-        eventsData = {};
-        pendingEventsData = {};
+        // Clear data on error (can't reassign const, so delete all properties)
+        for (const key in eventsData) {
+          delete eventsData[key];
+        }
+        for (const key in pendingEventsData) {
+          delete pendingEventsData[key];
+        }
       }
       
       // Populate tables
@@ -68,9 +76,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Error loading events:', error);
       console.error('Error stack:', error.stack);
-      // Clear data on error
-      eventsData = {};
-      pendingEventsData = {};
+      // Clear data on error (can't reassign const, so delete all properties)
+      for (const key in eventsData) {
+        delete eventsData[key];
+      }
+      for (const key in pendingEventsData) {
+        delete pendingEventsData[key];
+      }
       // Fallback: populate empty tables
       if (typeof populatePublishedEventsTable === 'function') {
         populatePublishedEventsTable();
