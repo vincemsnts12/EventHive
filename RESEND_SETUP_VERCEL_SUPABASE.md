@@ -139,11 +139,11 @@ Value: [resend-provided-value]
 
 1. In Supabase Dashboard, go to **Authentication** > **URL Configuration**
 2. Set **Site URL** to your Vercel deployment URL:
-   - Example: `https://eventhive.vercel.app`
+   - `https://tup-eventhive.vercel.app`
    - Or your custom domain if you have one: `https://eventhive.tup.edu.ph`
 
 3. Add **Redirect URLs**:
-   - `https://eventhive.vercel.app/**` (your Vercel URL with `/**`)
+   - `https://tup-eventhive.vercel.app/**` (your Vercel URL with `/**`)
    - `https://your-custom-domain.com/**` (if you have a custom domain)
    - `http://localhost:3000/**` (for local development)
 
@@ -154,7 +154,7 @@ Value: [resend-provided-value]
 ## Step 7: Test Email Verification Flow
 
 ### Test Signup:
-1. Go to your deployed EventHive app on Vercel
+1. Go to your deployed EventHive app: `https://tup-eventhive.vercel.app`
 2. Click **Sign Up**
 3. Enter a TUP email address and create an account
 4. **Expected**: No success message (user must verify first)
@@ -230,8 +230,8 @@ Value: [resend-provided-value]
 ### Verification Link Not Working
 
 **Check**:
-1. **Redirect URLs** in Supabase include your Vercel URL
-2. **Site URL** is set correctly
+1. **Redirect URLs** in Supabase include `https://tup-eventhive.vercel.app/**`
+2. **Site URL** is set to `https://tup-eventhive.vercel.app`
 3. Link hasn't expired (usually valid for 24 hours)
 4. Check browser console for errors
 
@@ -333,6 +333,7 @@ Sender: noreply@yourdomain.com
 
 **Supabase Settings**:
 - Authentication > Providers > Email > Confirm email: **ON**
-- Authentication > URL Configuration > Site URL: **Your Vercel URL**
+- Authentication > URL Configuration > Site URL: **https://tup-eventhive.vercel.app**
+- Authentication > URL Configuration > Redirect URLs: **https://tup-eventhive.vercel.app/**
 - Authentication > SMTP Settings > Custom SMTP: **ON**
 
