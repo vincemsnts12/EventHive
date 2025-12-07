@@ -12,6 +12,7 @@ const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}'; // Injected from Vercel env: 
 let supabaseClient = null;
 let lastAuthenticatedUserId = null; // Track user to show alert only once per sign-in
 let authStateListenerInitialized = false; // Flag: auth listener attached only once
+let isProcessingOAuthCallback = false; // Flag: skip alert during callback processing
 
 // Initialize Supabase (call this after Supabase library is loaded)
 function initSupabase() {
@@ -134,8 +135,8 @@ function setupAuthStateListener() {
       }
       
       console.log('User successfully authenticated with TUP email:', email);
-      // Show success message to user only on first sign-in, not on every page load
-      if (lastAuthenticatedUserId !== session?.user?.id) {
+      // Show success message to user only on first sign-in (and not during OAuth callback processing)
+      if (lastAuthenticatedUserId !== session?.user?.id && !isProcessingOAuthCallback) {
         lastAuthenticatedUserId = session.user.id;
         alert('Welcome! You have been successfully authenticated with ' + email);
       }
@@ -163,6 +164,7 @@ async function handleOAuthCallback() {
 
   try {
     console.log('Processing OAuth callback...');
+    isProcessingOAuthCallback = true; // Prevent alert during callback session setup
 
     // Early check: provider returned an error (e.g. state missing, access_denied)
     const searchParams = new URLSearchParams(window.location.search);
@@ -308,6 +310,8 @@ async function handleOAuthCallback() {
   if (window.location.search) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
   }
+  
+  isProcessingOAuthCallback = false; // OAuth callback processing complete
 }
 
 // ===== INITIALIZE ON PAGE LOAD =====
