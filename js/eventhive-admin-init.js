@@ -53,25 +53,52 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!supabaseReady) {
     console.warn('Supabase client not ready after max retries, proceeding anyway...');
   } else {
-    console.log('Supabase client ready, proceeding with event fetch...');
+    console.log('Supabase client ready, waiting for auth state to stabilize...');
   }
   
-  // For authenticated users, wait for SIGNED_IN event to complete before querying
-  // This helps avoid RLS evaluation issues
+  // CRITICAL: Wait for auth state to fully stabilize before fetching events
+  // This prevents RLS evaluation issues for authenticated users
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      const sessionResult = await supabase.auth.getSession();
-      if (sessionResult?.data?.session?.user) {
-        console.log('User is authenticated - waiting for auth state to fully stabilize...');
-        // Wait longer for authenticated users to ensure RLS is ready
-        await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay
-        console.log('Auth state should be stable now');
+    let authStabilized = false;
+    let retries = 0;
+    const maxAuthRetries = 20; // 20 retries * 200ms = 4 seconds max wait
+    
+    console.log('Waiting for auth state to stabilize...');
+    
+    while (retries < maxAuthRetries && !authStabilized) {
+      await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms between checks
+      
+      try {
+        const sessionResult = await supabase.auth.getSession();
+        const hasSession = !!sessionResult?.data?.session?.user;
+        
+        if (hasSession) {
+          // User is authenticated - wait a bit more to ensure SIGNED_IN event completed
+          console.log('Authenticated user detected, waiting for auth state to fully stabilize...');
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second after session detected
+          authStabilized = true;
+          console.log('Auth state stabilized for authenticated user');
+        } else {
+          // No session - guest user, can proceed immediately
+          authStabilized = true;
+          console.log('Guest user detected, auth state is stable');
+        }
+      } catch (sessionError) {
+        // If session check fails, assume guest and proceed
+        retries++;
+        if (retries >= maxAuthRetries) {
+          console.warn('Session check failed after max retries, proceeding as guest');
+          authStabilized = true;
+        }
       }
-    } catch (sessionError) {
-      // Ignore - proceed anyway
-      console.log('Could not check session, proceeding with query');
     }
+    
+    if (!authStabilized) {
+      console.warn('Auth state did not stabilize, proceeding anyway...');
+    }
+    
+    console.log('Auth state stabilized, proceeding with event fetch...');
   }
   
   // Load all events from Supabase in one query, then classify locally

@@ -52,39 +52,26 @@ async function getEvents(options = {}) {
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     
-    // CRITICAL: For authenticated users, queries timeout due to RLS evaluation
-    // The RLS policy says "viewable by everyone" but something is causing timeouts
-    // Solution: Use anon key for SELECT queries to bypass RLS for reads
-    // OR: Check session but don't wait - just skip order by if authenticated
-    
-    // Check if user is authenticated - but don't block on it
+    // Check if user is authenticated - auth state should already be stabilized by caller
+    // This is just to determine if we should skip order by (for performance)
     let shouldSortInJS = false;
-    let isAuthenticated = false;
     
-    // Quick non-blocking session check
+    // Session check - should be fast now since auth state is stabilized by caller
     try {
       const sessionCheckPromise = supabase.auth.getSession();
       const sessionCheckTimeout = new Promise((resolve) => 
-        setTimeout(() => resolve({ data: { session: null }, error: null }), 150) // 150ms timeout
+        setTimeout(() => resolve({ data: { session: null }, error: null }), 500) // 500ms timeout
       );
       const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
       if (sessionResult?.data?.session?.user) {
-        isAuthenticated = true;
-        console.log('User is authenticated - will use special query approach');
+        console.log('User is authenticated - will sort in JavaScript to avoid RLS timeout');
         shouldSortInJS = true;
       } else {
-        console.log('User is not authenticated (or check timed out) - using normal query');
+        console.log('User is not authenticated - using database order by');
       }
     } catch (userCheckError) {
       // If session check fails, assume guest
-      console.log('Session check failed, assuming guest - using normal query');
-    }
-    
-    // For authenticated users, wait a bit for auth state to stabilize
-    // This helps avoid race conditions where RLS is still evaluating
-    if (isAuthenticated) {
-      console.log('Waiting for auth state to stabilize...');
-      await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay for authenticated users
+      console.log('Session check failed, assuming guest - using database order by');
     }
     
     // Build query - for authenticated users, skip order by to avoid RLS timeout
