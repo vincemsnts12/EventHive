@@ -809,13 +809,31 @@ async function updateEvent(eventId, eventData) {
       colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
     });
 
-    // Update event
-    const { data: updatedEvent, error: updateError } = await supabase
+    // Ensure colleges is a proper JSON array (not stringified)
+    if (dbEvent.colleges && !Array.isArray(dbEvent.colleges)) {
+      console.warn('colleges is not an array, converting:', dbEvent.colleges);
+      try {
+        // Try to parse if it's a string
+        if (typeof dbEvent.colleges === 'string') {
+          dbEvent.colleges = JSON.parse(dbEvent.colleges);
+        } else {
+          // If it's not an array and not a string, remove it
+          delete dbEvent.colleges;
+        }
+      } catch (e) {
+        console.error('Failed to parse colleges, removing it:', e);
+        delete dbEvent.colleges;
+      }
+    }
+    
+    // Update event - don't use .single() to avoid errors when RLS blocks or no rows match
+    const { data: updatedEvents, error: updateError } = await supabase
       .from('events')
       .update(dbEvent)
       .eq('id', eventId)
-      .select()
-      .single();
+      .select();
+
+    let updatedEvent = null;
 
     if (updateError) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error updating event');
@@ -823,7 +841,7 @@ async function updateEvent(eventId, eventData) {
       console.error('Event data that failed:', { 
         ...dbEvent, 
         description: dbEvent.description ? '[truncated]' : undefined,
-        colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
+        colleges: dbEvent.colleges ? (Array.isArray(dbEvent.colleges) ? `[${dbEvent.colleges.length} colleges]` : dbEvent.colleges) : 'not included'
       });
       
       // If error is about colleges column, try again without it
@@ -840,24 +858,31 @@ async function updateEvent(eventId, eventData) {
           .from('events')
           .update(retryDbEvent)
           .eq('id', eventId)
-          .select()
-          .single();
+          .select();
         
         if (retryResult.error) {
           console.error('Retry update also failed:', retryResult.error);
           return { success: false, error: retryResult.error.message || 'Failed to update event' };
         }
         
-        if (!retryResult.data) {
+        if (!retryResult.data || retryResult.data.length === 0) {
           console.error('Retry update succeeded but no event returned for ID:', eventId);
-          return { success: false, error: 'Event was updated but could not be retrieved' };
+          return { success: false, error: 'Event was updated but could not be retrieved (RLS may be blocking)' };
         }
         
-        console.log('Event updated successfully after retry (without colleges column):', retryResult.data.id);
-        updatedEvent = retryResult.data;
+        console.log('Event updated successfully after retry (without colleges column):', retryResult.data[0].id);
+        updatedEvent = retryResult.data[0];
       } else {
         return { success: false, error: updateError.message };
       }
+    } else if (!updatedEvents || updatedEvents.length === 0) {
+      // No rows returned - could be RLS blocking or event doesn't exist
+      console.error('Update succeeded but no rows returned for event ID:', eventId);
+      console.error('This could mean: 1) RLS policy is blocking the SELECT, 2) Event does not exist, 3) Update matched 0 rows');
+      return { success: false, error: 'Event update completed but could not retrieve updated event (RLS may be blocking SELECT)' };
+    } else {
+      // Success - get first row (should only be one)
+      updatedEvent = updatedEvents[0];
     }
     
     if (!updatedEvent) {
