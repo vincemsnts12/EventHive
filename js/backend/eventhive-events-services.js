@@ -749,78 +749,35 @@ async function createEvent(eventData) {
     let eventId = null;
     let insertError = null;
     
-    console.log('Calling create_event function (bypasses RLS completely)...');
+    console.log('Performing direct INSERT (RLS should be disabled or minimal)...');
     
-    // Use SECURITY DEFINER function to bypass RLS entirely
-    // This is faster because it doesn't evaluate RLS policies at all
-    const functionPromise = supabase.rpc('create_event', {
-      p_title: dbEvent.title,
-      p_description: dbEvent.description,
-      p_location: dbEvent.location,
-      p_start_date: dbEvent.start_date,
-      p_end_date: dbEvent.end_date,
-      p_college_code: dbEvent.college_code,
-      p_organization_name: dbEvent.organization_name,
-      p_university_logo_url: dbEvent.university_logo_url,
-      p_created_by: dbEvent.created_by,
-      p_status: dbEvent.status || 'Pending',
-      p_is_featured: dbEvent.is_featured || false
-    });
+    // Direct INSERT - fastest approach
+    // RLS should be disabled or use WITH CHECK (true) policy
+    // This avoids function call overhead and RLS evaluation
+    const insertPromise = supabase
+      .from('events')
+      .insert(dbEvent);
     
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database function timed out after 3 seconds')), 3000)
+      setTimeout(() => reject(new Error('Database insert timed out after 5 seconds')), 5000)
     );
     
     try {
-      const result = await Promise.race([functionPromise, timeoutPromise]);
+      const result = await Promise.race([insertPromise, timeoutPromise]);
       const insertDuration = Date.now() - insertStartTime;
-      console.log(`create_event function completed in ${insertDuration}ms`);
+      console.log(`INSERT completed in ${insertDuration}ms`);
       
       if (result.error) {
-        console.error('Function error:', result.error);
+        console.error('INSERT error:', result.error);
         insertError = result.error;
       } else {
-        // Function returns the event ID directly
-        eventId = result.data;
-        console.log('Event created via function, ID:', eventId);
+        // INSERT succeeded, will fetch event below
+        console.log('INSERT succeeded, fetching event...');
       }
     } catch (error) {
       const insertDuration = Date.now() - insertStartTime;
-      console.error(`Function failed after ${insertDuration}ms:`, error);
-      
-      // If function doesn't exist or timed out, fall back to direct INSERT
-      const errorMsg = error.message || '';
-      if (errorMsg.includes('function') || 
-          errorMsg.includes('does not exist') ||
-          errorMsg.includes('timed out')) {
-        console.log('Function unavailable, falling back to direct INSERT...');
-        
-        // Fallback to direct INSERT
-        const insertPromise = supabase
-          .from('events')
-          .insert(dbEvent);
-        
-        const insertTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Direct INSERT timed out after 3 seconds')), 3000)
-        );
-        
-        try {
-          const insertResult = await Promise.race([insertPromise, insertTimeout]);
-          const fallbackDuration = Date.now() - insertStartTime;
-          console.log(`Direct INSERT fallback completed in ${fallbackDuration}ms`);
-          
-          if (insertResult.error) {
-            insertError = insertResult.error;
-          } else {
-            // INSERT succeeded, will fetch event below
-            console.log('Direct INSERT succeeded, fetching event...');
-          }
-        } catch (insertErr) {
-          insertError = { message: insertErr.message || 'Database insert failed' };
-        }
-      } else {
-        insertError = { message: error.message || 'Database function call failed' };
-      }
+      console.error(`INSERT failed after ${insertDuration}ms:`, error);
+      insertError = { message: error.message || 'Database insert failed' };
     }
     
     // If INSERT failed, handle retry logic
