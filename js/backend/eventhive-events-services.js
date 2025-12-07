@@ -676,12 +676,13 @@ async function createEvent(eventData) {
       .insert(dbEvent);
     console.log('INSERT query built, starting execution...');
     
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
         console.error('INSERT timeout triggered after 10 seconds');
         reject(new Error('Database insert timed out after 10 seconds'));
-      }, 10000)
-    );
+      }, 10000);
+    });
     
     let insertResult, insertError;
     try {
@@ -690,6 +691,10 @@ async function createEvent(eventData) {
         insertPromise,
         timeoutPromise
       ]);
+      // Clear timeout since we got a result
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       const insertDuration = Date.now() - insertStartTime;
       console.log(`INSERT completed in ${insertDuration}ms`);
       console.log('INSERT result:', { hasData: !!result?.data, hasError: !!result?.error, error: result?.error?.message });
