@@ -231,7 +231,7 @@ function populatePublishedEventsTable() {
       const college = availableColleges.find(c => c.code === collegeCode);
       if (!college) return;
       
-      const collegeTag = document.createElement('span');
+    const collegeTag = document.createElement('span');
       collegeTag.className = `tag-item tag-item--college ${college.color === 'tup' ? 'tag-item--tup' : ''}`;
       collegeTag.textContent = college.name;
       
@@ -241,14 +241,14 @@ function populatePublishedEventsTable() {
         collegeTag.title = 'Main College (shown on event card)';
       }
       
-      collegeTag.setAttribute('data-event-id', eventId);
-      collegeTag.addEventListener('click', () => {
-        if (rowsInEditMode.has(eventId)) {
-          currentEditingTable = 'published';
+    collegeTag.setAttribute('data-event-id', eventId);
+    collegeTag.addEventListener('click', () => {
+      if (rowsInEditMode.has(eventId)) {
+        currentEditingTable = 'published';
           openEditCollegeModal(eventId, event.college || mainCollege);
-        }
-      });
-      collegeContainer.appendChild(collegeTag);
+      }
+    });
+    collegeContainer.appendChild(collegeTag);
     });
     
     row.appendChild(collegeCell);
@@ -476,15 +476,15 @@ async function createNewPendingEvent() {
       pendingEventsData[result.event.id] = result.event;
       
       console.log('Event created successfully:', result.event.id);
-      
+
       // Refresh table and scroll to new event
-      populatePendingEventsTable();
-      setTimeout(() => {
+          populatePendingEventsTable();
+          setTimeout(() => {
         const newRow = document.querySelector(`tr[data-event-id="${result.event.id}"]`);
         if (newRow) {
           newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-      }, 100);
+          }, 100);
     } else {
       // Show error message with more details in console
       const errorMsg = result?.error || 'Unknown error';
@@ -500,7 +500,7 @@ async function createNewPendingEvent() {
       addRow.style.opacity = '1';
       addRow.style.pointerEvents = 'auto';
     }
-    
+
     // Show error message with details
     console.error('Error creating event:', error);
     console.error('Error stack:', error.stack);
@@ -1201,41 +1201,41 @@ async function saveTitleEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Update local data first (for immediate UI feedback)
-    event.title = newTitle;
-    event.isFeatured = isFeatured;
-    
-    // Save to Supabase if function available
-    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-      const result = await updateEvent(currentEditingEventId, event);
+  // Update local data first (for immediate UI feedback)
+  event.title = newTitle;
+  event.isFeatured = isFeatured;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving title: ${result.error}`);
+      return;
+    }
+    if (result.event) Object.assign(event, result.event);
+    rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    // For pending events: if we have a valid DB id, attempt to persist edits immediately.
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
       if (!result.success) {
-        alert(`Error saving title: ${result.error}`);
-        return;
-      }
-      if (result.event) Object.assign(event, result.event);
-      rowsInEditMode.delete(currentEditingEventId);
-    } else if (currentEditingTable === 'pending') {
-      // For pending events: if we have a valid DB id, attempt to persist edits immediately.
-      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-        const result = await updateEvent(event.id, event);
-        if (!result.success) {
-          // Persist failed (likely RLS) - keep local change and inform the user
-          console.warn('Failed to persist pending edit:', result.error);
-          // Optionally show a non-blocking notice
+        // Persist failed (likely RLS) - keep local change and inform the user
+        console.warn('Failed to persist pending edit:', result.error);
+        // Optionally show a non-blocking notice
           alert(`Draft saved locally. Sync failed: ${result.error}`);
-        } else if (result.event) {
-          Object.assign(event, result.event);
-        }
+      } else if (result.event) {
+        Object.assign(event, result.event);
       }
     }
-    
-    closeModal('editTitleModal');
-    
-    // Refresh table
-    if (currentEditingTable === 'published') {
-      populatePublishedEventsTable();
-    } else {
-      populatePendingEventsTable();
+  }
+  
+  closeModal('editTitleModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1264,37 +1264,37 @@ async function saveDescEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Update local data
-    event.description = newDesc;
-    
-    // Save to Supabase if function available
-    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-      const result = await updateEvent(currentEditingEventId, event);
+  // Update local data
+  event.description = newDesc;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving description: ${result.error}`);
+      return;
+    }
+    if (result.event) Object.assign(event, result.event);
+    rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
       if (!result.success) {
-        alert(`Error saving description: ${result.error}`);
-        return;
-      }
-      if (result.event) Object.assign(event, result.event);
-      rowsInEditMode.delete(currentEditingEventId);
-    } else if (currentEditingTable === 'pending') {
-      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-        const result = await updateEvent(event.id, event);
-        if (!result.success) {
-          console.warn('Failed to persist pending description edit:', result.error);
+        console.warn('Failed to persist pending description edit:', result.error);
           alert(`Draft saved locally. Sync failed: ${result.error}`);
-        } else if (result.event) {
-          Object.assign(event, result.event);
-        }
+      } else if (result.event) {
+        Object.assign(event, result.event);
       }
     }
-    
-    closeModal('editDescModal');
-    
-    // Refresh table
-    if (currentEditingTable === 'published') {
-      populatePublishedEventsTable();
-    } else {
-      populatePendingEventsTable();
+  }
+  
+  closeModal('editDescModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1323,37 +1323,37 @@ async function saveLocationEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Update local data
-    event.location = newLocation;
-    
-    // Save to Supabase if function available
-    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-      const result = await updateEvent(currentEditingEventId, event);
+  // Update local data
+  event.location = newLocation;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving location: ${result.error}`);
+      return;
+    }
+    if (result.event) Object.assign(event, result.event);
+    rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
       if (!result.success) {
-        alert(`Error saving location: ${result.error}`);
-        return;
-      }
-      if (result.event) Object.assign(event, result.event);
-      rowsInEditMode.delete(currentEditingEventId);
-    } else if (currentEditingTable === 'pending') {
-      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-        const result = await updateEvent(event.id, event);
-        if (!result.success) {
-          console.warn('Failed to persist pending location edit:', result.error);
+        console.warn('Failed to persist pending location edit:', result.error);
           alert(`Draft saved locally. Sync failed: ${result.error}`);
-        } else if (result.event) {
-          Object.assign(event, result.event);
-        }
+      } else if (result.event) {
+        Object.assign(event, result.event);
       }
     }
-    
-    closeModal('editLocationModal');
-    
-    // Refresh table
-    if (currentEditingTable === 'published') {
-      populatePublishedEventsTable();
-    } else {
-      populatePendingEventsTable();
+  }
+  
+  closeModal('editLocationModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1417,15 +1417,15 @@ async function saveCollegeEdit() {
       college: mainCollegeCode, // Keep for backward compatibility
       collegeColor: mainCollege.color // Color for main college
     };
-    
-    // Save to Supabase if function available
-    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
       const result = await updateEvent(currentEditingEventId, updateData);
-      if (!result.success) {
+    if (!result.success) {
         console.error('Failed to update college:', result.error);
-        alert(`Error saving college: ${result.error}`);
-        return;
-      }
+      alert(`Error saving college: ${result.error}`);
+      return;
+    }
       // Only update local data if database save succeeded
       if (result.event) {
         Object.assign(event, result.event);
@@ -1433,12 +1433,12 @@ async function saveCollegeEdit() {
         // Fallback: update local data with what we tried to save
         Object.assign(event, updateData);
       }
-      rowsInEditMode.delete(currentEditingEventId);
-    } else if (currentEditingTable === 'pending') {
-      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+    rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
         const result = await updateEvent(event.id, updateData);
-        if (!result.success) {
-          console.warn('Failed to persist pending college edit:', result.error);
+      if (!result.success) {
+        console.warn('Failed to persist pending college edit:', result.error);
           console.warn('Update data that failed:', { 
             ...updateData, 
             description: '[truncated]',
@@ -1450,11 +1450,11 @@ async function saveCollegeEdit() {
         } else {
           // Database save succeeded - use the returned event data
           if (result.event) {
-            Object.assign(event, result.event);
+        Object.assign(event, result.event);
           } else {
             Object.assign(event, updateData);
-          }
-        }
+      }
+    }
       } else {
         // No valid UUID or updateEvent not available - just update locally
         Object.assign(event, updateData);
@@ -1462,15 +1462,15 @@ async function saveCollegeEdit() {
     } else {
       // No database save attempted - just update locally
       Object.assign(event, updateData);
-    }
-    
-    closeModal('editCollegeModal');
-    
-    // Refresh table
-    if (currentEditingTable === 'published') {
-      populatePublishedEventsTable();
-    } else {
-      populatePendingEventsTable();
+  }
+  
+  closeModal('editCollegeModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
     }
   } catch (error) {
     console.error('Unexpected error in saveCollegeEdit:', error);
@@ -1505,37 +1505,37 @@ async function saveOrgEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Update local data
-    event.organization = selectedOrg;
-    
-    // Save to Supabase if function available
-    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-      const result = await updateEvent(currentEditingEventId, event);
+  // Update local data
+  event.organization = selectedOrg;
+  
+  // Save to Supabase if function available
+  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+    const result = await updateEvent(currentEditingEventId, event);
+    if (!result.success) {
+      alert(`Error saving organization: ${result.error}`);
+      return;
+    }
+    if (result.event) Object.assign(event, result.event);
+    rowsInEditMode.delete(currentEditingEventId);
+  } else if (currentEditingTable === 'pending') {
+    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      const result = await updateEvent(event.id, event);
       if (!result.success) {
-        alert(`Error saving organization: ${result.error}`);
-        return;
-      }
-      if (result.event) Object.assign(event, result.event);
-      rowsInEditMode.delete(currentEditingEventId);
-    } else if (currentEditingTable === 'pending') {
-      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-        const result = await updateEvent(event.id, event);
-        if (!result.success) {
-          console.warn('Failed to persist pending organization edit:', result.error);
+        console.warn('Failed to persist pending organization edit:', result.error);
           alert(`Draft saved locally. Sync failed: ${result.error}`);
-        } else if (result.event) {
-          Object.assign(event, result.event);
-        }
+      } else if (result.event) {
+        Object.assign(event, result.event);
       }
     }
-    
-    closeModal('editOrgModal');
-    
-    // Refresh table
-    if (currentEditingTable === 'published') {
-      populatePublishedEventsTable();
-    } else {
-      populatePendingEventsTable();
+  }
+  
+  closeModal('editOrgModal');
+  
+  // Refresh table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1582,57 +1582,57 @@ async function saveDateEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Format the date string for display (using formatDateRangeForDisplay)
-    const formattedDate = typeof formatDateRangeForDisplay !== 'undefined' 
-      ? formatDateRangeForDisplay(startDateTime, endDateTime)
+  // Format the date string for display (using formatDateRangeForDisplay)
+  const formattedDate = typeof formatDateRangeForDisplay !== 'undefined' 
+    ? formatDateRangeForDisplay(startDateTime, endDateTime)
       : `${date} ${startTime} - ${endTime}`;
+  
+  // Update the event data
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[currentEditingEventId];
+  
+  if (event) {
+    // Update the date string
+    event.date = formattedDate;
     
-    // Update the event data
-    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
-    const event = source[currentEditingEventId];
+    // Update parsed date fields
+    event.startDate = startDateTime;
+    event.endDate = endDateTime;
+    event.startTime = `${startTime}:00`;
+    event.endTime = `${endTime}:00`;
     
-    if (event) {
-      // Update the date string
-      event.date = formattedDate;
-      
-      // Update parsed date fields
-      event.startDate = startDateTime;
-      event.endDate = endDateTime;
-      event.startTime = `${startTime}:00`;
-      event.endTime = `${endTime}:00`;
-      
-      // Recalculate status from dates
-      if (typeof calculateEventStatus !== 'undefined') {
-        event.status = calculateEventStatus(startDateTime, endDateTime, event.status === 'Pending' ? 'Pending' : null);
-      }
-      
-      // Event data is already in the correct format from Supabase
-      // No need to enrich - event is already updated
-      
-      if (currentEditingTable === 'published') {
-        rowsInEditMode.delete(currentEditingEventId);
-      } else if (currentEditingTable === 'pending') {
-        // Persist pending date edits if possible
-        if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-          const result = await updateEvent(event.id, event);
-          if (!result.success) {
-            console.warn('Failed to persist pending date edit:', result.error);
+    // Recalculate status from dates
+    if (typeof calculateEventStatus !== 'undefined') {
+      event.status = calculateEventStatus(startDateTime, endDateTime, event.status === 'Pending' ? 'Pending' : null);
+    }
+    
+    // Event data is already in the correct format from Supabase
+    // No need to enrich - event is already updated
+    
+    if (currentEditingTable === 'published') {
+      rowsInEditMode.delete(currentEditingEventId);
+    } else if (currentEditingTable === 'pending') {
+      // Persist pending date edits if possible
+      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+        const result = await updateEvent(event.id, event);
+        if (!result.success) {
+          console.warn('Failed to persist pending date edit:', result.error);
             alert(`Draft saved locally. Sync failed: ${result.error}`);
-          } else if (result.event) {
-            Object.assign(event, result.event);
-          }
+        } else if (result.event) {
+          Object.assign(event, result.event);
         }
       }
     }
-    
-    closeModal('editDateModal');
-    
-    // Refresh the table
-    if (currentEditingTable === 'published') {
-      populatePublishedEventsTable();
-    } else {
-      populatePendingEventsTable();
-    }
+  }
+  
+  closeModal('editDateModal');
+  
+  // Refresh the table
+  if (currentEditingTable === 'published') {
+    populatePublishedEventsTable();
+  } else {
+    populatePendingEventsTable();
+  }
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -1865,11 +1865,11 @@ function deleteImage(index) {
     if (currentEditingImages.length === 0) {
       currentThumbnailIndex = 0;
     } else {
-      // Adjust thumbnail index if needed
-      if (currentThumbnailIndex >= currentEditingImages.length) {
-        currentThumbnailIndex = Math.max(0, currentEditingImages.length - 1);
-      } else if (currentThumbnailIndex > index) {
-        currentThumbnailIndex--;
+    // Adjust thumbnail index if needed
+    if (currentThumbnailIndex >= currentEditingImages.length) {
+      currentThumbnailIndex = Math.max(0, currentEditingImages.length - 1);
+    } else if (currentThumbnailIndex > index) {
+      currentThumbnailIndex--;
       }
     }
     
@@ -1981,16 +1981,16 @@ async function saveImagesEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Ensure thumbnail index is valid
-    if (currentThumbnailIndex >= currentEditingImages.length) {
-      currentThumbnailIndex = 0;
-    }
-    
+  // Ensure thumbnail index is valid
+  if (currentThumbnailIndex >= currentEditingImages.length) {
+    currentThumbnailIndex = 0;
+  }
+  
     // Don't add default logo - if no images, save empty array
     // The default logo is only for display purposes as an example
-    
-    // Update event in Supabase if functions are available
-    if (typeof updateEvent === 'function') {
+  
+  // Update event in Supabase if functions are available
+  if (typeof updateEvent === 'function') {
     if (currentEditingTable === 'published') {
       const source = eventsData;
       const event = source[currentEditingEventId];

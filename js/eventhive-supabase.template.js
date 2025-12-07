@@ -243,6 +243,16 @@ function setupAuthStateListener() {
         lastAuthenticatedUserId = userId;
         localStorage.setItem('eventhive_last_authenticated_user_id', userId);
       }
+      
+      // Immediately cache auth and admin status on login (5-minute timer starts here)
+      // This ensures create/update/delete operations can use cached status without database checks
+      if (typeof updateDropdownAuthState === 'function') {
+        // Force a fresh check to populate the cache
+        updateDropdownAuthState(true).catch(err => {
+          console.error('Error updating auth cache on login:', err);
+        });
+      }
+      
       // TODO: Update UI to reflect logged-in state (e.g., show username in dropdown, enable dashboard link)
     } else if (event === 'SIGNED_OUT') {
       console.log('User signed out');

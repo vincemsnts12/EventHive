@@ -28,8 +28,24 @@ AS $$
 DECLARE
   v_event_id UUID;
 BEGIN
-  -- Update event directly (admin check done in JavaScript before calling this function)
-  -- This avoids RLS evaluation and profile table queries that cause timeouts
+  -- SECURITY: Server-side admin check (cannot be bypassed by editing localStorage)
+  -- Uses optimized is_admin() function which is STABLE and uses indexes
+  -- Since this is SECURITY DEFINER, it can call is_admin() even though EXECUTE is revoked
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Only admins can update events';
+  END IF;
+  
+  -- Check if event exists
+  SELECT id INTO v_event_id
+  FROM events
+  WHERE id = p_event_id;
+  
+  IF v_event_id IS NULL THEN
+    RAISE EXCEPTION 'Event with ID % not found', p_event_id;
+  END IF;
+  
+  -- Update event directly (bypasses RLS due to SECURITY DEFINER)
+  -- Note: Admin check above ensures security even though RLS is bypassed
   UPDATE events
   SET 
     title = p_title,
