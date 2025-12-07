@@ -41,10 +41,14 @@ async function getEvents(options = {}) {
   try {
     // Try selecting all columns first - if colleges column doesn't exist, Supabase will handle it
     // Using '*' is actually safer as it will automatically handle missing columns
+    // Try without order by first to see if that's causing the timeout
     let query = supabase
       .from('events')
-      .select('*')
-      .order('start_date', { ascending: true });
+      .select('*');
+    
+    // Only add order by if we have data (to avoid timeout on empty tables with index issues)
+    // Actually, let's always try with order by - if it times out, we'll know
+    query = query.order('start_date', { ascending: true });
 
     // Apply filters
     if (options.status) {
