@@ -69,19 +69,33 @@ async function getEvents(options = {}) {
       return { success: false, events: [], error: error.message };
     }
 
-    // Transform events to frontend format
+    // Transform events to frontend format with timeout protection
     const events = await Promise.all((data || []).map(async (dbEvent) => {
-      // Get images for this event (includes thumbnailIndex)
-      const imagesResult = await getEventImages(dbEvent.id);
-      const images = imagesResult.success ? imagesResult.images : [];
-      const thumbnailIndex = imagesResult.success ? imagesResult.thumbnailIndex : 0;
+      try {
+        // Get images for this event (includes thumbnailIndex) with timeout
+        const imagesPromise = getEventImages(dbEvent.id);
+        const imagesTimeout = new Promise((resolve) => 
+          setTimeout(() => resolve({ success: false, images: [], thumbnailIndex: 0 }), 5000)
+        );
+        const imagesResult = await Promise.race([imagesPromise, imagesTimeout]);
+        const images = imagesResult.success ? imagesResult.images : [];
+        const thumbnailIndex = imagesResult.success ? imagesResult.thumbnailIndex : 0;
 
-      // Get like count
-      const likesResult = await getEventLikeCount(dbEvent.id);
-      const likesCount = likesResult.success ? likesResult.count : 0;
+        // Get like count with timeout
+        const likesPromise = getEventLikeCount(dbEvent.id);
+        const likesTimeout = new Promise((resolve) => 
+          setTimeout(() => resolve({ success: false, count: 0 }), 5000)
+        );
+        const likesResult = await Promise.race([likesPromise, likesTimeout]);
+        const likesCount = likesResult.success ? likesResult.count : 0;
 
-      // Transform to frontend format (with thumbnailIndex)
-      return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+        // Transform to frontend format (with thumbnailIndex)
+        return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+      } catch (error) {
+        console.warn(`Error processing event ${dbEvent.id}:`, error);
+        // Return event with empty images and 0 likes if processing fails
+        return eventFromDatabase(dbEvent, [], 0, 0);
+      }
     }));
 
     return { success: true, events };
@@ -186,14 +200,32 @@ async function getPublishedEvents() {
       return { success: false, events: [], error: error.message };
     }
 
-    // Transform events
+    // Transform events with timeout protection
     const events = await Promise.all((data || []).map(async (dbEvent) => {
-      const imagesResult = await getEventImages(dbEvent.id);
-      const images = imagesResult.success ? imagesResult.images : [];
-      const thumbnailIndex = imagesResult.success ? imagesResult.thumbnailIndex : 0;
-      const likesResult = await getEventLikeCount(dbEvent.id);
-      const likesCount = likesResult.success ? likesResult.count : 0;
-      return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+      try {
+        // Get images for this event (includes thumbnailIndex) with timeout
+        const imagesPromise = getEventImages(dbEvent.id);
+        const imagesTimeout = new Promise((resolve) => 
+          setTimeout(() => resolve({ success: false, images: [], thumbnailIndex: 0 }), 5000)
+        );
+        const imagesResult = await Promise.race([imagesPromise, imagesTimeout]);
+        const images = imagesResult.success ? imagesResult.images : [];
+        const thumbnailIndex = imagesResult.success ? imagesResult.thumbnailIndex : 0;
+
+        // Get like count with timeout
+        const likesPromise = getEventLikeCount(dbEvent.id);
+        const likesTimeout = new Promise((resolve) => 
+          setTimeout(() => resolve({ success: false, count: 0 }), 5000)
+        );
+        const likesResult = await Promise.race([likesPromise, likesTimeout]);
+        const likesCount = likesResult.success ? likesResult.count : 0;
+
+        return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+      } catch (error) {
+        console.warn(`Error processing published event ${dbEvent.id}:`, error);
+        // Return event with empty images and 0 likes if processing fails
+        return eventFromDatabase(dbEvent, [], 0, 0);
+      }
     }));
 
     return { success: true, events };
