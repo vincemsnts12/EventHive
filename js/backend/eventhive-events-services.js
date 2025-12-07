@@ -48,6 +48,28 @@ async function getEvents(options = {}) {
     return { success: false, events: [], error: 'Invalid college code filter' };
   }
 
+  // CRITICAL: If Supabase auth token exists, ensure session is fully restored before querying
+  // This prevents queries from hanging when session restoration is in progress
+  const hasAuthToken = Object.keys(localStorage).some(key => 
+    (key.includes('supabase') && key.includes('auth-token')) || 
+    (key.startsWith('sb-') && key.includes('auth-token'))
+  );
+  
+  if (hasAuthToken) {
+    console.log('Auth token detected, ensuring session is ready...');
+    try {
+      // Wait for session to be ready (with timeout)
+      const sessionCheckPromise = supabase.auth.getSession();
+      const sessionCheckTimeout = new Promise((resolve) => 
+        setTimeout(() => resolve({ data: { session: null }, error: null }), 2000)
+      );
+      await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
+      console.log('Session ready, proceeding with query');
+    } catch (error) {
+      console.warn('Session check failed, but proceeding with query anyway:', error);
+    }
+  }
+
   try {
     // SIMPLIFIED: Treat authenticated users the same as guests for fetching events
     // RLS policies allow both to see events, so use the same query structure

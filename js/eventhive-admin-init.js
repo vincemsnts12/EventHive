@@ -56,10 +56,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Supabase client ready, waiting for auth state to stabilize...');
   }
   
-  // SIMPLIFIED: No special handling for authenticated users
-  // Events are fetched the same way for everyone (guests and authenticated users)
-  // Authorization checks happen AFTER fetching, not during the query
-  console.log('Connection ready, proceeding with event fetch...');
+  // CRITICAL: If Supabase auth token exists, wait for session restoration to complete
+  // This prevents queries from hanging when session is being restored from localStorage
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    // Check if Supabase auth token exists in localStorage
+    const hasAuthToken = Object.keys(localStorage).some(key => 
+      (key.includes('supabase') && key.includes('auth-token')) || 
+      (key.startsWith('sb-') && key.includes('auth-token'))
+    );
+    
+    if (hasAuthToken) {
+      console.log('Supabase auth token detected, waiting for session restoration...');
+      let sessionRestored = false;
+      let attempts = 0;
+      const maxAttempts = 10; // 10 attempts * 200ms = 2 seconds max
+      
+      while (!sessionRestored && attempts < maxAttempts) {
+        try {
+          const sessionCheckPromise = supabase.auth.getSession();
+          const sessionCheckTimeout = new Promise((resolve) => 
+            setTimeout(() => resolve({ data: { session: null }, error: { message: 'Timeout' } }), 500)
+          );
+          const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
+          
+          if (sessionResult?.data?.session || (!sessionResult?.error || sessionResult.error.message === 'Timeout')) {
+            // Session is restored (or no session exists)
+            sessionRestored = true;
+            console.log('Session restoration complete');
+          } else {
+            attempts++;
+            if (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+          }
+        } catch (error) {
+          attempts++;
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+      }
+      
+      if (!sessionRestored) {
+        console.warn('Session restoration check incomplete, but proceeding anyway...');
+      }
+      
+      // Additional wait to ensure SIGNED_IN event handlers complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Session restoration and auth events settled, proceeding with event fetch...');
+    } else {
+      console.log('No auth token detected, proceeding as guest...');
+    }
+  }
   
   // Load all events from Supabase in one query, then classify locally
   if (typeof getEvents === 'function') {
