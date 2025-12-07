@@ -29,7 +29,7 @@ async function getEvents(options = {}) {
   // CRITICAL FIX: Use a guest client (no session) for SELECT queries to avoid RLS timeout
   // Even though the SELECT policy is USING (true), authenticated users still timeout
   // By using a guest client, we bypass RLS evaluation entirely for SELECT queries
-  let supabase;
+  let supabaseClient;
   
   // Check if we need to create a guest client
   const hasAuthToken = Object.keys(localStorage).some(key => 
@@ -45,9 +45,14 @@ async function getEvents(options = {}) {
       const SUPABASE_URL = window.__EH_SUPABASE_URL;
       const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
       
-      if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof window.supabase !== 'undefined') {
+      // Try to get Supabase library from global scope
+      // Check window.supabase first (CDN), then global supabase variable
+      const supabaseLib = (typeof window !== 'undefined' && window.supabase) ? window.supabase : 
+                          (typeof supabase !== 'undefined' ? supabase : null);
+      
+      if (SUPABASE_URL && SUPABASE_ANON_KEY && supabaseLib && typeof supabaseLib.createClient === 'function') {
         // Create a new client instance without session (guest mode)
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        supabaseClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           auth: {
             persistSession: false, // Don't persist session for guest client
             autoRefreshToken: false, // Don't auto-refresh
@@ -58,24 +63,24 @@ async function getEvents(options = {}) {
       } else {
         // Fallback to regular client if we can't create guest client
         console.warn('Could not create guest client (missing URL/key or Supabase lib), using regular client');
-        supabase = getSupabaseClient();
+        supabaseClient = getSupabaseClient();
       }
     } catch (error) {
       console.warn('Error creating guest client, using regular client:', error);
-      supabase = getSupabaseClient();
+      supabaseClient = getSupabaseClient();
     }
   } else {
     // No auth token, use regular client (already a guest)
-    supabase = getSupabaseClient();
+    supabaseClient = getSupabaseClient();
   }
   
-  if (!supabase) {
+  if (!supabaseClient) {
     console.error('Supabase client is null');
     return { success: false, events: [], error: 'Supabase not initialized' };
   }
   
   // Verify the client is actually functional
-  if (typeof supabase.from !== 'function') {
+  if (typeof supabaseClient.from !== 'function') {
     console.error('Supabase client is not properly initialized - missing .from() method');
     return { success: false, events: [], error: 'Supabase client is not properly initialized' };
   }
@@ -90,27 +95,6 @@ async function getEvents(options = {}) {
     return { success: false, events: [], error: 'Invalid college code filter' };
   }
 
-  // CRITICAL: If Supabase auth token exists, ensure session is fully restored before querying
-  // This prevents queries from hanging when session restoration is in progress
-  const hasAuthToken = Object.keys(localStorage).some(key => 
-    (key.includes('supabase') && key.includes('auth-token')) || 
-    (key.startsWith('sb-') && key.includes('auth-token'))
-  );
-  
-  if (hasAuthToken) {
-    console.log('Auth token detected, ensuring session is ready...');
-    try {
-      // Wait for session to be ready (with timeout)
-      const sessionCheckPromise = supabase.auth.getSession();
-      const sessionCheckTimeout = new Promise((resolve) => 
-        setTimeout(() => resolve({ data: { session: null }, error: null }), 2000)
-      );
-      await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
-      console.log('Session ready, proceeding with query');
-    } catch (error) {
-      console.warn('Session check failed, but proceeding with query anyway:', error);
-    }
-  }
 
   try {
     // SIMPLIFIED: Treat authenticated users the same as guests for fetching events
@@ -121,7 +105,7 @@ async function getEvents(options = {}) {
     
     // Build query - use same structure for both guests and authenticated users
     // Select all necessary columns (same for everyone)
-    let query = supabase
+    let query = supabaseClient
       .from('events')
       .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, organization_id, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
     
