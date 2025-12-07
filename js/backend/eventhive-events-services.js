@@ -155,8 +155,14 @@ async function getEvents(options = {}) {
     
     // NOW that auth state is confirmed, proceed with query building and execution
     // The caller (admin-init.js) has already ensured connection is ready
-    // Add a small delay to ensure everything is settled
-    await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay for connection readiness
+    // Add a delay to ensure auth events have fully settled, especially on reload
+    // This prevents race conditions when SIGNED_IN event fires during initialization
+    if (isAuthenticated) {
+      console.log('Waiting for auth state to fully settle before query...');
+      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay for authenticated users
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay for guests
+    }
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     

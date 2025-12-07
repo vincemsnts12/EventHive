@@ -93,8 +93,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 shouldSkipSessionCheck = true;
                 // Wait longer for connection to fully initialize and auth state to settle
                 // This is critical for authenticated users to avoid RLS timeout
-                console.log('Waiting for connection to fully initialize...');
-                await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 seconds for connection
+                // On reload, SIGNED_IN event may fire during initialization, so wait longer
+                console.log('Waiting for connection to fully initialize and auth events to settle...');
+                
+                // Wait for auth state listener to complete if SIGNED_IN event is firing
+                // Check if SIGNED_IN event might be in progress by waiting a bit longer
+                await new Promise(resolve => setTimeout(resolve, 2500)); // 2.5 seconds to ensure SIGNED_IN completes
+                
                 authStabilized = true;
                 console.log('Auth state stabilized (using cached session)');
               } else {
@@ -166,8 +171,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     console.log('Auth state stabilized, ensuring connection is ready...');
     
-    // Final connection readiness check - wait a bit more to ensure everything is settled
-    await new Promise(resolve => setTimeout(resolve, 500)); // 500ms final wait
+    // Final connection readiness check - wait longer to ensure auth events have fully settled
+    // This is especially important on reload when SIGNED_IN event fires during initialization
+    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second final wait for auth events
     
     console.log('Connection ready, proceeding with event fetch...');
   }
