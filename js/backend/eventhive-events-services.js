@@ -166,6 +166,46 @@ async function getEvents(options = {}) {
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     
+    // For authenticated users, verify session is stable before querying
+    // This ensures SIGNED_IN event has fully completed and session is ready
+    if (isAuthenticated) {
+      console.log('Verifying session stability for authenticated user...');
+      let sessionStable = false;
+      let stabilityChecks = 0;
+      const maxStabilityChecks = 5; // Check up to 5 times
+      
+      while (!sessionStable && stabilityChecks < maxStabilityChecks) {
+        try {
+          const sessionCheckPromise = supabase.auth.getSession();
+          const sessionCheckTimeout = new Promise((resolve) => 
+            setTimeout(() => resolve({ data: { session: null }, error: { message: 'Session check timeout' } }), 1000)
+          );
+          const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
+          
+          if (sessionResult?.data?.session?.user && !sessionResult?.error) {
+            sessionStable = true;
+            console.log('Session is stable, proceeding with query');
+          } else {
+            stabilityChecks++;
+            if (stabilityChecks < maxStabilityChecks) {
+              console.log(`Session not yet stable (check ${stabilityChecks}/${maxStabilityChecks}), waiting...`);
+              await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms between checks
+            }
+          }
+        } catch (sessionError) {
+          stabilityChecks++;
+          if (stabilityChecks < maxStabilityChecks) {
+            console.log(`Session check error (check ${stabilityChecks}/${maxStabilityChecks}), retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+      
+      if (!sessionStable) {
+        console.warn('Session stability check incomplete, but proceeding with query anyway');
+      }
+    }
+    
     // Build query - for authenticated users, skip order by to avoid RLS timeout
     // CRITICAL: For authenticated users, select minimal columns first to test if RLS is the issue
     // If this works, we can add more columns back
@@ -228,26 +268,52 @@ async function getEvents(options = {}) {
       query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
     }
     
-    // Add timeout protection for the query
-    const queryPromise = query;
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database query timed out after 15 seconds')), 15000)
-    );
-    
+    // Add timeout protection for the query with retry logic for authenticated users
+    // For authenticated users, try shorter timeout first, then retry if needed
     let queryResult;
     const startTime = Date.now();
-    try {
-      queryResult = await Promise.race([queryPromise, timeoutPromise]);
-      const duration = Date.now() - startTime;
-      console.log(`Query completed in ${duration}ms`);
-    } catch (timeoutError) {
-      const duration = Date.now() - startTime;
-      console.error(`Query timed out after ${duration}ms`);
-      if (timeoutError.message && timeoutError.message.includes('timed out')) {
-        console.error('Database query timed out');
-        return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
+    let retries = 0;
+    const maxRetries = isAuthenticated ? 2 : 0; // Retry once for authenticated users
+    let lastError = null;
+    
+    while (retries <= maxRetries) {
+      try {
+        const timeoutDuration = isAuthenticated && retries === 0 ? 8000 : 15000; // 8s first try, 15s retry
+        const queryPromise = query;
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Database query timed out after ${timeoutDuration}ms`)), timeoutDuration)
+        );
+        
+        console.log(`Attempting query (attempt ${retries + 1}/${maxRetries + 1}) with ${timeoutDuration}ms timeout...`);
+        queryResult = await Promise.race([queryPromise, timeoutPromise]);
+        const duration = Date.now() - startTime;
+        console.log(`Query completed in ${duration}ms`);
+        break; // Success, exit retry loop
+      } catch (timeoutError) {
+        const duration = Date.now() - startTime;
+        lastError = timeoutError;
+        console.error(`Query attempt ${retries + 1} timed out after ${duration}ms`);
+        
+        if (retries < maxRetries) {
+          console.log(`Retrying query (attempt ${retries + 2}/${maxRetries + 1})...`);
+          // Wait a bit before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second between retries
+          retries++;
+        } else {
+          // All retries exhausted
+          if (timeoutError.message && timeoutError.message.includes('timed out')) {
+            console.error('Database query timed out after all retries');
+            return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
+          }
+          throw timeoutError;
+        }
       }
-      throw timeoutError;
+    }
+    
+    if (!queryResult) {
+      // Should not happen, but just in case
+      console.error('Query failed: no result after retries');
+      return { success: false, events: [], error: lastError?.message || 'Database query failed' };
     }
     
     // Sort in JavaScript if needed (for authenticated users)
