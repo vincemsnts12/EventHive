@@ -56,6 +56,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Supabase client ready, proceeding with event fetch...');
   }
   
+  // For authenticated users, wait for SIGNED_IN event to complete before querying
+  // This helps avoid RLS evaluation issues
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const sessionResult = await supabase.auth.getSession();
+      if (sessionResult?.data?.session?.user) {
+        console.log('User is authenticated - waiting for auth state to fully stabilize...');
+        // Wait longer for authenticated users to ensure RLS is ready
+        await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay
+        console.log('Auth state should be stable now');
+      }
+    } catch (sessionError) {
+      // Ignore - proceed anyway
+      console.log('Could not check session, proceeding with query');
+    }
+  }
+  
   // Load all events from Supabase in one query, then classify locally
   if (typeof getEvents === 'function') {
     console.log('Loading all events from Supabase...');
