@@ -420,11 +420,21 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (error) {
               // Check if error is due to email domain restriction
-              let errorMessage = error.message;
-              if (error.message && error.message.includes('Email domain not allowed')) {
-                errorMessage = 'Only TUP email addresses (@tup.edu.ph) are allowed to sign up.';
+              let errorMessage = error.message || '';
+              const errorDetails = error.details || error.message || '';
+              const fullError = (errorMessage + ' ' + errorDetails).toLowerCase();
+              
+              // Check for database error related to email domain restriction
+              if (fullError.includes('database error') || 
+                  fullError.includes('use the email provided by the tup university') ||
+                  fullError.includes('email domain not allowed')) {
+                errorMessage = 'Use the email provided by the TUP University';
+              } else if (error.message) {
+                errorMessage = error.message;
               }
-              alert('Signup failed: ' + errorMessage);
+              
+              // Show clean message
+              alert(errorMessage);
               // Re-enable submit button
               if (submitBtn) {
                 submitBtn.disabled = false;

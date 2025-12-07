@@ -19,7 +19,7 @@ BEGIN
   IF NEW.email IS NULL OR LOWER(NEW.email) NOT LIKE '%@tup.edu.ph' THEN
     -- Raise exception to prevent profile creation
     -- This should rollback the transaction, preventing the user from being created in auth.users
-    RAISE EXCEPTION 'Email domain not allowed. Only @tup.edu.ph email addresses are permitted.';
+    RAISE EXCEPTION 'Use the email provided by the TUP University';
   END IF;
 
   INSERT INTO public.profiles (id, email, username, full_name, avatar_url, is_admin)
