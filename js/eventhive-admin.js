@@ -989,61 +989,74 @@ function openEditCollegeModal(eventId, currentCollege) {
   const selector = document.getElementById('collegeTagSelector');
   selector.innerHTML = '';
   
-  // Add main college selector label
-  const mainLabel = document.createElement('div');
-  mainLabel.className = 'college-selector-label';
-  mainLabel.textContent = 'Select Main College (for event card display):';
+  // Create a flex container for side-by-side layout
+  const flexContainer = document.createElement('div');
+  flexContainer.style.display = 'flex';
+  flexContainer.style.gap = '2rem';
+  flexContainer.style.alignItems = 'flex-start';
+  
+  // Left side: Main College Dropdown
+  const leftColumn = document.createElement('div');
+  leftColumn.style.flex = '1';
+  
+  const mainLabel = document.createElement('label');
+  mainLabel.textContent = 'Main College (for event card display):';
+  mainLabel.style.display = 'block';
   mainLabel.style.marginBottom = '10px';
   mainLabel.style.fontWeight = 'bold';
   mainLabel.style.color = '#333';
-  selector.appendChild(mainLabel);
+  leftColumn.appendChild(mainLabel);
   
-  // Create radio buttons for main college selection
-  const mainCollegeContainer = document.createElement('div');
-  mainCollegeContainer.className = 'main-college-selector';
-  mainCollegeContainer.style.marginBottom = '20px';
-  mainCollegeContainer.style.paddingBottom = '15px';
-  mainCollegeContainer.style.borderBottom = '2px solid #e0e0e0';
+  const mainCollegeSelect = document.createElement('select');
+  mainCollegeSelect.id = 'mainCollegeSelect';
+  mainCollegeSelect.style.width = '100%';
+  mainCollegeSelect.style.padding = '10px';
+  mainCollegeSelect.style.border = '2px solid #e0e0e0';
+  mainCollegeSelect.style.borderRadius = '8px';
+  mainCollegeSelect.style.fontSize = '1rem';
+  mainCollegeSelect.style.backgroundColor = '#fff';
+  mainCollegeSelect.style.cursor = 'pointer';
   
   availableColleges.forEach(college => {
-    const item = document.createElement('div');
-    item.className = 'tag-radio-item';
-    item.style.marginBottom = '8px';
-    
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'mainCollege';
-    radio.id = `main-college-${college.code}`;
-    radio.value = college.code;
-    radio.checked = mainCollege === college.code;
-    
-    const label = document.createElement('label');
-    label.setAttribute('for', `main-college-${college.code}`);
-    label.textContent = college.name;
-    label.style.marginLeft = '8px';
-    label.style.cursor = 'pointer';
-    
-    item.appendChild(radio);
-    item.appendChild(label);
-    mainCollegeContainer.appendChild(item);
+    const option = document.createElement('option');
+    option.value = college.code;
+    option.textContent = college.name;
+    if (mainCollege === college.code) {
+      option.selected = true;
+    }
+    mainCollegeSelect.appendChild(option);
   });
   
-  selector.appendChild(mainCollegeContainer);
+  leftColumn.appendChild(mainCollegeSelect);
   
-  // Add collaboration colleges label
+  // Right side: Collaboration Colleges Checkboxes
+  const rightColumn = document.createElement('div');
+  rightColumn.style.flex = '1';
+  
   const collabLabel = document.createElement('div');
-  collabLabel.className = 'college-selector-label';
-  collabLabel.textContent = 'Select Collaboration Colleges (for event description):';
-  collabLabel.style.marginTop = '10px';
+  collabLabel.textContent = 'Collaboration Colleges (for event description):';
   collabLabel.style.marginBottom = '10px';
   collabLabel.style.fontWeight = 'bold';
   collabLabel.style.color = '#333';
-  selector.appendChild(collabLabel);
+  rightColumn.appendChild(collabLabel);
   
-  // Create checkboxes for all colleges (collaboration)
+  const checkboxesContainer = document.createElement('div');
+  checkboxesContainer.style.maxHeight = '300px';
+  checkboxesContainer.style.overflowY = 'auto';
+  checkboxesContainer.style.border = '2px solid #e0e0e0';
+  checkboxesContainer.style.borderRadius = '8px';
+  checkboxesContainer.style.padding = '10px';
+  
+  // Create checkboxes for all colleges EXCEPT the main college
   availableColleges.forEach(college => {
+    // Skip the main college from checkboxes
+    if (college.code === mainCollege) {
+      return;
+    }
+    
     const item = document.createElement('div');
     item.className = 'tag-checkbox-item';
+    item.style.marginBottom = '8px';
     
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
@@ -1054,11 +1067,20 @@ function openEditCollegeModal(eventId, currentCollege) {
     const label = document.createElement('label');
     label.setAttribute('for', `college-${college.code}`);
     label.textContent = college.name;
+    label.style.marginLeft = '8px';
+    label.style.cursor = 'pointer';
     
     item.appendChild(checkbox);
     item.appendChild(label);
-    selector.appendChild(item);
+    checkboxesContainer.appendChild(item);
   });
+  
+  rightColumn.appendChild(checkboxesContainer);
+  
+  // Add both columns to flex container
+  flexContainer.appendChild(leftColumn);
+  flexContainer.appendChild(rightColumn);
+  selector.appendChild(flexContainer);
   
   document.getElementById('editCollegeModal').classList.add('active');
 }
@@ -1342,27 +1364,32 @@ async function saveLocationEdit() {
 async function saveCollegeEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   
-  // Get main college (radio button)
-  const mainCollegeRadio = document.querySelector('#collegeTagSelector input[name="mainCollege"]:checked');
-  if (!mainCollegeRadio) {
+  // Get main college from dropdown
+  const mainCollegeSelect = document.getElementById('mainCollegeSelect');
+  if (!mainCollegeSelect) {
+    alert('Main college dropdown not found');
+    return;
+  }
+  
+  const mainCollegeCode = mainCollegeSelect.value;
+  if (!mainCollegeCode) {
     alert('Please select a main college');
     return;
   }
   
-  const mainCollegeCode = mainCollegeRadio.value;
   const mainCollege = availableColleges.find(c => c.code === mainCollegeCode);
   if (!mainCollege) {
     alert('Invalid main college selection');
     return;
   }
   
-  // Get collaboration colleges (checkboxes)
+  // Get collaboration colleges (checkboxes) - main college is already excluded from checkboxes
   const checked = document.querySelectorAll('#collegeTagSelector input[type="checkbox"]:checked');
   const colleges = Array.from(checked).map(cb => cb.value);
   
-  // Ensure main college is included in colleges array (always at least one college)
+  // Always include main college in colleges array (at the beginning)
   if (!colleges.includes(mainCollegeCode)) {
-    colleges.push(mainCollegeCode);
+    colleges.unshift(mainCollegeCode); // Add at the beginning
   }
   
   // Ensure colleges is always an array with at least the main college

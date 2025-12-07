@@ -824,6 +824,34 @@
   background-color: #fafafa;
 }
 
+/* College selector specific styles - override default for side-by-side layout */
+#collegeTagSelector {
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  max-height: none;
+  overflow-y: visible;
+}
+
+#collegeTagSelector > div[style*="display: flex"] {
+  /* Flex container for main college dropdown and checkboxes */
+  margin: 0;
+}
+
+#collegeTagSelector select {
+  transition: border-color 0.2s ease;
+}
+
+#collegeTagSelector select:hover {
+  border-color: #B81E20;
+}
+
+#collegeTagSelector select:focus {
+  outline: none;
+  border-color: #B81E20;
+  box-shadow: 0 0 0 3px rgba(184, 30, 32, 0.1);
+}
+
 .tag-checkbox-item {
   display: flex;
   align-items: center;
