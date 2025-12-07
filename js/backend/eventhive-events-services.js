@@ -633,29 +633,33 @@ async function createEvent(eventData) {
       description: dbEvent.description ? '[truncated]' : undefined,
       colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
     });
+    console.log('Starting INSERT at:', new Date().toISOString());
 
-    // Insert event with timeout protection - don't use .single() to avoid RLS blocking issues
+    // Strategy: Insert without .select() first to avoid RLS blocking on SELECT
+    // Then fetch the event separately using guest client if needed
+    const insertStartTime = Date.now();
     const insertPromise = supabase
       .from('events')
-      .insert(dbEvent)
-      .select();
+      .insert(dbEvent);
     
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database insert timed out after 15 seconds')), 15000)
+      setTimeout(() => reject(new Error('Database insert timed out after 10 seconds')), 10000)
     );
     
-    let insertedEvents, insertError;
+    let insertResult, insertError;
     try {
+      console.log('Awaiting INSERT query...');
       const result = await Promise.race([
         insertPromise,
         timeoutPromise
       ]);
-      // Promise.race returns the first resolved/rejected promise
-      // If insertPromise resolves, result is { data, error }
-      // If timeoutPromise rejects, it throws
-      insertedEvents = result?.data;
+      const insertDuration = Date.now() - insertStartTime;
+      console.log(`INSERT completed in ${insertDuration}ms`);
+      insertResult = result;
       insertError = result?.error;
     } catch (error) {
+      const insertDuration = Date.now() - insertStartTime;
+      console.error(`INSERT failed after ${insertDuration}ms:`, error);
       // Handle timeout or other errors
       if (error.message && error.message.includes('timed out')) {
         console.error('Database insert timed out');
@@ -666,15 +670,7 @@ async function createEvent(eventData) {
       }
     }
     
-    // Extract the inserted event from the array
-    let insertedEvent = null;
-    if (insertedEvents && Array.isArray(insertedEvents) && insertedEvents.length > 0) {
-      insertedEvent = insertedEvents[0];
-    } else if (insertedEvents && !Array.isArray(insertedEvents)) {
-      // Handle case where single object is returned (shouldn't happen with .select() but just in case)
-      insertedEvent = insertedEvents;
-    }
-
+    // If INSERT failed, return error
     if (insertError) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError.message }, 'Error creating event');
       console.error('Error creating event:', insertError);
@@ -683,7 +679,6 @@ async function createEvent(eventData) {
         description: dbEvent.description ? '[truncated]' : undefined,
         colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
       });
-      console.error('Full error details:', insertError);
       
       // If error is about colleges column, try again without it
       const errorMsg = insertError.message || '';
@@ -692,39 +687,112 @@ async function createEvent(eventData) {
           errorMsg.includes('does not exist') ||
           errorMsg.toLowerCase().includes('jsonb') ||
           errorMsg.includes('PGRST')) {
-        console.log('Retrying insert without colleges column (column may not exist yet)...');
+        console.log('Retrying insert without colleges column...');
         const retryDbEvent = { ...dbEvent };
         delete retryDbEvent.colleges;
+        const retryStartTime = Date.now();
         const retryResult = await supabase
           .from('events')
-          .insert(retryDbEvent)
-          .select();
+          .insert(retryDbEvent);
+        const retryDuration = Date.now() - retryStartTime;
+        console.log(`Retry INSERT completed in ${retryDuration}ms`);
         
         if (retryResult.error) {
           console.error('Retry also failed:', retryResult.error);
           return { success: false, error: retryResult.error.message || 'Failed to create event' };
         }
-        
-        // Extract event from array
-        if (retryResult.data && Array.isArray(retryResult.data) && retryResult.data.length > 0) {
-          insertedEvent = retryResult.data[0];
-        } else if (retryResult.data && !Array.isArray(retryResult.data)) {
-          insertedEvent = retryResult.data;
-        } else {
-          console.error('Retry succeeded but no event returned');
-          return { success: false, error: 'Event was created but could not be retrieved (RLS may be blocking SELECT)' };
-        }
-        
-        insertError = null;
-        console.log('Event created successfully after retry (without colleges column)');
+        // Retry succeeded - now fetch the event
+        console.log('Retry INSERT succeeded, fetching event...');
       } else {
         return { success: false, error: insertError.message || 'Failed to create event' };
       }
     }
     
+    // INSERT succeeded - now fetch the event using guest client to avoid RLS issues
+    console.log('INSERT succeeded, fetching created event...');
+    const fetchStartTime = Date.now();
+    
+    // Get the event ID from the insert result or fetch by created_by and title
+    // Since we didn't use .select(), we need to fetch by matching criteria
+    let insertedEvent = null;
+    
+    // Try to get event ID from insert result (some Supabase versions return it)
+    let eventId = null;
+    if (insertResult?.data && Array.isArray(insertResult.data) && insertResult.data.length > 0) {
+      eventId = insertResult.data[0].id;
+    } else if (insertResult?.data && insertResult.data.id) {
+      eventId = insertResult.data.id;
+    }
+    
+    if (eventId) {
+      // We have the ID, fetch directly
+      console.log('Event ID from insert:', eventId);
+      const guestClient = getGuestSupabaseClient();
+      if (guestClient) {
+        const fetchResult = await guestClient
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .single();
+        
+        if (fetchResult.data && !fetchResult.error) {
+          insertedEvent = fetchResult.data;
+          const fetchDuration = Date.now() - fetchStartTime;
+          console.log(`Event fetched in ${fetchDuration}ms`);
+        }
+      }
+    }
+    
+    // Fallback: Fetch by created_by, title, and recent timestamp
     if (!insertedEvent) {
-      console.error('Insert succeeded but no event returned. This could mean: 1) RLS is blocking SELECT, 2) Insert matched 0 rows');
-      return { success: false, error: 'Event was created but could not be retrieved (RLS may be blocking SELECT)' };
+      console.log('Fetching event by created_by and title (fallback)...');
+      const guestClient = getGuestSupabaseClient();
+      if (guestClient) {
+        const fetchResult = await guestClient
+          .from('events')
+          .select('*')
+          .eq('created_by', user.id)
+          .eq('title', dbEvent.title)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (fetchResult.data && !fetchResult.error) {
+          insertedEvent = fetchResult.data;
+          const fetchDuration = Date.now() - fetchStartTime;
+          console.log(`Event fetched by fallback in ${fetchDuration}ms`);
+        } else {
+          console.error('Failed to fetch event after insert:', fetchResult.error);
+        }
+      }
+    }
+    
+    // If we still don't have the event, try one more time with a direct query
+    if (!insertedEvent) {
+      console.log('Final attempt: Fetching most recent event by this user...');
+      const guestClient = getGuestSupabaseClient();
+      if (guestClient) {
+        // Get the most recent event created by this user in the last minute
+        const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+        const fetchResult = await guestClient
+          .from('events')
+          .select('*')
+          .eq('created_by', user.id)
+          .gte('created_at', oneMinuteAgo)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (fetchResult.data && !fetchResult.error) {
+          insertedEvent = fetchResult.data;
+          console.log('Event found via final fallback');
+        }
+      }
+    }
+    
+    if (!insertedEvent) {
+      console.error('Insert succeeded but could not fetch event. This could mean: 1) RLS is blocking SELECT, 2) Event was not created, 3) Timing issue');
+      return { success: false, error: 'Event was created but could not be retrieved. Please refresh the page to see the new event.' };
     }
     
     console.log('Event inserted successfully:', insertedEvent.id);
