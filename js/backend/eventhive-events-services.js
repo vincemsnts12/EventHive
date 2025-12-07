@@ -49,11 +49,8 @@ async function getEvents(options = {}) {
   }
 
   try {
-    console.log('Fetching events from database with options:', options);
-    console.log('Query starting at:', new Date().toISOString());
-    
-    // Check if user is authenticated - auth state should already be stabilized by caller
-    // This is just to determine if we should skip order by (for performance)
+    // CRITICAL: Check if user is authenticated FIRST - auth state should already be stabilized by caller
+    // DO NOT build or execute any queries until after this check completes
     let shouldSortInJS = false;
     
     // Session check - should be fast now since auth state is stabilized by caller
@@ -73,6 +70,10 @@ async function getEvents(options = {}) {
       // If session check fails, assume guest
       console.log('Session check failed, assuming guest - using database order by');
     }
+    
+    // NOW that auth state is confirmed, proceed with query building and execution
+    console.log('Fetching events from database with options:', options);
+    console.log('Query starting at:', new Date().toISOString());
     
     // Build query - for authenticated users, skip order by to avoid RLS timeout
     // The query itself might be slow for authenticated users, but without order by it should work
