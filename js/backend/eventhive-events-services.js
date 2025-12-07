@@ -161,12 +161,24 @@ async function getEvents(options = {}) {
     console.log('Query starting at:', new Date().toISOString());
     
     // Build query - for authenticated users, skip order by to avoid RLS timeout
+    // CRITICAL: For authenticated users, select minimal columns first to test if RLS is the issue
+    // If this works, we can add more columns back
     // Select specific columns instead of '*' to avoid JSONB overhead
     // Don't select 'colleges' JSONB column initially - it's expensive and we'll check it after successful fetch
     // Just use college_code (one college) for now
+    
+    // For authenticated users, try minimal columns first to avoid RLS timeout
+    const minimalColumns = 'id, title, description, location, start_date, end_date, status, is_featured, college_code, organization_name, created_at, updated_at';
+    const fullColumns = 'id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, organization_id, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by';
+    
+    // Use minimal columns for authenticated users to reduce RLS evaluation overhead
+    const columnsToSelect = isAuthenticated ? minimalColumns : fullColumns;
+    
+    console.log('Selecting columns for query:', { isAuthenticated, columnCount: columnsToSelect.split(',').length });
+    
     let query = supabase
       .from('events')
-      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, organization_id, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
+      .select(columnsToSelect);
     
     // Apply filters first
     if (options.status) {
@@ -196,8 +208,15 @@ async function getEvents(options = {}) {
     }
     
     // Apply limit/offset last
+    // For authenticated users, if no limit specified, use a reasonable limit to avoid RLS timeout
+    // We can fetch more in subsequent calls if needed
     if (options.limit) {
       query = query.limit(options.limit);
+    } else if (isAuthenticated && !options.limit) {
+      // For authenticated users without a limit, use a default limit to reduce RLS evaluation
+      // This helps avoid timeout when there are many events
+      query = query.limit(100); // Limit to 100 events initially
+      console.log('Using default limit of 100 for authenticated user to avoid RLS timeout');
     }
     if (options.offset) {
       query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
