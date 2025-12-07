@@ -758,7 +758,7 @@ async function createEvent(eventData) {
       .insert(dbEvent);
     
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database insert timed out after 2 seconds')), 2000)
+      setTimeout(() => reject(new Error('Database insert timed out after 5 seconds')), 5000)
     );
     
     try {
