@@ -20,9 +20,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // Wait for Supabase to fully initialize and establish connection
-  // Check if Supabase client is ready before proceeding
+  // For authenticated users, database queries can timeout due to RLS, so we just check if client exists
+  // Don't test with a query - that will timeout for authenticated users too
   let retries = 0;
-  const maxRetries = 15; // 15 retries * 200ms = 3 seconds max wait
+  const maxRetries = 10; // 10 retries * 200ms = 2 seconds max wait
   let supabaseReady = false;
   
   while (retries < maxRetries && !supabaseReady) {
@@ -30,23 +31,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (typeof getSupabaseClient === 'function') {
       const supabase = getSupabaseClient();
-      if (supabase && typeof supabase.from === 'function') {
-        // Test connection with a simple query
-        try {
-          const testQuery = supabase.from('events').select('id').limit(1);
-          const testTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Test timeout')), 2000)
-          );
-          await Promise.race([testQuery, testTimeout]);
-          supabaseReady = true;
-          console.log('Supabase connection verified after', (retries + 1) * 200, 'ms');
-        } catch (testError) {
-          // Connection not ready yet, continue waiting
-          retries++;
-          if (retries < maxRetries) {
-            console.log(`Waiting for Supabase connection... (attempt ${retries}/${maxRetries})`);
-          }
-        }
+      if (supabase && typeof supabase.from === 'function' && typeof supabase.auth === 'object') {
+        // Client is ready - don't test with a query as it will timeout for authenticated users
+        // Just verify the client structure is correct
+        supabaseReady = true;
+        console.log('Supabase client ready after', (retries + 1) * 200, 'ms');
       } else {
         retries++;
         if (retries < maxRetries) {
@@ -62,9 +51,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   if (!supabaseReady) {
-    console.warn('Supabase connection not ready after max retries, proceeding anyway...');
+    console.warn('Supabase client not ready after max retries, proceeding anyway...');
   } else {
-    console.log('Supabase connection established, proceeding with event fetch...');
+    console.log('Supabase client ready, proceeding with event fetch...');
   }
   
   // Load all events from Supabase in one query, then classify locally
