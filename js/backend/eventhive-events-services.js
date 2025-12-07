@@ -1072,16 +1072,45 @@ async function updateEvent(eventId, eventData) {
     
     // Strategy: Update without .select() to avoid RLS blocking on SELECT
     // Then fetch the event separately using guest client
-    console.log('Updating event (without SELECT to avoid RLS timeout)...');
-    const { error: updateError } = await supabase
+    console.log('updateEvent: Starting UPDATE operation at:', new Date().toISOString());
+    console.log('updateEvent: Event ID:', eventId);
+    console.log('updateEvent: Update data:', { 
+      ...dbEvent, 
+      description: dbEvent.description ? '[truncated]' : undefined,
+      colleges: dbEvent.colleges ? (Array.isArray(dbEvent.colleges) ? `[${dbEvent.colleges.length} colleges]` : dbEvent.colleges) : 'not included'
+    });
+    
+    const updateStartTime = Date.now();
+    const updatePromise = supabase
       .from('events')
       .update(dbEvent)
       .eq('id', eventId);
+    
+    const updateTimeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('UPDATE query timed out after 5 seconds')), 5000)
+    );
+    
+    let updateError = null;
+    try {
+      console.log('updateEvent: Awaiting UPDATE query (with 5s timeout)...');
+      const result = await Promise.race([updatePromise, updateTimeoutPromise]);
+      const updateDuration = Date.now() - updateStartTime;
+      console.log(`updateEvent: UPDATE query completed in ${updateDuration}ms`);
+      console.log('updateEvent: UPDATE result:', { hasError: !!result?.error, error: result?.error?.message });
+      updateError = result?.error;
+    } catch (error) {
+      const updateDuration = Date.now() - updateStartTime;
+      console.error(`updateEvent: UPDATE query failed after ${updateDuration}ms:`, error);
+      if (error.message && error.message.includes('timed out')) {
+        return { success: false, error: 'Event update timed out. Please check your connection and try again.' };
+      }
+      updateError = error;
+    }
 
     if (updateError) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error updating event');
-      console.error('Error updating event:', updateError);
-      console.error('Event data that failed:', { 
+      console.error('updateEvent: Error updating event:', updateError);
+      console.error('updateEvent: Event data that failed:', { 
         ...dbEvent, 
         description: dbEvent.description ? '[truncated]' : undefined,
         colleges: dbEvent.colleges ? (Array.isArray(dbEvent.colleges) ? `[${dbEvent.colleges.length} colleges]` : dbEvent.colleges) : 'not included'
@@ -1094,57 +1123,93 @@ async function updateEvent(eventId, eventData) {
           errorMsg.includes('does not exist') ||
           errorMsg.toLowerCase().includes('jsonb') ||
           errorMsg.includes('PGRST')) {
-        console.log('Retrying update without colleges column (column may not exist or have issues)...');
+        console.log('updateEvent: Retrying update without colleges column...');
         const retryDbEvent = { ...dbEvent };
         delete retryDbEvent.colleges;
-        const retryResult = await supabase
+        const retryStartTime = Date.now();
+        const retryPromise = supabase
           .from('events')
           .update(retryDbEvent)
           .eq('id', eventId);
+        const retryTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Retry UPDATE timed out after 5 seconds')), 5000)
+        );
         
-        if (retryResult.error) {
-          console.error('Retry update also failed:', retryResult.error);
-          return { success: false, error: retryResult.error.message || 'Failed to update event' };
+        try {
+          const retryResult = await Promise.race([retryPromise, retryTimeoutPromise]);
+          const retryDuration = Date.now() - retryStartTime;
+          console.log(`updateEvent: Retry UPDATE completed in ${retryDuration}ms`);
+          if (retryResult.error) {
+            console.error('updateEvent: Retry update also failed:', retryResult.error);
+            return { success: false, error: retryResult.error.message || 'Failed to update event' };
+          }
+          console.log('updateEvent: Retry update succeeded, fetching updated event...');
+        } catch (retryError) {
+          const retryDuration = Date.now() - retryStartTime;
+          console.error(`updateEvent: Retry UPDATE failed after ${retryDuration}ms:`, retryError);
+          return { success: false, error: retryError.message || 'Retry update timed out' };
         }
-        
-        // Retry succeeded - now fetch the event
-        console.log('Retry update succeeded, fetching updated event...');
       } else {
         return { success: false, error: updateError.message };
       }
     }
     
     // --- Fetch the updated event using guest client to avoid RLS issues ---
-    console.log('UPDATE succeeded, fetching updated event by ID:', eventId);
+    console.log('updateEvent: UPDATE succeeded, fetching updated event by ID:', eventId);
     const fetchStartTime = Date.now();
     let updatedEvent = null;
     
+    console.log('updateEvent: Getting guest client...');
     const guestClient = getGuestSupabaseClient();
-    if (guestClient) {
-      const fetchResult = await guestClient
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .maybeSingle(); // Use maybeSingle to avoid error if 0 rows
+    if (!guestClient) {
+      console.error('updateEvent: Guest client is null/undefined');
+      return { success: false, error: 'Could not fetch updated event (guest client unavailable)' };
+    }
+    console.log('updateEvent: Guest client obtained');
+    
+    const fetchPromise = guestClient
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
+      .maybeSingle();
+    
+    const fetchTimeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Fetch updated event timed out after 5 seconds')), 5000)
+    );
+    
+    try {
+      console.log('updateEvent: Awaiting fetch query (with 5s timeout)...');
+      const fetchResult = await Promise.race([fetchPromise, fetchTimeoutPromise]);
+      const fetchDuration = Date.now() - fetchStartTime;
+      console.log(`updateEvent: Fetch query completed in ${fetchDuration}ms`);
+      console.log('updateEvent: Fetch result:', { 
+        hasData: !!fetchResult?.data, 
+        hasError: !!fetchResult?.error, 
+        error: fetchResult?.error?.message 
+      });
       
       if (fetchResult.data && !fetchResult.error) {
         updatedEvent = fetchResult.data;
-        const fetchDuration = Date.now() - fetchStartTime;
-        console.log(`Updated event fetched by ID in ${fetchDuration}ms`);
+        console.log(`updateEvent: Updated event fetched successfully in ${fetchDuration}ms`);
       } else {
-        console.error('Failed to fetch updated event by ID:', fetchResult.error?.message || 'No data');
+        console.error('updateEvent: Failed to fetch updated event:', fetchResult?.error?.message || 'No data');
         return { success: false, error: 'Event was updated but could not be retrieved. Please refresh the page.' };
       }
-    } else {
-      return { success: false, error: 'Could not fetch updated event (guest client unavailable)' };
+    } catch (fetchError) {
+      const fetchDuration = Date.now() - fetchStartTime;
+      console.error(`updateEvent: Fetch query failed after ${fetchDuration}ms:`, fetchError);
+      if (fetchError.message && fetchError.message.includes('timed out')) {
+        return { success: false, error: 'Event was updated but fetch timed out. Please refresh the page.' };
+      }
+      return { success: false, error: fetchError.message || 'Failed to fetch updated event' };
     }
     
     if (!updatedEvent) {
-      console.error('Update succeeded but could not fetch event for ID:', eventId);
+      console.error('updateEvent: Update succeeded but could not fetch event for ID:', eventId);
       return { success: false, error: 'Event was updated but could not be retrieved. Please refresh the page.' };
     }
     
-    console.log('Event updated successfully:', updatedEvent.id);
+    console.log('updateEvent: Event updated successfully:', updatedEvent.id);
 
     // Update images if provided (images should already be uploaded URLs)
     if (eventData.images !== undefined) {
