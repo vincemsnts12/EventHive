@@ -114,8 +114,15 @@ function setupAuthStateListener() {
   }
 
   authStateListenerInitialized = true;
+  let signInEventProcessed = false; // Prevent duplicate processing
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user?.email) {
+      // Prevent duplicate processing if SIGNED_IN fires multiple times
+      if (signInEventProcessed && lastAuthenticatedUserId === session?.user?.id) {
+        console.log('SIGNED_IN event already processed for this user, skipping');
+        return;
+      }
+      signInEventProcessed = true;
       const email = session.user.email;
       
       console.log('SIGNED_IN event detected for email:', email);
@@ -137,35 +144,44 @@ function setupAuthStateListener() {
       console.log('User successfully authenticated with TUP email:', email);
       // Show welcome message only on first-time signup (not on subsequent logins)
       const userId = session?.user?.id;
+      
+      // Only show message if user changed (not just a token refresh)
+      const isNewUserLogin = lastAuthenticatedUserId !== userId;
+      
+      // Wait a bit for OAuth callback to finish setting flags (if it's a new signup)
+      // This ensures the flag is set before we check it
+      if (isProcessingOAuthCallback) {
+        console.log('OAuth callback in progress, waiting for flag to be set...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Increased wait time
+      }
+      
+      // Check flags after waiting (for OAuth) or immediately (for email/password)
       const signupFlag = localStorage.getItem('eventhive_just_signed_up');
       const signupEmailFlag = localStorage.getItem('eventhive_just_signed_up_email');
+      
+      console.log('Checking signup flags:', { signupFlag, signupEmailFlag, userId, email, isNewUserLogin });
       
       // Check if this is a first-time signup by looking for the signup flag
       // Flag can be either user ID (from email/password signup) or email (fallback)
       const isFirstTimeSignup = (signupFlag && signupFlag === userId) || 
                                  (signupEmailFlag && signupEmailFlag === email);
       
-      // Only show message if user changed (not just a token refresh)
-      const isNewUserLogin = lastAuthenticatedUserId !== userId;
+      console.log('First-time signup check:', { isFirstTimeSignup, isNewUserLogin });
       
-      if (isFirstTimeSignup && !isProcessingOAuthCallback && isNewUserLogin) {
+      if (isFirstTimeSignup && isNewUserLogin) {
         // This is a first-time signup - show welcome message
         lastAuthenticatedUserId = userId;
         alert('Welcome! You have been successfully authenticated with ' + email);
         // Clear both flags so it doesn't show again on next login
         localStorage.removeItem('eventhive_just_signed_up');
         localStorage.removeItem('eventhive_just_signed_up_email');
-      } else if (!isProcessingOAuthCallback && isNewUserLogin && !isFirstTimeSignup) {
+      } else if (isNewUserLogin && !isFirstTimeSignup) {
         // This is a regular login (not first-time, and different user than last time)
-        // Show login success message for OAuth logins (email/password login shows message in login form handler)
+        // Show login success message for all logins (OAuth and email/password)
+        // Email/password login also shows message in login form handler, but that's okay - 
+        // this covers OAuth logins and page reloads
         lastAuthenticatedUserId = userId;
-        // Check if this is coming from OAuth (not email/password login form)
-        // OAuth logins don't go through the login form, so show message here
-        const isOAuthLogin = window.location.hash.includes('access_token') || 
-                            window.location.search.includes('code=');
-        if (isOAuthLogin) {
-          alert('Log in successful!');
-        }
+        alert('Log in successful!');
       } else {
         // Same user, just updating - don't show message
         lastAuthenticatedUserId = userId;
@@ -174,6 +190,7 @@ function setupAuthStateListener() {
     } else if (event === 'SIGNED_OUT') {
       console.log('User signed out');
       lastAuthenticatedUserId = null; // Reset so alert shows again on next sign-in
+      signInEventProcessed = false; // Reset flag for next sign-in
       // TODO: Update UI to reflect logged-out state
     } else if (event === 'TOKEN_REFRESHED') {
       console.log('Session token refreshed');
@@ -332,6 +349,7 @@ async function handleOAuthCallback() {
               const session = data?.session;
               if (session?.user?.email) {
                 const email = session.user.email;
+                const userId = session.user.id;
                 if (!isAllowedEmailDomain(email)) {
                   console.warn('Rejecting non-TUP email (fallback setSession):', email);
                   try { await supabaseClient.auth.signOut(); } catch (err) { console.error('Error signing out non-TUP user (fallback setSession):', err); }
@@ -339,6 +357,28 @@ async function handleOAuthCallback() {
                   // Clear URL fragment immediately
                   window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
                   return;
+                }
+                // Check if this is a first-time signup via Google OAuth (fallback path)
+                try {
+                  const { data: profile, error: profileError } = await supabaseClient
+                    .from('profiles')
+                    .select('created_at')
+                    .eq('id', userId)
+                    .single();
+                  
+                  if (!profileError && profile) {
+                    const profileCreatedAt = new Date(profile.created_at);
+                    const now = new Date();
+                    const secondsSinceCreation = (now - profileCreatedAt) / 1000;
+                    
+                    // If profile was created within last 10 seconds, it's likely a new signup
+                    if (secondsSinceCreation < 10) {
+                      localStorage.setItem('eventhive_just_signed_up', userId);
+                      console.log('New user detected via Google OAuth (fallback), welcome message will be shown');
+                    }
+                  }
+                } catch (err) {
+                  console.warn('Could not check if user is new via OAuth (fallback):', err);
                 }
                 // Successful validation
                 console.log('OAuth fallback validated for TUP user (setSession):', email);
@@ -359,12 +399,35 @@ async function handleOAuthCallback() {
             const session = data?.session;
             if (session?.user?.email) {
               const email = session.user.email;
+              const userId = session.user.id;
               if (!isAllowedEmailDomain(email)) {
                 console.warn('Rejecting non-TUP email (fallback getSession):', email);
                 try { await supabaseClient.auth.signOut(); } catch (err) { console.error('Error signing out non-TUP user (fallback getSession):', err); }
                 alert('Access Denied: Only TUP email addresses (@tup.edu.ph) are allowed. Your account has been removed.');
                 window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
                 return;
+              }
+              // Check if this is a first-time signup via Google OAuth (fallback path)
+              try {
+                const { data: profile, error: profileError } = await supabaseClient
+                  .from('profiles')
+                  .select('created_at')
+                  .eq('id', userId)
+                  .single();
+                
+                if (!profileError && profile) {
+                  const profileCreatedAt = new Date(profile.created_at);
+                  const now = new Date();
+                  const secondsSinceCreation = (now - profileCreatedAt) / 1000;
+                  
+                  // If profile was created within last 10 seconds, it's likely a new signup
+                  if (secondsSinceCreation < 10) {
+                    localStorage.setItem('eventhive_just_signed_up', userId);
+                    console.log('New user detected via Google OAuth (fallback getSession), welcome message will be shown');
+                  }
+                }
+              } catch (err) {
+                console.warn('Could not check if user is new via OAuth (fallback getSession):', err);
               }
               console.log('OAuth fallback validated for TUP user (getSession):', email);
               window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
