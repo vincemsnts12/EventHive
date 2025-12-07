@@ -147,6 +147,21 @@ function setupAuthStateListener() {
       
       console.log('User successfully authenticated with TUP email:', email);
       
+      // Check if email is verified (required for all users)
+      if (!session.user.email_confirmed_at) {
+        console.warn('User email not verified:', email);
+        // Sign out unverified user
+        try {
+          await supabaseClient.auth.signOut();
+          console.log('Unverified user signed out:', email);
+        } catch (err) {
+          console.error('Error signing out unverified user:', err);
+        }
+        alert('Please verify before logging in. A verification has been sent to your TUP Email.');
+        processedUserIds.delete(userId); // Remove from processed set
+        return;
+      }
+      
       // Only show message if user changed (not just a token refresh)
       const isNewUserLogin = lastAuthenticatedUserId !== userId;
       
@@ -503,6 +518,141 @@ async function handleOAuthCallback() {
   }, 500);
 }
 
+// ===== HANDLE EMAIL VERIFICATION CALLBACK =====
+// Process email verification callback when user clicks verification link
+async function handleEmailVerificationCallback() {
+  if (!supabaseClient) {
+    supabaseClient = initSupabase();
+    if (!supabaseClient) return;
+  }
+
+  try {
+    // Check if URL contains email verification tokens
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const searchParams = new URLSearchParams(window.location.search);
+    
+    const type = hashParams.get('type') || searchParams.get('type');
+    const token = hashParams.get('token') || searchParams.get('token');
+    const tokenHash = hashParams.get('token_hash') || searchParams.get('token_hash');
+    
+    // Supabase email verification uses 'type=email' and 'token' or 'token_hash'
+    if (type === 'email' && (token || tokenHash)) {
+      console.log('Processing email verification callback...');
+      
+      // Supabase v2: Use getSessionFromUrl if available, otherwise use verifyOtp
+      if (supabaseClient.auth && typeof supabaseClient.auth.getSessionFromUrl === 'function') {
+        // getSessionFromUrl automatically handles email verification tokens
+        const { data, error } = await supabaseClient.auth.getSessionFromUrl();
+        
+        if (error) {
+          console.error('Email verification error:', error);
+          alert('Email verification failed. Please try again or request a new verification email.');
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+        
+        if (data?.session?.user) {
+          console.log('Email verified successfully via getSessionFromUrl:', data.session.user.email);
+          // User is automatically logged in - SIGNED_IN event will fire
+          // Set flag for welcome message if this is first-time signup
+          const userId = data.session.user.id;
+          
+          // Check if this is a first-time signup
+          try {
+            const { data: profile, error: profileError } = await supabaseClient
+              .from('profiles')
+              .select('created_at')
+              .eq('id', userId)
+              .single();
+            
+            if (!profileError && profile) {
+              const profileCreatedAt = new Date(profile.created_at);
+              const now = new Date();
+              const secondsSinceCreation = (now - profileCreatedAt) / 1000;
+              
+              // If profile was created within last 5 minutes, it's likely a new signup
+              if (secondsSinceCreation < 300) {
+                localStorage.setItem('eventhive_just_signed_up', userId);
+                console.log('New user verified via email, welcome message will be shown');
+              }
+            }
+          } catch (err) {
+            console.warn('Could not check if user is new:', err);
+          }
+          
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          // Redirect to homepage if not already there
+          if (window.location.pathname !== '/eventhive-homepage.html' && 
+              !window.location.pathname.endsWith('eventhive-homepage.html') &&
+              window.location.pathname !== '/' &&
+              !window.location.pathname.endsWith('index.html')) {
+            window.location.href = 'eventhive-homepage.html';
+          }
+        }
+      } else {
+        // Fallback: Use verifyOtp for email verification
+        const { data, error } = await supabaseClient.auth.verifyOtp({
+          token_hash: tokenHash || token,
+          type: 'email'
+        });
+        
+        if (error) {
+          console.error('Email verification error:', error);
+          alert('Email verification failed. Please try again or request a new verification email.');
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+        
+        if (data?.user) {
+          console.log('Email verified successfully via verifyOtp:', data.user.email);
+          // User is now verified and logged in automatically
+          // The SIGNED_IN event will be fired by Supabase
+          const userId = data.user.id;
+          
+          // Check if this is a first-time signup
+          try {
+            const { data: profile, error: profileError } = await supabaseClient
+              .from('profiles')
+              .select('created_at')
+              .eq('id', userId)
+              .single();
+            
+            if (!profileError && profile) {
+              const profileCreatedAt = new Date(profile.created_at);
+              const now = new Date();
+              const secondsSinceCreation = (now - profileCreatedAt) / 1000;
+              
+              if (secondsSinceCreation < 300) {
+                localStorage.setItem('eventhive_just_signed_up', userId);
+                console.log('New user verified via email, welcome message will be shown');
+              }
+            }
+          } catch (err) {
+            console.warn('Could not check if user is new:', err);
+          }
+          
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          // Redirect to homepage if not already there
+          if (window.location.pathname !== '/eventhive-homepage.html' && 
+              !window.location.pathname.endsWith('eventhive-homepage.html') &&
+              window.location.pathname !== '/' &&
+              !window.location.pathname.endsWith('index.html')) {
+            window.location.href = 'eventhive-homepage.html';
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error processing email verification callback:', err);
+    // Clean up URL even on error
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
 // ===== INITIALIZE ON PAGE LOAD =====
 // Automatically initialize Supabase when the page loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -511,6 +661,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupAuthStateListener();
     // Handle OAuth callback if present
     await handleOAuthCallback();
+    // Handle email verification callback if present
+    await handleEmailVerificationCallback();
   } else {
     // Retry after a short delay if Supabase library hasn't loaded yet
     setTimeout(async () => {
@@ -519,6 +671,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupAuthStateListener();
         // Handle OAuth callback if present
         await handleOAuthCallback();
+        // Handle email verification callback if present
+        await handleEmailVerificationCallback();
       }
     }, 100);
   }

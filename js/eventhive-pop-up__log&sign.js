@@ -205,15 +205,42 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (error) {
-              alert('Login failed: ' + error.message);
+              // Check if error is due to unverified email
+              const errorMessage = error.message || '';
+              const errorCode = error.status || '';
+              
+              // Supabase returns specific error for unverified emails
+              if (errorMessage.toLowerCase().includes('email not confirmed') || 
+                  errorMessage.toLowerCase().includes('email not verified') ||
+                  errorMessage.toLowerCase().includes('confirm your email') ||
+                  errorCode === 400) {
+                alert('Please verify before logging in. A verification has been sent to your TUP Email.');
+              } else {
+                alert('Login failed: ' + errorMessage);
+              }
+              
               if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Login';
               }
               if (typeof logSecurityEvent === 'function') {
-                logSecurityEvent('FAILED_LOGIN', { email: email, error: error.message }, 'User login attempt failed');
+                logSecurityEvent('FAILED_LOGIN', { email: loginEmail, error: error.message }, 'User login attempt failed');
               }
             } else {
+              // Check if email is verified
+              if (data?.user && !data.user.email_confirmed_at) {
+                // User is not verified - sign them out and show error
+                await supabase.auth.signOut();
+                alert('Please verify before logging in. A verification has been sent to your TUP Email.');
+                if (submitBtn) {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'Login';
+                }
+                if (typeof logSecurityEvent === 'function') {
+                  logSecurityEvent('FAILED_LOGIN', { email: loginEmail, reason: 'unverified_email' }, 'User attempted login with unverified email');
+                }
+                return;
+              }
               // Success - wait for both auth and profile to load BEFORE completing login
               // This ensures dropdown is functional immediately after login
               
@@ -466,9 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.textContent = 'Sign Up';
               }
             } else {
-              // Success - show message and close modal
-              alert('Signup successful! Please check your email to verify your account.');
-              
+              // Success - user signed up, verification email sent
               // Set flag to show welcome message on first sign-in (after email verification)
               // Store the user ID if available, otherwise store email as fallback
               if (data?.user?.id) {
@@ -488,6 +513,8 @@ document.addEventListener('DOMContentLoaded', () => {
               if (typeof logSecurityEvent === 'function') {
                 logSecurityEvent('USER_SIGNUP', { email: email }, 'New user signed up');
               }
+              
+              // Note: No alert shown - user must verify email before logging in
             }
           } catch (err) {
             console.error('Signup error:', err);
