@@ -96,7 +96,18 @@ async function toggleEventLike(eventId) {
  * @returns {Promise<{success: boolean, count: number, error?: string}>}
  */
 async function getEventLikeCount(eventId) {
-  const supabase = getSupabaseClient();
+  // Use guest client for fetching like counts (no authentication needed)
+  // Get from window (exposed by eventhive-events-services.js) or use regular client as fallback
+  let supabase;
+  if (typeof window !== 'undefined' && typeof window.getGuestSupabaseClient === 'function') {
+    supabase = window.getGuestSupabaseClient();
+  } else if (typeof getGuestSupabaseClient === 'function') {
+    supabase = getGuestSupabaseClient();
+  } else {
+    // Fallback to regular client if guest client function not available
+    supabase = getSupabaseClient();
+  }
+  
   if (!supabase) {
     return { success: false, count: 0, error: 'Supabase not initialized' };
   }

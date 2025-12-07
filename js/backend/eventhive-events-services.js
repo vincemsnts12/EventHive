@@ -22,6 +22,7 @@
 // Global guest client for fetching events (no session, no RLS issues)
 let guestSupabaseClient = null;
 
+// Expose to window so other files can use it
 function getGuestSupabaseClient() {
   // Reuse existing guest client if available
   if (guestSupabaseClient) {
@@ -58,6 +59,11 @@ function getGuestSupabaseClient() {
   });
   
   return guestSupabaseClient;
+}
+
+// Expose to window for use in other files
+if (typeof window !== 'undefined') {
+  window.getGuestSupabaseClient = getGuestSupabaseClient;
 }
 
 async function getEvents(options = {}) {
@@ -1033,7 +1039,8 @@ async function rejectEvent(eventId) {
  * @returns {Promise<{success: boolean, images: Array, thumbnailIndex: number, error?: string}>}
  */
 async function getEventImages(eventId) {
-  const supabase = getSupabaseClient();
+  // Use guest client for fetching images (no authentication needed)
+  const supabase = getGuestSupabaseClient();
   if (!supabase) {
     return { success: false, images: [], thumbnailIndex: 0, error: 'Supabase not initialized' };
   }
