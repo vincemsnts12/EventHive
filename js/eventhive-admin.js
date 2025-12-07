@@ -1373,31 +1373,59 @@ async function saveCollegeEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Update local data - support both old and new format
-    event.colleges = colleges; // Array of all colleges
-    event.mainCollege = mainCollegeCode; // Main college for card display
-    event.college = mainCollegeCode; // Keep for backward compatibility
-    event.collegeColor = mainCollege.color; // Color for main college
+    // Prepare update data (don't modify original event yet)
+    const updateData = {
+      ...event,
+      colleges: colleges, // Array of all colleges
+      mainCollege: mainCollegeCode, // Main college for card display
+      college: mainCollegeCode, // Keep for backward compatibility
+      collegeColor: mainCollege.color // Color for main college
+    };
     
     // Save to Supabase if function available
     if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-      const result = await updateEvent(currentEditingEventId, event);
+      const result = await updateEvent(currentEditingEventId, updateData);
       if (!result.success) {
+        console.error('Failed to update college:', result.error);
         alert(`Error saving college: ${result.error}`);
         return;
       }
-      if (result.event) Object.assign(event, result.event);
+      // Only update local data if database save succeeded
+      if (result.event) {
+        Object.assign(event, result.event);
+      } else {
+        // Fallback: update local data with what we tried to save
+        Object.assign(event, updateData);
+      }
       rowsInEditMode.delete(currentEditingEventId);
     } else if (currentEditingTable === 'pending') {
       if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-        const result = await updateEvent(event.id, event);
+        const result = await updateEvent(event.id, updateData);
         if (!result.success) {
           console.warn('Failed to persist pending college edit:', result.error);
+          console.warn('Update data that failed:', { 
+            ...updateData, 
+            description: '[truncated]',
+            colleges: updateData.colleges ? `[${updateData.colleges.length} colleges]` : 'none'
+          });
+          // Update local data even if database save failed (draft mode)
+          Object.assign(event, updateData);
           alert(`Draft saved locally. Sync failed: ${result.error}`);
-        } else if (result.event) {
-          Object.assign(event, result.event);
+        } else {
+          // Database save succeeded - use the returned event data
+          if (result.event) {
+            Object.assign(event, result.event);
+          } else {
+            Object.assign(event, updateData);
+          }
         }
+      } else {
+        // No valid UUID or updateEvent not available - just update locally
+        Object.assign(event, updateData);
       }
+    } else {
+      // No database save attempted - just update locally
+      Object.assign(event, updateData);
     }
     
     closeModal('editCollegeModal');
@@ -1408,6 +1436,9 @@ async function saveCollegeEdit() {
     } else {
       populatePendingEventsTable();
     }
+  } catch (error) {
+    console.error('Unexpected error in saveCollegeEdit:', error);
+    alert(`An unexpected error occurred: ${error.message}`);
   } finally {
     // Restore cursor
     document.body.style.cursor = '';

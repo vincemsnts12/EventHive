@@ -680,7 +680,39 @@ async function updateEvent(eventId, eventData) {
         description: dbEvent.description ? '[truncated]' : undefined,
         colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
       });
-      return { success: false, error: updateError.message };
+      
+      // If error is about colleges column, try again without it
+      const errorMsg = updateError.message || '';
+      if (errorMsg.includes('colleges') || 
+          errorMsg.includes('column') ||
+          errorMsg.includes('does not exist') ||
+          errorMsg.toLowerCase().includes('jsonb') ||
+          errorMsg.includes('PGRST')) {
+        console.log('Retrying update without colleges column (column may not exist or have issues)...');
+        const retryDbEvent = { ...dbEvent };
+        delete retryDbEvent.colleges;
+        const retryResult = await supabase
+          .from('events')
+          .update(retryDbEvent)
+          .eq('id', eventId)
+          .select()
+          .single();
+        
+        if (retryResult.error) {
+          console.error('Retry update also failed:', retryResult.error);
+          return { success: false, error: retryResult.error.message || 'Failed to update event' };
+        }
+        
+        if (!retryResult.data) {
+          console.error('Retry update succeeded but no event returned for ID:', eventId);
+          return { success: false, error: 'Event was updated but could not be retrieved' };
+        }
+        
+        console.log('Event updated successfully after retry (without colleges column):', retryResult.data.id);
+        updatedEvent = retryResult.data;
+      } else {
+        return { success: false, error: updateError.message };
+      }
     }
     
     if (!updatedEvent) {
