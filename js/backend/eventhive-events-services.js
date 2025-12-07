@@ -51,24 +51,67 @@ async function getEvents(options = {}) {
   try {
     // CRITICAL: Check if user is authenticated FIRST - auth state should already be stabilized by caller
     // DO NOT build or execute any queries until after this check completes
+    // OPTIMIZATION: Check localStorage first to avoid hanging getSession() calls
     let shouldSortInJS = false;
+    let isAuthenticated = false;
     
-    // Session check - should be fast now since auth state is stabilized by caller
+    // First, check localStorage for session data (faster, doesn't hang)
     try {
-      const sessionCheckPromise = supabase.auth.getSession();
-      const sessionCheckTimeout = new Promise((resolve) => 
-        setTimeout(() => resolve({ data: { session: null }, error: null }), 500) // 500ms timeout
+      const localStorageKeys = Object.keys(localStorage);
+      const supabaseSessionKey = localStorageKeys.find(key => 
+        key.includes('supabase') && key.includes('auth-token')
+      ) || localStorageKeys.find(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
       );
-      const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
-      if (sessionResult?.data?.session?.user) {
-        console.log('User is authenticated - will sort in JavaScript to avoid RLS timeout');
-        shouldSortInJS = true;
-      } else {
-        console.log('User is not authenticated - using database order by');
+      
+      if (supabaseSessionKey) {
+        const sessionDataStr = localStorage.getItem(supabaseSessionKey);
+        if (sessionDataStr) {
+          try {
+            const sessionData = JSON.parse(sessionDataStr);
+            // Check if session has access_token and expires_at
+            if (sessionData.access_token && sessionData.expires_at) {
+              const expiresAt = sessionData.expires_at;
+              const now = Math.floor(Date.now() / 1000); // Current time in seconds
+              const thirtyMinutesAgo = now - (30 * 60); // 30 minutes ago in seconds
+              
+              // If session expires_at is within the last 30 minutes, it's recent enough
+              if (expiresAt > thirtyMinutesAgo) {
+                console.log('Valid session found in localStorage, assuming authenticated');
+                isAuthenticated = true;
+                shouldSortInJS = true;
+              }
+            }
+          } catch (parseError) {
+            // Ignore parse errors, will check session normally
+          }
+        }
       }
-    } catch (userCheckError) {
-      // If session check fails, assume guest
-      console.log('Session check failed, assuming guest - using database order by');
+    } catch (localStorageError) {
+      // Ignore localStorage errors, will check session normally
+    }
+    
+    // If localStorage check didn't find a session, try getSession() with timeout
+    if (!isAuthenticated) {
+      try {
+        const sessionCheckPromise = supabase.auth.getSession();
+        const sessionCheckTimeout = new Promise((resolve) => 
+          setTimeout(() => resolve({ data: { session: null }, error: null }), 500) // 500ms timeout
+        );
+        const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
+        if (sessionResult?.data?.session?.user) {
+          console.log('User is authenticated (from session check) - will sort in JavaScript to avoid RLS timeout');
+          shouldSortInJS = true;
+          isAuthenticated = true;
+        } else {
+          console.log('User is not authenticated - using database order by');
+        }
+      } catch (userCheckError) {
+        // If session check fails, assume guest
+        console.log('Session check failed, assuming guest - using database order by');
+      }
+    } else {
+      console.log('User is authenticated (from localStorage) - will sort in JavaScript to avoid RLS timeout');
     }
     
     // NOW that auth state is confirmed, proceed with query building and execution
@@ -76,10 +119,12 @@ async function getEvents(options = {}) {
     console.log('Query starting at:', new Date().toISOString());
     
     // Build query - for authenticated users, skip order by to avoid RLS timeout
-    // The query itself might be slow for authenticated users, but without order by it should work
+    // Select specific columns instead of '*' to avoid JSONB overhead
+    // Don't select 'colleges' JSONB column initially - it's expensive and we'll check it after successful fetch
+    // Just use college_code (one college) for now
     let query = supabase
       .from('events')
-      .select('*');
+      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, organization_id, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
     
     // Apply filters first
     if (options.status) {

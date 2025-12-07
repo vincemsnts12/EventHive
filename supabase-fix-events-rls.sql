@@ -5,6 +5,9 @@
 -- Drop the existing INSERT policy
 DROP POLICY IF EXISTS "Authenticated users can create events" ON events;
 
+-- Drop the new policy if it already exists (in case script was run before)
+DROP POLICY IF EXISTS "Only admins can create events" ON events;
+
 -- Create new INSERT policy that only allows admins
 CREATE POLICY "Only admins can create events"
   ON events FOR INSERT
