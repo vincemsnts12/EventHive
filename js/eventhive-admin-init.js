@@ -19,8 +19,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('initSupabase function not found - Supabase may not be loaded');
   }
   
-  // Wait a moment for Supabase to fully initialize (like other pages do implicitly)
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // Wait for Supabase to fully initialize and establish connection
+  // Check if Supabase client is ready before proceeding
+  let retries = 0;
+  const maxRetries = 15; // 15 retries * 200ms = 3 seconds max wait
+  let supabaseReady = false;
+  
+  while (retries < maxRetries && !supabaseReady) {
+    await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms between checks
+    
+    if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase && typeof supabase.from === 'function') {
+        // Test connection with a simple query
+        try {
+          const testQuery = supabase.from('events').select('id').limit(1);
+          const testTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Test timeout')), 2000)
+          );
+          await Promise.race([testQuery, testTimeout]);
+          supabaseReady = true;
+          console.log('Supabase connection verified after', (retries + 1) * 200, 'ms');
+        } catch (testError) {
+          // Connection not ready yet, continue waiting
+          retries++;
+          if (retries < maxRetries) {
+            console.log(`Waiting for Supabase connection... (attempt ${retries}/${maxRetries})`);
+          }
+        }
+      } else {
+        retries++;
+        if (retries < maxRetries) {
+          console.log(`Waiting for Supabase client... (attempt ${retries}/${maxRetries})`);
+        }
+      }
+    } else {
+      retries++;
+      if (retries < maxRetries) {
+        console.log(`Waiting for getSupabaseClient function... (attempt ${retries}/${maxRetries})`);
+      }
+    }
+  }
+  
+  if (!supabaseReady) {
+    console.warn('Supabase connection not ready after max retries, proceeding anyway...');
+  } else {
+    console.log('Supabase connection established, proceeding with event fetch...');
+  }
   
   // Load all events from Supabase in one query, then classify locally
   if (typeof getEvents === 'function') {
