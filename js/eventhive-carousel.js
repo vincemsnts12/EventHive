@@ -123,7 +123,9 @@ function renderTopEvents() {
   topThree.forEach(ev => {
     const card = document.createElement('div');
     card.className = 'event-card';
-    card.setAttribute('data-category', ev.college || '');
+    // Use main college for event card
+    const mainCollege = ev.mainCollege || ev.college || 'TUP';
+    card.setAttribute('data-category', mainCollege || '');
     card.addEventListener('click', () => {
       localStorage.setItem('selectedEventId', ev.id);
       window.location.href = 'eventhive-events.html';

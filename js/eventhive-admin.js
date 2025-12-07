@@ -207,23 +207,41 @@ function populatePublishedEventsTable() {
     dateCell.appendChild(dateDisplay);
     row.appendChild(dateCell);
     
-    // College Tags
+    // College Tags - show all colleges
     const collegeCell = document.createElement('td');
     collegeCell.className = 'tags-cell';
     collegeCell.setAttribute('data-label', 'College');
     const collegeContainer = document.createElement('div');
     collegeContainer.className = 'tags-container';
-    const collegeTag = document.createElement('span');
-    collegeTag.className = `tag-item tag-item--college ${event.collegeColor === 'tup' ? 'tag-item--tup' : ''}`;
-    collegeTag.textContent = event.college;
-    collegeTag.setAttribute('data-event-id', eventId);
-    collegeTag.addEventListener('click', () => {
-      if (rowsInEditMode.has(eventId)) {
-        currentEditingTable = 'published';
-        openEditCollegeModal(eventId, event.college);
+    
+    // Get colleges array (support both old single college and new multiple colleges)
+    const colleges = event.colleges || (event.college ? [event.college] : []);
+    const mainCollege = event.mainCollege || event.college || 'TUP';
+    
+    colleges.forEach((collegeCode, index) => {
+      const college = availableColleges.find(c => c.code === collegeCode);
+      if (!college) return;
+      
+      const collegeTag = document.createElement('span');
+      collegeTag.className = `tag-item tag-item--college ${college.color === 'tup' ? 'tag-item--tup' : ''}`;
+      collegeTag.textContent = college.name;
+      
+      // Mark main college with a visual indicator
+      if (collegeCode === mainCollege) {
+        collegeTag.style.fontWeight = 'bold';
+        collegeTag.title = 'Main College (shown on event card)';
       }
+      
+      collegeTag.setAttribute('data-event-id', eventId);
+      collegeTag.addEventListener('click', () => {
+        if (rowsInEditMode.has(eventId)) {
+          currentEditingTable = 'published';
+          openEditCollegeModal(eventId, event.college || mainCollege);
+        }
+      });
+      collegeContainer.appendChild(collegeTag);
     });
-    collegeContainer.appendChild(collegeTag);
+    
     row.appendChild(collegeCell);
     collegeCell.appendChild(collegeContainer);
     
@@ -407,7 +425,9 @@ async function createNewPendingEvent() {
     status: 'Pending',
     isFeatured: false,
     likes: 0,
-    college: 'TUP',
+    college: 'TUP', // Main college (for backward compatibility)
+    colleges: ['TUP'], // Array of all colleges
+    mainCollege: 'TUP', // Main college for event card display
     collegeColor: 'tup',
     organization: 'TUP USG Manila',
     images: [], // Empty images array
@@ -950,9 +970,68 @@ function openEditCollegeModal(eventId, currentCollege) {
   currentEditingField = 'college';
   if (!currentEditingTable) currentEditingTable = 'published';
   
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[eventId];
+  
+  // Get current colleges (support both old single college and new multiple colleges)
+  const currentColleges = event.colleges || (event.college ? [event.college] : []);
+  const mainCollege = event.mainCollege || event.college || 'TUP';
+  
   const selector = document.getElementById('collegeTagSelector');
   selector.innerHTML = '';
   
+  // Add main college selector label
+  const mainLabel = document.createElement('div');
+  mainLabel.className = 'college-selector-label';
+  mainLabel.textContent = 'Select Main College (for event card display):';
+  mainLabel.style.marginBottom = '10px';
+  mainLabel.style.fontWeight = 'bold';
+  mainLabel.style.color = '#333';
+  selector.appendChild(mainLabel);
+  
+  // Create radio buttons for main college selection
+  const mainCollegeContainer = document.createElement('div');
+  mainCollegeContainer.className = 'main-college-selector';
+  mainCollegeContainer.style.marginBottom = '20px';
+  mainCollegeContainer.style.paddingBottom = '15px';
+  mainCollegeContainer.style.borderBottom = '2px solid #e0e0e0';
+  
+  availableColleges.forEach(college => {
+    const item = document.createElement('div');
+    item.className = 'tag-radio-item';
+    item.style.marginBottom = '8px';
+    
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'mainCollege';
+    radio.id = `main-college-${college.code}`;
+    radio.value = college.code;
+    radio.checked = mainCollege === college.code;
+    
+    const label = document.createElement('label');
+    label.setAttribute('for', `main-college-${college.code}`);
+    label.textContent = college.name;
+    label.style.marginLeft = '8px';
+    label.style.cursor = 'pointer';
+    
+    item.appendChild(radio);
+    item.appendChild(label);
+    mainCollegeContainer.appendChild(item);
+  });
+  
+  selector.appendChild(mainCollegeContainer);
+  
+  // Add collaboration colleges label
+  const collabLabel = document.createElement('div');
+  collabLabel.className = 'college-selector-label';
+  collabLabel.textContent = 'Select Collaboration Colleges (for event description):';
+  collabLabel.style.marginTop = '10px';
+  collabLabel.style.marginBottom = '10px';
+  collabLabel.style.fontWeight = 'bold';
+  collabLabel.style.color = '#333';
+  selector.appendChild(collabLabel);
+  
+  // Create checkboxes for all colleges (collaboration)
   availableColleges.forEach(college => {
     const item = document.createElement('div');
     item.className = 'tag-checkbox-item';
@@ -961,7 +1040,7 @@ function openEditCollegeModal(eventId, currentCollege) {
     checkbox.type = 'checkbox';
     checkbox.id = `college-${college.code}`;
     checkbox.value = college.code;
-    checkbox.checked = currentCollege === college.code;
+    checkbox.checked = currentColleges.includes(college.code);
     
     const label = document.createElement('label');
     label.setAttribute('for', `college-${college.code}`);
@@ -1253,18 +1332,28 @@ async function saveLocationEdit() {
 
 async function saveCollegeEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
-  const checked = document.querySelectorAll('#collegeTagSelector input[type="checkbox"]:checked');
   
-  if (checked.length === 0) {
-    alert('Please select at least one college');
+  // Get main college (radio button)
+  const mainCollegeRadio = document.querySelector('#collegeTagSelector input[name="mainCollege"]:checked');
+  if (!mainCollegeRadio) {
+    alert('Please select a main college');
     return;
   }
   
-  // For now, take first selected (can be expanded for multiple)
-  const selectedCollege = availableColleges.find(c => c.code === checked[0].value);
-  if (!selectedCollege) {
-    alert('Invalid college selection');
+  const mainCollegeCode = mainCollegeRadio.value;
+  const mainCollege = availableColleges.find(c => c.code === mainCollegeCode);
+  if (!mainCollege) {
+    alert('Invalid main college selection');
     return;
+  }
+  
+  // Get collaboration colleges (checkboxes)
+  const checked = document.querySelectorAll('#collegeTagSelector input[type="checkbox"]:checked');
+  const colleges = Array.from(checked).map(cb => cb.value);
+  
+  // Ensure main college is included in colleges array
+  if (!colleges.includes(mainCollegeCode)) {
+    colleges.push(mainCollegeCode);
   }
   
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
@@ -1279,9 +1368,11 @@ async function saveCollegeEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-    // Update local data
-    event.college = selectedCollege.code;
-    event.collegeColor = selectedCollege.color;
+    // Update local data - support both old and new format
+    event.colleges = colleges; // Array of all colleges
+    event.mainCollege = mainCollegeCode; // Main college for card display
+    event.college = mainCollegeCode; // Keep for backward compatibility
+    event.collegeColor = mainCollege.color; // Color for main college
     
     // Save to Supabase if function available
     if (typeof updateEvent === 'function' && currentEditingTable === 'published') {

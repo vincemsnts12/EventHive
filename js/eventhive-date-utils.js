@@ -245,7 +245,8 @@ function eventToDatabase(event) {
     start_date: startDate ? formatDateForDatabase(startDate) : null,
     end_date: endDate ? formatDateForDatabase(endDate) : null,
     is_featured: event.isFeatured || false,
-    college_code: event.college,
+    college_code: event.mainCollege || event.college, // Main college for backward compatibility
+    colleges: event.colleges && event.colleges.length > 0 ? event.colleges : null, // Store multiple colleges as JSONB array (Supabase handles conversion)
     organization_name: event.organization, // Only use organization_name, not organization_id
     university_logo_url: event.universityLogo,
     status: event.status || 'Pending', // Will be calculated on insert/update
@@ -279,6 +280,33 @@ function eventFromDatabase(dbEvent, images = [], likesCount = 0, thumbnailIndex 
     ? thumbnailIndex 
     : 0;
   
+  // Parse colleges from JSONB or use single college_code
+  let colleges = [];
+  let mainCollege = dbEvent.college_code;
+  
+  if (dbEvent.colleges) {
+    try {
+      // Supabase returns JSONB as array/object, but handle string case for safety
+      if (Array.isArray(dbEvent.colleges)) {
+        colleges = dbEvent.colleges;
+      } else if (typeof dbEvent.colleges === 'string') {
+        colleges = JSON.parse(dbEvent.colleges);
+      } else {
+        colleges = [];
+      }
+      
+      // Ensure main college is in the array
+      if (mainCollege && !colleges.includes(mainCollege)) {
+        colleges.push(mainCollege);
+      }
+    } catch (e) {
+      console.warn('Failed to parse colleges JSONB:', e);
+      colleges = dbEvent.college_code ? [dbEvent.college_code] : [];
+    }
+  } else if (dbEvent.college_code) {
+    colleges = [dbEvent.college_code];
+  }
+  
   return {
     id: dbEvent.id,
     title: dbEvent.title,
@@ -289,8 +317,10 @@ function eventFromDatabase(dbEvent, images = [], likesCount = 0, thumbnailIndex 
     statusColor: getStatusColor(status),
     isFeatured: dbEvent.is_featured || false,
     likes: likesCount,
-    college: dbEvent.college_code,
-    collegeColor: getCollegeColorClass(dbEvent.college_code),
+    college: mainCollege, // Main college (for backward compatibility)
+    colleges: colleges, // Array of all colleges
+    mainCollege: mainCollege, // Main college for event card display
+    collegeColor: getCollegeColorClass(mainCollege),
     organization: dbEvent.organization_name, // Only use organization_name, not organization_id
     images: images,
     thumbnailIndex: finalThumbnailIndex, // Add thumbnailIndex to frontend object

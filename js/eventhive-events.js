@@ -42,7 +42,37 @@ function updateEventDetails(eventId) {
   
   // 1. Update Text Elements
   if(document.getElementById('event-title')) document.getElementById('event-title').textContent = event.title;
-  if(document.getElementById('event-description')) document.getElementById('event-description').textContent = event.description;
+  
+  // Update description with college information
+  const descriptionElement = document.getElementById('event-description');
+  if (descriptionElement) {
+    let descriptionText = event.description || '';
+    
+    // Add college information to description if multiple colleges
+    const colleges = event.colleges || (event.college ? [event.college] : []);
+    if (colleges.length > 1) {
+      // Define college names mapping (same as in dropdown-searchbar.js)
+      const collegeNameMap = {
+        'COS': 'College of Science',
+        'COE': 'College of Engineering',
+        'CLA': 'College of Liberal Arts',
+        'CIE': 'College of Industrial Education',
+        'CIT': 'College of Industrial Technology',
+        'CAFA': 'College of Architecture and Fine Arts',
+        'TUP': 'TUP System-wide'
+      };
+      
+      const collegeNames = colleges.map(code => collegeNameMap[code] || code).filter(Boolean);
+      
+      if (collegeNames.length > 1) {
+        const collegeInfo = `\n\nThis event is a collaboration between: ${collegeNames.join(', ')}.`;
+        descriptionText += collegeInfo;
+      }
+    }
+    
+    descriptionElement.textContent = descriptionText;
+  }
+  
   if(document.getElementById('event-location')) document.getElementById('event-location').textContent = event.location;
   if(document.getElementById('event-date')) document.getElementById('event-date').textContent = event.date;
   
@@ -90,13 +120,25 @@ function updateEventDetails(eventId) {
     statusText.textContent = event.status;
   }
 
-  // 5. UPDATE COLLEGE TAG
+  // 5. UPDATE COLLEGE TAG (use main college for display)
   const collegeTag = document.getElementById('college-tag');
   if (collegeTag) {
-    collegeTag.textContent = event.college;
+    const mainCollege = event.mainCollege || event.college || 'TUP';
+    const collegeNameMap = {
+      'COS': 'College of Science',
+      'COE': 'College of Engineering',
+      'CLA': 'College of Liberal Arts',
+      'CIE': 'College of Industrial Education',
+      'CIT': 'College of Industrial Technology',
+      'CAFA': 'College of Architecture and Fine Arts',
+      'TUP': 'TUP System-wide'
+    };
+    collegeTag.textContent = collegeNameMap[mainCollege] || mainCollege;
     collegeTag.className = 'event-slider__tag event-slider__tag--college';
-    if (event.collegeColor) {
-      collegeTag.classList.add(event.collegeColor);
+    // Use event.collegeColor if available, otherwise derive from main college
+    const collegeColor = event.collegeColor || (typeof getCollegeColorClass === 'function' ? getCollegeColorClass(mainCollege) : 'tup');
+    if (collegeColor) {
+      collegeTag.classList.add(collegeColor);
     }
   }
 

@@ -30,7 +30,9 @@ function buildEventCard(event) {
     'TUP': 'TUP'
   };
   
-  const collegeName = collegeNameMap[event.college] || event.college;
+  // Use main college for event card (for filtering and display)
+  const mainCollege = event.mainCollege || event.college || 'TUP';
+  const collegeName = collegeNameMap[mainCollege] || mainCollege;
   card.setAttribute('data-category', collegeName);
   
   // Add click handler to navigate to event details
@@ -89,12 +91,15 @@ function buildEventCard(event) {
     actions.appendChild(likeBtn);
   }
   
-  // College tag
+  // College tag (use main college for event card)
   const collegeTag = document.createElement('span');
   collegeTag.className = 'college-tag';
-  collegeTag.textContent = event.college || '';
-  if (event.collegeColor) {
-    collegeTag.classList.add(event.collegeColor);
+  const mainCollegeForTag = event.mainCollege || event.college || 'TUP';
+  collegeTag.textContent = collegeNameMap[mainCollegeForTag] || mainCollegeForTag;
+  // Use event.collegeColor if available, otherwise derive from main college
+  const collegeColor = event.collegeColor || (mainCollegeForTag === 'TUP' ? 'tup' : mainCollegeForTag.toLowerCase());
+  if (collegeColor) {
+    collegeTag.classList.add(collegeColor);
   }
   actions.appendChild(collegeTag);
   
