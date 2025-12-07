@@ -11,6 +11,7 @@ const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}'; // Injected from Vercel env: 
 
 let supabaseClient = null;
 let lastAuthenticatedUserId = null; // Track user to show alert only once per sign-in
+let authStateListenerInitialized = false; // Flag: auth listener attached only once
 
 // Initialize Supabase (call this after Supabase library is loaded)
 function initSupabase() {
@@ -66,7 +67,7 @@ async function signInWithGoogle() {
         redirectTo: window.location.origin,
         queryParams: {
           access_type: 'offline',
-          prompt: 'login',
+          prompt: 'consent',
         },
       },
     });
@@ -99,12 +100,19 @@ async function signInWithGoogle() {
 
 // ===== AUTH STATE LISTENER =====
 // Monitors authentication state changes and enforces email domain restriction
+// IMPORTANT: Only initialize once per app session to avoid duplicate listeners
 function setupAuthStateListener() {
+  if (authStateListenerInitialized) {
+    console.log('Auth state listener already initialized, skipping duplicate setup');
+    return;
+  }
+  
   if (!supabaseClient) {
     supabaseClient = initSupabase();
     if (!supabaseClient) return;
   }
 
+  authStateListenerInitialized = true;
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user?.email) {
       const email = session.user.email;
