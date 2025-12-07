@@ -176,33 +176,86 @@ async function handleOAuthCallback() {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     } else {
-      // Fallback: minimal parsing as before (keeps backward compatibility)
-      console.log('getSessionFromUrl not available, using fallback parsing');
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      if (hashParams.has('access_token')) {
-        console.log('Access token found in URL hash');
-        const { data: { session } = {}, error } = await supabaseClient.auth.getSession();
-        if (error) {
-          console.warn('Error obtaining session after OAuth:', error);
-        }
-        if (session?.user?.email) {
-          const email = session.user.email;
-          console.log('OAuth fallback: user email -', email);
-          if (!isAllowedEmailDomain(email)) {
-            console.warn('Rejecting non-TUP email (fallback):', email);
+      // Fallback: robust manual parsing & safe session set
+      // This will parse the URL fragment (hash) for OAuth tokens and
+      // attempt to set the session via supabaseClient.auth.setSession()
+      // if available. It never logs tokens and immediately clears the URL.
+      console.log('getSessionFromUrl not available, using robust fallback parsing');
+
+      const parseHashToObject = (hash) => {
+        const out = {};
+        if (!hash) return out;
+        const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+        raw.split('&').forEach(pair => {
+          const [k, v] = pair.split('=');
+          if (!k) return;
+          out[k] = v ? decodeURIComponent(v.replace(/\+/g, ' ')) : '';
+        });
+        return out;
+      };
+
+      try {
+        const params = parseHashToObject(window.location.hash);
+        const accessToken = params.access_token || params.accessToken || null;
+        const refreshToken = params.refresh_token || params.refreshToken || null;
+
+        if (accessToken) {
+          // Prefer supabaseClient.auth.setSession when available (supabase-js v2)
+          if (supabaseClient.auth && typeof supabaseClient.auth.setSession === 'function') {
             try {
-              await supabaseClient.auth.signOut();
-              console.log('Non-TUP user signed out (fallback), account not stored');
+              // Do NOT log tokens. setSession will store securely.
+              const { data, error } = await supabaseClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+              if (error) {
+                console.warn('setSession returned an error (fallback):', error.message || error);
+              }
+
+              const session = data?.session;
+              if (session?.user?.email) {
+                const email = session.user.email;
+                if (!isAllowedEmailDomain(email)) {
+                  console.warn('Rejecting non-TUP email (fallback setSession):', email);
+                  try { await supabaseClient.auth.signOut(); } catch (err) { console.error('Error signing out non-TUP user (fallback setSession):', err); }
+                  alert('Access Denied: Only TUP email addresses (@tup.edu.ph) are allowed. Your account has been removed.');
+                  // Clear URL fragment immediately
+                  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+                  return;
+                }
+                // Successful validation
+                console.log('OAuth fallback validated for TUP user (setSession):', email);
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+                return;
+              }
             } catch (err) {
-              console.error('Error signing out non-TUP user (fallback):', err);
+              console.error('Error while calling setSession (fallback):', err);
             }
-            alert('Access Denied: Only TUP email addresses (@tup.edu.ph) are allowed. Your account has been removed.');
-            window.history.replaceState({}, document.title, window.location.pathname);
-            return;
           }
-          console.log('OAuth fallback validated for TUP user:', email);
-          window.history.replaceState({}, document.title, window.location.pathname);
+
+          // If setSession is not available, attempt to rely on Supabase internal parsing
+          // but still enforce domain restriction and clear the URL to avoid token leakage.
+          try {
+            // Avoid calling any method that would log tokens; try to obtain the current session
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error) console.warn('getSession() warning (fallback):', error.message || error);
+            const session = data?.session;
+            if (session?.user?.email) {
+              const email = session.user.email;
+              if (!isAllowedEmailDomain(email)) {
+                console.warn('Rejecting non-TUP email (fallback getSession):', email);
+                try { await supabaseClient.auth.signOut(); } catch (err) { console.error('Error signing out non-TUP user (fallback getSession):', err); }
+                alert('Access Denied: Only TUP email addresses (@tup.edu.ph) are allowed. Your account has been removed.');
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+                return;
+              }
+              console.log('OAuth fallback validated for TUP user (getSession):', email);
+              window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+              return;
+            }
+          } catch (err) {
+            console.error('Error during fallback getSession parsing:', err);
+          }
         }
+      } catch (err) {
+        console.error('Unexpected error in OAuth fallback parsing:', err);
       }
     }
   } catch (err) {
