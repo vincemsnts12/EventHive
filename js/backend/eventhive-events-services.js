@@ -63,7 +63,25 @@ async function getEvents(options = {}) {
     }
 
     console.log('Fetching events from database with options:', options);
-    const { data, error } = await query;
+    
+    // Add timeout protection for the query
+    const queryPromise = query;
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database query timed out after 15 seconds')), 15000)
+    );
+    
+    let queryResult;
+    try {
+      queryResult = await Promise.race([queryPromise, timeoutPromise]);
+    } catch (timeoutError) {
+      if (timeoutError.message && timeoutError.message.includes('timed out')) {
+        console.error('Database query timed out after 15 seconds');
+        return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
+      }
+      throw timeoutError;
+    }
+    
+    const { data, error } = queryResult;
     console.log('Query result:', { dataCount: data?.length || 0, error: error?.message });
 
     if (error) {
@@ -80,7 +98,8 @@ async function getEvents(options = {}) {
     console.log(`Processing ${data.length} events...`);
 
     // Transform events to frontend format with timeout protection
-    const events = await Promise.all((data || []).map(async (dbEvent) => {
+    // Add overall timeout for the entire transformation process
+    const transformPromise = Promise.all((data || []).map(async (dbEvent) => {
       try {
         // Get images for this event (includes thumbnailIndex) with timeout
         const imagesPromise = getEventImages(dbEvent.id);
@@ -165,6 +184,23 @@ async function getEvents(options = {}) {
         }
       }
     }));
+    
+    // Add overall timeout for the entire transformation process (15 seconds)
+    const transformTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Event transformation timed out after 15 seconds')), 15000)
+    );
+    
+    let events;
+    try {
+      events = await Promise.race([transformPromise, transformTimeout]);
+      console.log(`Successfully processed ${events.length} events`);
+    } catch (timeoutError) {
+      if (timeoutError.message && timeoutError.message.includes('timed out')) {
+        console.error('Event transformation timed out after 15 seconds');
+        return { success: false, events: [], error: 'Event processing timed out. Some events may be slow to load.' };
+      }
+      throw timeoutError;
+    }
 
     return { success: true, events };
   } catch (error) {
@@ -256,11 +292,32 @@ async function getPublishedEvents() {
 
   try {
     // Get events that are not pending (approved events)
-    const { data, error } = await supabase
+    console.log('Fetching published events from database...');
+    
+    const queryPromise = supabase
       .from('events')
       .select('*')
       .neq('status', 'Pending')
       .order('start_date', { ascending: true });
+    
+    // Add timeout protection for the query (15 seconds)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Published events query timed out after 15 seconds')), 15000)
+    );
+    
+    let queryResult;
+    try {
+      queryResult = await Promise.race([queryPromise, timeoutPromise]);
+    } catch (timeoutError) {
+      if (timeoutError.message && timeoutError.message.includes('timed out')) {
+        console.error('Published events query timed out after 15 seconds');
+        return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
+      }
+      throw timeoutError;
+    }
+    
+    const { data, error } = queryResult;
+    console.log('Published events query result:', { dataCount: data?.length || 0, error: error?.message });
 
     if (error) {
       logSecurityEvent('DATABASE_ERROR', { error: error.message }, 'Error getting published events');
@@ -276,7 +333,7 @@ async function getPublishedEvents() {
     console.log(`Processing ${data.length} published events...`);
 
     // Transform events with timeout protection
-    const events = await Promise.all((data || []).map(async (dbEvent) => {
+    const transformPromise = Promise.all((data || []).map(async (dbEvent) => {
       try {
         // Get images for this event (includes thumbnailIndex) with timeout
         const imagesPromise = getEventImages(dbEvent.id);
@@ -359,6 +416,23 @@ async function getPublishedEvents() {
         }
       }
     }));
+    
+    // Add overall timeout for the entire transformation process (15 seconds)
+    const transformTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Published event transformation timed out after 15 seconds')), 15000)
+    );
+    
+    let events;
+    try {
+      events = await Promise.race([transformPromise, transformTimeout]);
+      console.log(`Successfully processed ${events.length} published events`);
+    } catch (timeoutError) {
+      if (timeoutError.message && timeoutError.message.includes('timed out')) {
+        console.error('Published event transformation timed out after 15 seconds');
+        return { success: false, events: [], error: 'Event processing timed out. Some events may be slow to load.' };
+      }
+      throw timeoutError;
+    }
 
     return { success: true, events };
   } catch (error) {
