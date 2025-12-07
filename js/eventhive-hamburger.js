@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileLogoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       
-      // Sign out using Supabase
+      // Sign out using Supabase immediately
       if (typeof getSupabaseClient === 'function') {
         const supabase = getSupabaseClient();
         if (supabase) {
@@ -222,17 +222,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       
-      // Clear all caches
+      // Clear ALL localStorage items
       try {
-        localStorage.removeItem(CACHE_KEY_HAMBURGER);
-        localStorage.removeItem('eventhive_profile_cache');
+        localStorage.clear();
       } catch (e) {
-        console.error('Error clearing caches:', e);
+        console.error('Error clearing localStorage:', e);
       }
       
       // Update menu state
       applyMobileMenuState(false, false);
       closeMobileMenu();
+      
+      // Show success message
+      alert('Log out successful');
     });
   }
 });

@@ -227,8 +227,17 @@ function setupAuthStateListener() {
     } else if (event === 'SIGNED_OUT') {
       console.log('User signed out');
       lastAuthenticatedUserId = null; // Reset so alert shows again on next sign-in
-      localStorage.removeItem('eventhive_last_authenticated_user_id'); // Clear persisted user ID
       processedUserIds.clear(); // Clear processed users set for next sign-in
+      
+      // Clear ALL localStorage items (already cleared by logout handlers, but ensure it's done)
+      // Note: The logout button handlers already clear localStorage and show the message,
+      // so we just ensure cleanup here without showing duplicate messages
+      try {
+        localStorage.clear();
+      } catch (e) {
+        console.error('Error clearing localStorage on sign out:', e);
+      }
+      
       // TODO: Update UI to reflect logged-out state
     } else if (event === 'TOKEN_REFRESHED') {
       console.log('Session token refreshed');

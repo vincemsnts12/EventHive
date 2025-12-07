@@ -276,7 +276,7 @@ if (logoutBtn) {
       dropdownMenu.classList.remove('show');
     }
     
-    // Sign out using Supabase
+    // Sign out using Supabase immediately
     if (typeof getSupabaseClient === 'function') {
       const supabase = getSupabaseClient();
       if (supabase) {
@@ -284,8 +284,18 @@ if (logoutBtn) {
       }
     }
     
-    // Clear all caches
+    // Clear ALL localStorage items
+    try {
+      localStorage.clear();
+    } catch (e) {
+      console.error('Error clearing localStorage:', e);
+    }
+    
+    // Clear all caches (for backward compatibility)
     clearAllCaches();
+    
+    // Show success message
+    alert('Log out successful');
     
     // State is already applied in clearAllCaches
   });
