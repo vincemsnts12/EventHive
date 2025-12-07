@@ -634,11 +634,11 @@ async function createEvent(eventData) {
   const adminCheckStart = Date.now();
   let { isAdmin, cacheValid } = checkAdminFromCache();
   
-  // If cache is valid (< 5 minutes), trust it completely - NO database checks
-  // This ensures fast operations without timeout issues
+  // Trust cache completely - NO database checks during operations
+  // Auth/admin status is only checked on login and cached for 5 minutes
+  // If cache is expired, refresh it in background but don't block
   if (!cacheValid) {
-    // Cache expired or missing - refresh it (but don't block on it)
-    console.log('Cache invalid or missing, refreshing in background...');
+    console.log('Cache expired or missing - refreshing in background (non-blocking)...');
     
     // Refresh cache in background (non-blocking)
     if (typeof updateDropdownAuthState === 'function') {
@@ -647,18 +647,13 @@ async function createEvent(eventData) {
       });
     }
     
-    // For now, do a quick database check with timeout
-    const adminCheckPromise = checkIfUserIsAdmin();
-    const adminCheckTimeout = new Promise((resolve) => 
-      setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Admin check timed out' }), 2000) // 2 second timeout
-    );
-    const adminCheck = await Promise.race([adminCheckPromise, adminCheckTimeout]);
-    const adminCheckDuration = Date.now() - adminCheckStart;
-    console.log(`Admin check from database completed in ${adminCheckDuration}ms:`, adminCheck);
-    
-    isAdmin = adminCheck.success && adminCheck.isAdmin;
+    // If cache is missing/expired, reject the operation
+    // User must log in again to refresh the cache
+    console.log('Cache expired - operation rejected. Please refresh the page or log in again.');
+    return { success: false, error: 'Authentication cache expired. Please refresh the page or log in again.' };
   }
-  // If cache is valid, trust it completely - isAdmin is already set from cache
+  
+  // Cache is valid - trust it completely, no database checks
   
   if (!isAdmin) {
     logSecurityEvent('SUSPICIOUS_ACTIVITY', { userId: user.id }, 'Non-admin attempted to create event');
@@ -993,25 +988,18 @@ async function updateEvent(eventId, eventData) {
     return { success: false, error: 'Invalid event ID format' };
   }
 
-  // Check if user is admin (use cache first for performance)
-  console.log('Checking if user is admin (checking cache first)...');
+  // Check if user is admin (trust cache completely - no database checks)
+  console.log('Checking if user is admin (checking cache)...');
   let { isAdmin, cacheValid } = checkAdminFromCache();
   
   if (!cacheValid) {
-    // Cache expired or missing - refresh it in background and do quick database check
-    console.log('Cache invalid or missing, refreshing in background...');
+    console.log('Cache expired or missing - refreshing in background (non-blocking)...');
     if (typeof updateDropdownAuthState === 'function') {
       updateDropdownAuthState(true).catch(err => {
         console.error('Error refreshing auth cache:', err);
       });
     }
-    
-    const adminCheckPromise = checkIfUserIsAdmin();
-    const adminCheckTimeout = new Promise((resolve) => 
-      setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Admin check timed out' }), 2000)
-    );
-    const adminCheck = await Promise.race([adminCheckPromise, adminCheckTimeout]);
-    isAdmin = adminCheck.success && adminCheck.isAdmin;
+    return { success: false, error: 'Authentication cache expired. Please refresh the page or log in again.' };
   }
   
   if (!isAdmin) {
@@ -1346,25 +1334,18 @@ async function deleteEvent(eventId) {
     return { success: false, error: 'Invalid event ID format' };
   }
 
-  // Check if user is admin (use cache first for performance)
-  console.log('Checking if user is admin (checking cache first)...');
+  // Check if user is admin (trust cache completely - no database checks)
+  console.log('Checking if user is admin (checking cache)...');
   let { isAdmin, cacheValid } = checkAdminFromCache();
   
   if (!cacheValid) {
-    // Cache expired or missing - refresh it in background and do quick database check
-    console.log('Cache invalid or missing, refreshing in background...');
+    console.log('Cache expired or missing - refreshing in background (non-blocking)...');
     if (typeof updateDropdownAuthState === 'function') {
       updateDropdownAuthState(true).catch(err => {
         console.error('Error refreshing auth cache:', err);
       });
     }
-    
-    const adminCheckPromise = checkIfUserIsAdmin();
-    const adminCheckTimeout = new Promise((resolve) => 
-      setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Admin check timed out' }), 2000)
-    );
-    const adminCheck = await Promise.race([adminCheckPromise, adminCheckTimeout]);
-    isAdmin = adminCheck.success && adminCheck.isAdmin;
+    return { success: false, error: 'Authentication cache expired. Please refresh the page or log in again.' };
   }
   
   if (!isAdmin) {
