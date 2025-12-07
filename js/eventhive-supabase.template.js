@@ -10,7 +10,8 @@ const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}'; // Injected from Vercel env: 
 // <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 let supabaseClient = null;
-let lastAuthenticatedUserId = null; // Track user to show alert only once per sign-in
+// Load last authenticated user ID from localStorage to persist across page navigations
+let lastAuthenticatedUserId = localStorage.getItem('eventhive_last_authenticated_user_id') || null;
 let authStateListenerInitialized = false; // Flag: auth listener attached only once
 let isProcessingOAuthCallback = false; // Flag: skip alert during callback processing
 
@@ -114,16 +115,18 @@ function setupAuthStateListener() {
   }
 
   authStateListenerInitialized = true;
-  let signInEventProcessed = false; // Prevent duplicate processing
+  const processedUserIds = new Set(); // Track processed user IDs to prevent duplicates
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user?.email) {
-      // Prevent duplicate processing if SIGNED_IN fires multiple times
-      if (signInEventProcessed && lastAuthenticatedUserId === session?.user?.id) {
+      const userId = session?.user?.id;
+      const email = session.user.email;
+      
+      // Prevent duplicate processing if SIGNED_IN fires multiple times for the same user
+      if (processedUserIds.has(userId)) {
         console.log('SIGNED_IN event already processed for this user, skipping');
         return;
       }
-      signInEventProcessed = true;
-      const email = session.user.email;
+      processedUserIds.add(userId);
       
       console.log('SIGNED_IN event detected for email:', email);
       
@@ -138,59 +141,94 @@ function setupAuthStateListener() {
           console.error('Error signing out non-TUP user:', err);
         }
         alert('Access Denied: Only TUP email addresses (@tup.edu.ph) are allowed to sign up. Your account has been removed.');
+        processedUserIds.delete(userId); // Remove from processed set on error
         return;
       }
       
       console.log('User successfully authenticated with TUP email:', email);
-      // Show welcome message only on first-time signup (not on subsequent logins)
-      const userId = session?.user?.id;
       
       // Only show message if user changed (not just a token refresh)
       const isNewUserLogin = lastAuthenticatedUserId !== userId;
       
-      // Wait a bit for OAuth callback to finish setting flags (if it's a new signup)
-      // This ensures the flag is set before we check it
-      if (isProcessingOAuthCallback) {
-        console.log('OAuth callback in progress, waiting for flag to be set...');
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Increased wait time
+      // Check if this is an OAuth login by checking URL or processing flag
+      const isOAuthLogin = isProcessingOAuthCallback || 
+                          window.location.hash.includes('access_token') || 
+                          window.location.search.includes('code=');
+      
+      let isFirstTimeSignup = false;
+      
+      // For OAuth logins, check profile creation time directly
+      // For email/password logins, check localStorage flags
+      if (isOAuthLogin) {
+        // Wait a bit for profile to be created (if it's a new signup)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Check profile creation time directly
+        try {
+          const { data: profile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('created_at')
+            .eq('id', userId)
+            .single();
+          
+          if (!profileError && profile) {
+            const profileCreatedAt = new Date(profile.created_at);
+            const now = new Date();
+            const secondsSinceCreation = (now - profileCreatedAt) / 1000;
+            
+            // If profile was created within last 30 seconds, it's likely a new signup
+            if (secondsSinceCreation < 30) {
+              isFirstTimeSignup = true;
+              console.log('New user detected via OAuth (profile check):', secondsSinceCreation, 'seconds old');
+            }
+          }
+        } catch (err) {
+          console.warn('Could not check profile creation time:', err);
+        }
+      } else {
+        // For email/password logins, check localStorage flags
+        const signupFlag = localStorage.getItem('eventhive_just_signed_up');
+        const signupEmailFlag = localStorage.getItem('eventhive_just_signed_up_email');
+        
+        isFirstTimeSignup = (signupFlag && signupFlag === userId) || 
+                           (signupEmailFlag && signupEmailFlag === email);
       }
       
-      // Check flags after waiting (for OAuth) or immediately (for email/password)
-      const signupFlag = localStorage.getItem('eventhive_just_signed_up');
-      const signupEmailFlag = localStorage.getItem('eventhive_just_signed_up_email');
-      
-      console.log('Checking signup flags:', { signupFlag, signupEmailFlag, userId, email, isNewUserLogin });
-      
-      // Check if this is a first-time signup by looking for the signup flag
-      // Flag can be either user ID (from email/password signup) or email (fallback)
-      const isFirstTimeSignup = (signupFlag && signupFlag === userId) || 
-                                 (signupEmailFlag && signupEmailFlag === email);
-      
-      console.log('First-time signup check:', { isFirstTimeSignup, isNewUserLogin });
+      console.log('First-time signup check:', { isFirstTimeSignup, isNewUserLogin, isOAuthLogin });
       
       if (isFirstTimeSignup && isNewUserLogin) {
         // This is a first-time signup - show welcome message
         lastAuthenticatedUserId = userId;
+        localStorage.setItem('eventhive_last_authenticated_user_id', userId);
         alert('Welcome! You have been successfully authenticated with ' + email);
         // Clear both flags so it doesn't show again on next login
         localStorage.removeItem('eventhive_just_signed_up');
         localStorage.removeItem('eventhive_just_signed_up_email');
       } else if (isNewUserLogin && !isFirstTimeSignup) {
         // This is a regular login (not first-time, and different user than last time)
-        // Show login success message for all logins (OAuth and email/password)
-        // Email/password login also shows message in login form handler, but that's okay - 
-        // this covers OAuth logins and page reloads
-        lastAuthenticatedUserId = userId;
-        alert('Log in successful!');
+        // Only show message if it's actually a new login (not just a page navigation)
+        // Check if this is a page navigation by seeing if we have a stored user ID
+        const storedUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+        if (!storedUserId || storedUserId !== userId) {
+          // This is actually a new login (different user or first login after sign out)
+          lastAuthenticatedUserId = userId;
+          localStorage.setItem('eventhive_last_authenticated_user_id', userId);
+          alert('Log in successful!');
+        } else {
+          // Same user, just navigating between pages - don't show message
+          lastAuthenticatedUserId = userId;
+        }
       } else {
         // Same user, just updating - don't show message
         lastAuthenticatedUserId = userId;
+        localStorage.setItem('eventhive_last_authenticated_user_id', userId);
       }
       // TODO: Update UI to reflect logged-in state (e.g., show username in dropdown, enable dashboard link)
     } else if (event === 'SIGNED_OUT') {
       console.log('User signed out');
       lastAuthenticatedUserId = null; // Reset so alert shows again on next sign-in
-      signInEventProcessed = false; // Reset flag for next sign-in
+      localStorage.removeItem('eventhive_last_authenticated_user_id'); // Clear persisted user ID
+      processedUserIds.clear(); // Clear processed users set for next sign-in
       // TODO: Update UI to reflect logged-out state
     } else if (event === 'TOKEN_REFRESHED') {
       console.log('Session token refreshed');
