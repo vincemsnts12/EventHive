@@ -52,27 +52,34 @@ async function getEvents(options = {}) {
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     
-    // Check if user is authenticated - for authenticated users, order by might cause RLS issues
+    // Check if user is authenticated - for authenticated users, queries can timeout due to RLS
     // So we'll fetch without order by and sort in JavaScript
-    // Use a timeout for the auth check to avoid hanging, and check session directly
+    // Use a very short timeout for the auth check to avoid blocking
     let shouldSortInJS = false;
     try {
-      // Check session directly from Supabase instead of getSafeUser() to avoid potential issues
+      // Check session directly from Supabase with a very short timeout
+      // If session check takes too long, assume not authenticated (safer for query)
       const sessionCheckPromise = supabase.auth.getSession();
       const sessionCheckTimeout = new Promise((resolve) => 
-        setTimeout(() => resolve({ data: { session: null }, error: null }), 500) // 500ms timeout for session check
+        setTimeout(() => resolve({ data: { session: null }, error: null }), 200) // 200ms timeout
       );
       const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
       if (sessionResult?.data?.session?.user) {
         console.log('User is authenticated - will sort in JavaScript to avoid RLS timeout');
         shouldSortInJS = true;
+        // Small delay to ensure session is fully established before querying
+        // This helps avoid race conditions on page reload
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } else {
+        console.log('User is not authenticated (or check timed out) - using database order by');
       }
     } catch (userCheckError) {
-      // Ignore errors - continue with normal query
-      console.log('Could not check user auth status, proceeding with normal query');
+      // If session check fails, assume not authenticated (safer - use database order by)
+      console.log('Session check failed, assuming guest - using database order by');
     }
     
-    // Build query
+    // Build query - for authenticated users, skip order by to avoid RLS timeout
+    // The query itself might be slow for authenticated users, but without order by it should work
     let query = supabase
       .from('events')
       .select('*');
@@ -88,10 +95,13 @@ async function getEvents(options = {}) {
       query = query.eq('college_code', options.collegeCode);
     }
     
-    // Only add order by if user is NOT authenticated (guests work fine with order by)
-    // For authenticated users, we'll sort in JavaScript to avoid RLS timeout
+    // NEVER use order by for authenticated users - it causes RLS timeout
+    // Always sort in JavaScript for authenticated users
+    // Only use database order by for guests (when shouldSortInJS is false)
     if (!shouldSortInJS) {
       query = query.order('start_date', { ascending: true });
+    } else {
+      console.log('Skipping database order by for authenticated user - will sort in JavaScript');
     }
     
     // Apply limit/offset last
