@@ -54,15 +54,21 @@ async function getEvents(options = {}) {
     
     // Check if user is authenticated - for authenticated users, order by might cause RLS issues
     // So we'll fetch without order by and sort in JavaScript
+    // Use a timeout for the auth check to avoid hanging, and check session directly
     let shouldSortInJS = false;
     try {
-      const user = await getSafeUser();
-      if (user) {
+      // Check session directly from Supabase instead of getSafeUser() to avoid potential issues
+      const sessionCheckPromise = supabase.auth.getSession();
+      const sessionCheckTimeout = new Promise((resolve) => 
+        setTimeout(() => resolve({ data: { session: null }, error: null }), 500) // 500ms timeout for session check
+      );
+      const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
+      if (sessionResult?.data?.session?.user) {
         console.log('User is authenticated - will sort in JavaScript to avoid RLS timeout');
         shouldSortInJS = true;
       }
     } catch (userCheckError) {
-      // Ignore - continue with normal query
+      // Ignore errors - continue with normal query
       console.log('Could not check user auth status, proceeding with normal query');
     }
     
@@ -83,6 +89,7 @@ async function getEvents(options = {}) {
     }
     
     // Only add order by if user is NOT authenticated (guests work fine with order by)
+    // For authenticated users, we'll sort in JavaScript to avoid RLS timeout
     if (!shouldSortInJS) {
       query = query.order('start_date', { ascending: true });
     }
