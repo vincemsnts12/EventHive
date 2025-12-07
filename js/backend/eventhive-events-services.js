@@ -528,43 +528,68 @@ async function createEvent(eventData) {
   }
   console.log('Supabase client obtained');
 
-  // Get user from session directly (faster than getUser())
-  console.log('Getting user from session...');
+  // Get user ID directly from localStorage (fastest, no async calls)
+  console.log('Getting user from localStorage...');
   const userCheckStart = Date.now();
   let user = null;
+  let userId = null;
   
   try {
-    // Try getSession() first (faster, uses cached session)
-    const sessionPromise = supabase.auth.getSession();
-    const sessionTimeout = new Promise((resolve) => 
-      setTimeout(() => resolve({ data: { session: null }, error: { message: 'Timeout' } }), 2000) // 2 second timeout
-    );
-    const sessionResult = await Promise.race([sessionPromise, sessionTimeout]);
-    const userCheckDuration = Date.now() - userCheckStart;
-    console.log(`Session check completed in ${userCheckDuration}ms`);
-    
-    if (sessionResult?.data?.session?.user) {
-      user = sessionResult.data.session.user;
-      console.log('User from session:', user.id);
+    // First, try eventhive_last_authenticated_user_id (stored by eventhive-supabase.js)
+    userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (userId) {
+      user = { id: userId };
+      const userCheckDuration = Date.now() - userCheckStart;
+      console.log(`User from eventhive_last_authenticated_user_id completed in ${userCheckDuration}ms:`, userId);
     } else {
-      // Fallback to getSafeUser() if session doesn't have user
-      console.log('Session has no user, trying getSafeUser()...');
-      const userPromise = getSafeUser();
-      const userTimeout = new Promise((resolve) => 
-        setTimeout(() => resolve(null), 2000) // 2 second timeout
+      // Fallback: Try to get user ID from Supabase auth token in localStorage
+      console.log('No user ID in eventhive_last_authenticated_user_id, trying to parse auth token...');
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        (key.includes('supabase') && key.includes('auth-token')) || 
+        (key.startsWith('sb-') && key.includes('auth-token'))
       );
-      user = await Promise.race([userPromise, userTimeout]);
-      const totalDuration = Date.now() - userCheckStart;
-      console.log(`Total user check completed in ${totalDuration}ms`);
+      
+      if (supabaseAuthKeys.length > 0) {
+        const authKey = supabaseAuthKeys[0];
+        const authData = localStorage.getItem(authKey);
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            // Try to extract user ID from JWT token (access_token contains user ID in 'sub' claim)
+            if (parsed?.access_token) {
+              try {
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                userId = payload.sub; // 'sub' is the user ID in JWT
+                if (userId) {
+                  user = { id: userId };
+                  const userCheckDuration = Date.now() - userCheckStart;
+                  console.log(`User from JWT token completed in ${userCheckDuration}ms:`, userId);
+                }
+              } catch (e) {
+                console.error('Error decoding JWT token:', e);
+              }
+            }
+            // Also try direct user object in parsed data
+            if (!userId && parsed?.user?.id) {
+              userId = parsed.user.id;
+              user = { id: userId };
+              const userCheckDuration = Date.now() - userCheckStart;
+              console.log(`User from parsed auth data completed in ${userCheckDuration}ms:`, userId);
+            }
+          } catch (e) {
+            console.error('Error parsing auth data:', e);
+          }
+        }
+      }
     }
   } catch (error) {
-    console.error('Error getting user:', error);
+    console.error('Error getting user from localStorage:', error);
     user = null;
   }
   
-  if (!user) {
-    console.error('User check failed or timed out');
-    return { success: false, error: 'User not authenticated or authentication check timed out' };
+  if (!user || !user.id) {
+    console.error('User check failed - no user ID found in localStorage');
+    return { success: false, error: 'User not authenticated. Please log in again.' };
   }
   console.log('User authenticated:', user.id);
   
