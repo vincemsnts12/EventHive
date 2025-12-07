@@ -521,15 +521,31 @@ async function getPublishedEvents() {
  * @returns {Promise<{success: boolean, event?: Object, error?: string}>}
  */
 async function createEvent(eventData) {
+  console.log('createEvent called at:', new Date().toISOString());
   const supabase = getSupabaseClient();
   if (!supabase) {
     return { success: false, error: 'Supabase not initialized' };
   }
+  console.log('Supabase client obtained');
 
   const user = await getSafeUser();
   if (!user) {
     return { success: false, error: 'User not authenticated' };
   }
+  console.log('User authenticated:', user.id);
+  
+  // Check if user is admin BEFORE attempting INSERT (fail fast)
+  console.log('Checking if user is admin...');
+  const adminCheckStart = Date.now();
+  const adminCheck = await checkIfUserIsAdmin();
+  const adminCheckDuration = Date.now() - adminCheckStart;
+  console.log(`Admin check completed in ${adminCheckDuration}ms:`, adminCheck);
+  
+  if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', { userId: user.id }, 'Non-admin attempted to create event');
+    return { success: false, error: 'Only admins can create events' };
+  }
+  console.log('User is admin, proceeding with event creation...');
 
   // Input validation
   const title = validateEventTitle(eventData.title);
@@ -610,27 +626,35 @@ async function createEvent(eventData) {
     console.log('Colleges field type:', dbEvent.colleges ? typeof dbEvent.colleges : 'not included');
     console.log('Colleges is array?', Array.isArray(dbEvent.colleges));
     console.log('Starting INSERT at:', new Date().toISOString());
+    console.log('User ID for INSERT:', user.id);
+    console.log('Created_by field:', dbEvent.created_by);
 
     // Strategy: Insert without .select() first to avoid RLS blocking on SELECT
     // Then fetch the event separately using guest client if needed
     const insertStartTime = Date.now();
+    console.log('Building INSERT query...');
     const insertPromise = supabase
       .from('events')
       .insert(dbEvent);
+    console.log('INSERT query built, starting execution...');
     
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database insert timed out after 10 seconds')), 10000)
+      setTimeout(() => {
+        console.error('INSERT timeout triggered after 10 seconds');
+        reject(new Error('Database insert timed out after 10 seconds'));
+      }, 10000)
     );
     
     let insertResult, insertError;
     try {
-      console.log('Awaiting INSERT query...');
+      console.log('Awaiting INSERT query (with 10s timeout)...');
       const result = await Promise.race([
         insertPromise,
         timeoutPromise
       ]);
       const insertDuration = Date.now() - insertStartTime;
       console.log(`INSERT completed in ${insertDuration}ms`);
+      console.log('INSERT result:', { hasData: !!result?.data, hasError: !!result?.error, error: result?.error?.message });
       insertResult = result;
       insertError = result?.error;
     } catch (error) {
