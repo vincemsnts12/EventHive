@@ -721,37 +721,86 @@ async function createEvent(eventData) {
 
     // Strategy: Insert without .select() first to avoid RLS blocking on SELECT
     // Then fetch the event separately using guest client if needed
+    // Add retry logic for intermittent timeouts
     const insertStartTime = Date.now();
-    console.log('Building INSERT query...');
-    const insertPromise = supabase
-      .from('events')
-      .insert(dbEvent);
-    console.log('INSERT query built, starting execution...');
-    
-    let timeoutId;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => {
-        console.error('INSERT timeout triggered after 10 seconds');
-        reject(new Error('Database insert timed out after 10 seconds'));
-      }, 10000);
-    });
-    
     let insertResult, insertError;
-    try {
-      console.log('Awaiting INSERT query (with 10s timeout)...');
-      const result = await Promise.race([
-        insertPromise,
-        timeoutPromise
-      ]);
-      // Clear timeout since we got a result
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+    const maxRetries = 2; // Try up to 3 times total (initial + 2 retries)
+    let retryCount = 0;
+    
+    while (retryCount <= maxRetries && !insertResult && !insertError) {
+      if (retryCount > 0) {
+        console.log(`Retrying INSERT (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+        // Wait a bit before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+      } else {
+        console.log('Building INSERT query...');
       }
-      const insertDuration = Date.now() - insertStartTime;
-      console.log(`INSERT completed in ${insertDuration}ms`);
-      console.log('INSERT result:', { hasData: !!result?.data, hasError: !!result?.error, error: result?.error?.message });
-      insertResult = result;
-      insertError = result?.error;
+      
+      const attemptStartTime = Date.now();
+      const insertPromise = supabase
+        .from('events')
+        .insert(dbEvent);
+      
+      if (retryCount === 0) {
+        console.log('INSERT query built, starting execution...');
+      }
+      
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          console.error(`INSERT timeout triggered after 8 seconds (attempt ${retryCount + 1})`);
+          reject(new Error('Database insert timed out after 8 seconds'));
+        }, 8000); // Reduced to 8 seconds per attempt
+      });
+      
+      try {
+        if (retryCount === 0) {
+          console.log('Awaiting INSERT query (with 8s timeout)...');
+        }
+        const result = await Promise.race([
+          insertPromise,
+          timeoutPromise
+        ]);
+        // Clear timeout since we got a result
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        const attemptDuration = Date.now() - attemptStartTime;
+        console.log(`INSERT attempt ${retryCount + 1} completed in ${attemptDuration}ms`);
+        console.log('INSERT result:', { hasData: !!result?.data, hasError: !!result?.error, error: result?.error?.message });
+        insertResult = result;
+        insertError = result?.error;
+        
+        // If we got a result (even with error), break the retry loop
+        break;
+      } catch (error) {
+        // Clear timeout in case of error
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        const attemptDuration = Date.now() - attemptStartTime;
+        console.error(`INSERT attempt ${retryCount + 1} failed after ${attemptDuration}ms:`, error);
+        
+        // If it's a timeout and we have retries left, continue to retry
+        if (error.message && error.message.includes('timed out') && retryCount < maxRetries) {
+          retryCount++;
+          continue;
+        } else {
+          // Handle timeout or other errors
+          if (error.message && error.message.includes('timed out')) {
+            console.error('Database insert timed out after all retries');
+            insertError = { message: 'Database operation timed out. Please check your connection and try again.' };
+          } else {
+            console.error('Unexpected error during insert:', error);
+            insertError = { message: error.message || 'Unknown error during event creation' };
+          }
+          break;
+        }
+      }
+    }
+    
+    const totalInsertDuration = Date.now() - insertStartTime;
+    console.log(`Total INSERT operation completed in ${totalInsertDuration}ms after ${retryCount + 1} attempt(s)`);
     } catch (error) {
       const insertDuration = Date.now() - insertStartTime;
       console.error(`INSERT failed after ${insertDuration}ms:`, error);
