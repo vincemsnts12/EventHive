@@ -39,7 +39,8 @@ async function getEvents(options = {}) {
   }
 
   try {
-    // Select all columns - if colleges column doesn't exist, it will just be undefined
+    // Try selecting all columns first - if colleges column doesn't exist, Supabase will handle it
+    // Using '*' is actually safer as it will automatically handle missing columns
     let query = supabase
       .from('events')
       .select('*')
@@ -63,6 +64,7 @@ async function getEvents(options = {}) {
     }
 
     console.log('Fetching events from database with options:', options);
+    console.log('Query starting at:', new Date().toISOString());
     
     // Add timeout protection for the query
     const queryPromise = query;
@@ -71,14 +73,71 @@ async function getEvents(options = {}) {
     );
     
     let queryResult;
+    const startTime = Date.now();
     try {
       queryResult = await Promise.race([queryPromise, timeoutPromise]);
+      const duration = Date.now() - startTime;
+      console.log(`Query completed in ${duration}ms`);
     } catch (timeoutError) {
+      const duration = Date.now() - startTime;
+      console.error(`Query timed out after ${duration}ms`);
       if (timeoutError.message && timeoutError.message.includes('timed out')) {
         console.error('Database query timed out after 15 seconds');
-        return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
+        console.error('Attempting fallback query without colleges column...');
+        
+        // Try a simpler query without the colleges column as fallback
+        try {
+          const fallbackQuery = supabase
+            .from('events')
+            .select('id, title, description, location, start_date, end_date, is_featured, college_code, organization_name, university_logo_url, status, created_at, updated_at, created_by')
+            .order('start_date', { ascending: true });
+          
+          // Apply same filters
+          let fallback = fallbackQuery;
+          if (options.status) {
+            fallback = fallback.eq('status', options.status);
+          }
+          if (options.isFeatured !== undefined) {
+            fallback = fallback.eq('is_featured', options.isFeatured);
+          }
+          if (options.collegeCode) {
+            fallback = fallback.eq('college_code', options.collegeCode);
+          }
+          if (options.limit) {
+            fallback = fallback.limit(options.limit);
+          }
+          if (options.offset) {
+            fallback = fallback.range(options.offset, options.offset + (options.limit || 10) - 1);
+          }
+          
+          const fallbackTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Fallback query timed out')), 10000)
+          );
+          
+          const fallbackResult = await Promise.race([fallback, fallbackTimeout]);
+          const { data: fallbackData, error: fallbackError } = fallbackResult;
+          
+          if (fallbackError) {
+            console.error('Fallback query also failed:', fallbackError);
+            return { success: false, events: [], error: `Database query timed out. Fallback also failed: ${fallbackError.message}` };
+          }
+          
+          console.log('Fallback query succeeded!', { dataCount: fallbackData?.length || 0 });
+          // Use fallback data - note: colleges column will be undefined
+          const { data, error } = { data: fallbackData, error: fallbackError };
+          queryResult = { data, error };
+        } catch (fallbackError) {
+          console.error('Fallback query attempt failed:', fallbackError);
+          console.error('This might indicate:');
+          console.error('  1. Database connection issues');
+          console.error('  2. Too many events in the database');
+          console.error('  3. Database performance issues');
+          console.error('  4. Network latency');
+          return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
+        }
+      } else {
+        throw timeoutError;
       }
-      throw timeoutError;
     }
     
     const { data, error } = queryResult;
