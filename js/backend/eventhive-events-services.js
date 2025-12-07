@@ -39,6 +39,7 @@ async function getEvents(options = {}) {
   }
 
   try {
+    // Select all columns - if colleges column doesn't exist, it will just be undefined
     let query = supabase
       .from('events')
       .select('*')
@@ -61,13 +62,22 @@ async function getEvents(options = {}) {
       query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
     }
 
+    console.log('Fetching events from database with options:', options);
     const { data, error } = await query;
+    console.log('Query result:', { dataCount: data?.length || 0, error: error?.message });
 
     if (error) {
       logSecurityEvent('DATABASE_ERROR', { error: error.message }, 'Error getting events');
       console.error('Error getting events:', error);
       return { success: false, events: [], error: error.message };
     }
+
+    if (!data || data.length === 0) {
+      console.log('No events found in database');
+      return { success: true, events: [] };
+    }
+
+    console.log(`Processing ${data.length} events...`);
 
     // Transform events to frontend format with timeout protection
     const events = await Promise.all((data || []).map(async (dbEvent) => {
@@ -90,11 +100,69 @@ async function getEvents(options = {}) {
         const likesCount = likesResult.success ? likesResult.count : 0;
 
         // Transform to frontend format (with thumbnailIndex)
-        return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+        try {
+          return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+        } catch (transformError) {
+          console.error(`Error transforming event ${dbEvent.id}:`, transformError);
+          // Return a basic event structure if transformation fails
+          return {
+            id: dbEvent.id,
+            title: dbEvent.title || 'Untitled Event',
+            description: dbEvent.description || '',
+            location: dbEvent.location || '',
+            date: dbEvent.start_date ? new Date(dbEvent.start_date).toLocaleDateString() : '',
+            status: dbEvent.status || 'Pending',
+            statusColor: 'pending',
+            isFeatured: dbEvent.is_featured || false,
+            likes: likesCount,
+            college: dbEvent.college_code || 'TUP',
+            colleges: dbEvent.college_code ? [dbEvent.college_code] : ['TUP'],
+            mainCollege: dbEvent.college_code || 'TUP',
+            collegeColor: 'tup',
+            organization: dbEvent.organization_name || '',
+            images: images,
+            thumbnailIndex: 0,
+            universityLogo: dbEvent.university_logo_url || 'images/tup.png',
+            createdAt: dbEvent.created_at,
+            updatedAt: dbEvent.updated_at,
+            createdBy: dbEvent.created_by,
+            startDate: dbEvent.start_date ? new Date(dbEvent.start_date) : null,
+            endDate: dbEvent.end_date ? new Date(dbEvent.end_date) : null
+          };
+        }
       } catch (error) {
-        console.warn(`Error processing event ${dbEvent.id}:`, error);
+        console.error(`Error processing event ${dbEvent.id}:`, error);
         // Return event with empty images and 0 likes if processing fails
-        return eventFromDatabase(dbEvent, [], 0, 0);
+        try {
+          return eventFromDatabase(dbEvent, [], 0, 0);
+        } catch (fallbackError) {
+          console.error(`Even fallback transformation failed for event ${dbEvent.id}:`, fallbackError);
+          // Return minimal event structure
+          return {
+            id: dbEvent.id,
+            title: dbEvent.title || 'Untitled Event',
+            description: dbEvent.description || '',
+            location: dbEvent.location || '',
+            date: '',
+            status: dbEvent.status || 'Pending',
+            statusColor: 'pending',
+            isFeatured: false,
+            likes: 0,
+            college: dbEvent.college_code || 'TUP',
+            colleges: dbEvent.college_code ? [dbEvent.college_code] : ['TUP'],
+            mainCollege: dbEvent.college_code || 'TUP',
+            collegeColor: 'tup',
+            organization: dbEvent.organization_name || '',
+            images: [],
+            thumbnailIndex: 0,
+            universityLogo: 'images/tup.png',
+            createdAt: null,
+            updatedAt: null,
+            createdBy: null,
+            startDate: null,
+            endDate: null
+          };
+        }
       }
     }));
 
@@ -200,6 +268,13 @@ async function getPublishedEvents() {
       return { success: false, events: [], error: error.message };
     }
 
+    if (!data || data.length === 0) {
+      console.log('No published events found in database');
+      return { success: true, events: [] };
+    }
+
+    console.log(`Processing ${data.length} published events...`);
+
     // Transform events with timeout protection
     const events = await Promise.all((data || []).map(async (dbEvent) => {
       try {
@@ -220,11 +295,68 @@ async function getPublishedEvents() {
         const likesResult = await Promise.race([likesPromise, likesTimeout]);
         const likesCount = likesResult.success ? likesResult.count : 0;
 
-        return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+        try {
+          return eventFromDatabase(dbEvent, images, likesCount, thumbnailIndex);
+        } catch (transformError) {
+          console.error(`Error transforming published event ${dbEvent.id}:`, transformError);
+          // Return basic event structure if transformation fails
+          return {
+            id: dbEvent.id,
+            title: dbEvent.title || 'Untitled Event',
+            description: dbEvent.description || '',
+            location: dbEvent.location || '',
+            date: dbEvent.start_date ? new Date(dbEvent.start_date).toLocaleDateString() : '',
+            status: dbEvent.status || 'Published',
+            statusColor: 'published',
+            isFeatured: dbEvent.is_featured || false,
+            likes: likesCount,
+            college: dbEvent.college_code || 'TUP',
+            colleges: dbEvent.college_code ? [dbEvent.college_code] : ['TUP'],
+            mainCollege: dbEvent.college_code || 'TUP',
+            collegeColor: 'tup',
+            organization: dbEvent.organization_name || '',
+            images: images,
+            thumbnailIndex: 0,
+            universityLogo: dbEvent.university_logo_url || 'images/tup.png',
+            createdAt: dbEvent.created_at,
+            updatedAt: dbEvent.updated_at,
+            createdBy: dbEvent.created_by,
+            startDate: dbEvent.start_date ? new Date(dbEvent.start_date) : null,
+            endDate: dbEvent.end_date ? new Date(dbEvent.end_date) : null
+          };
+        }
       } catch (error) {
-        console.warn(`Error processing published event ${dbEvent.id}:`, error);
+        console.error(`Error processing published event ${dbEvent.id}:`, error);
         // Return event with empty images and 0 likes if processing fails
-        return eventFromDatabase(dbEvent, [], 0, 0);
+        try {
+          return eventFromDatabase(dbEvent, [], 0, 0);
+        } catch (fallbackError) {
+          console.error(`Even fallback transformation failed for published event ${dbEvent.id}:`, fallbackError);
+          return {
+            id: dbEvent.id,
+            title: dbEvent.title || 'Untitled Event',
+            description: dbEvent.description || '',
+            location: dbEvent.location || '',
+            date: '',
+            status: dbEvent.status || 'Published',
+            statusColor: 'published',
+            isFeatured: false,
+            likes: 0,
+            college: dbEvent.college_code || 'TUP',
+            colleges: dbEvent.college_code ? [dbEvent.college_code] : ['TUP'],
+            mainCollege: dbEvent.college_code || 'TUP',
+            collegeColor: 'tup',
+            organization: dbEvent.organization_name || '',
+            images: [],
+            thumbnailIndex: 0,
+            universityLogo: 'images/tup.png',
+            createdAt: null,
+            updatedAt: null,
+            createdBy: null,
+            startDate: null,
+            endDate: null
+          };
+        }
       }
     }));
 
