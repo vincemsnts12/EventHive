@@ -246,7 +246,6 @@ function eventToDatabase(event) {
     end_date: endDate ? formatDateForDatabase(endDate) : null,
     is_featured: event.isFeatured || false,
     college_code: event.mainCollege || event.college, // Main college for backward compatibility
-    colleges: event.colleges && event.colleges.length > 0 ? event.colleges : null, // Store multiple colleges as JSONB array (Supabase handles conversion)
     organization_name: event.organization, // Only use organization_name, not organization_id
     university_logo_url: event.universityLogo,
     status: event.status || 'Pending', // Will be calculated on insert/update
@@ -255,6 +254,13 @@ function eventToDatabase(event) {
     created_by: event.createdBy || null
     // Note: Images and thumbnailIndex are handled separately via saveEventImages()
   };
+  
+  // Store multiple colleges as JSONB array (only if colleges array exists and has items)
+  // Don't include if empty/undefined to avoid database issues
+  if (event.colleges && Array.isArray(event.colleges) && event.colleges.length > 0) {
+    dbEvent.colleges = event.colleges;
+  }
+  // If colleges is not set or empty, don't include it (column may not exist yet or will use default)
   
   // Only include id if it's provided (for updates), otherwise let database generate it
   if (event.id) {

@@ -277,19 +277,112 @@ async function createEvent(eventData) {
     
     // Set status to Pending by default
     dbEvent.status = 'Pending';
+    
+    // Ensure colleges is valid JSONB format (array or omit if not set)
+    // Only include colleges if it's a valid non-empty array
+    // If the column doesn't exist yet, omitting it won't cause an error
+    if (dbEvent.colleges !== null && dbEvent.colleges !== undefined) {
+      if (!Array.isArray(dbEvent.colleges)) {
+        console.warn('Colleges is not an array, omitting from insert:', dbEvent.colleges);
+        delete dbEvent.colleges;
+      } else if (dbEvent.colleges.length === 0) {
+        // Omit empty arrays - column might not exist or we don't need it
+        delete dbEvent.colleges;
+      }
+      // If it's a valid array with items, keep it (Supabase will handle JSONB conversion)
+    } else {
+      // If colleges is null/undefined, don't include it in the insert
+      delete dbEvent.colleges;
+    }
+    
+    // Remove any undefined values to avoid issues
+    Object.keys(dbEvent).forEach(key => {
+      if (dbEvent[key] === undefined) {
+        delete dbEvent[key];
+      }
+    });
+    
+    console.log('Inserting event with data:', { 
+      ...dbEvent, 
+      description: dbEvent.description ? '[truncated]' : undefined,
+      colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
+    });
 
-    // Insert event
-    const { data: insertedEvent, error: insertError } = await supabase
+    // Insert event with timeout protection
+    const insertPromise = supabase
       .from('events')
       .insert(dbEvent)
       .select()
       .single();
+    
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database insert timed out after 15 seconds')), 15000)
+    );
+    
+    let insertedEvent, insertError;
+    try {
+      const result = await Promise.race([
+        insertPromise,
+        timeoutPromise
+      ]);
+      // Promise.race returns the first resolved/rejected promise
+      // If insertPromise resolves, result is { data, error }
+      // If timeoutPromise rejects, it throws
+      insertedEvent = result?.data;
+      insertError = result?.error;
+    } catch (error) {
+      // Handle timeout or other errors
+      if (error.message && error.message.includes('timed out')) {
+        console.error('Database insert timed out');
+        insertError = { message: 'Database operation timed out. Please check your connection and try again.' };
+      } else {
+        console.error('Unexpected error during insert:', error);
+        insertError = { message: error.message || 'Unknown error during event creation' };
+      }
+    }
 
     if (insertError) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError.message }, 'Error creating event');
       console.error('Error creating event:', insertError);
-      return { success: false, error: insertError.message };
+      console.error('Event data that failed:', { 
+        ...dbEvent, 
+        description: dbEvent.description ? '[truncated]' : undefined,
+        colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
+      });
+      console.error('Full error details:', insertError);
+      
+      // If error is about colleges column, try again without it
+      const errorMsg = insertError.message || '';
+      if (errorMsg.includes('colleges') || 
+          errorMsg.includes('column') ||
+          errorMsg.includes('does not exist') ||
+          errorMsg.toLowerCase().includes('jsonb')) {
+        console.log('Retrying insert without colleges column (column may not exist yet)...');
+        const retryDbEvent = { ...dbEvent };
+        delete retryDbEvent.colleges;
+        const retryResult = await supabase
+          .from('events')
+          .insert(retryDbEvent)
+          .select()
+          .single();
+        
+        if (retryResult.error) {
+          console.error('Retry also failed:', retryResult.error);
+          return { success: false, error: retryResult.error.message || 'Failed to create event' };
+        }
+        insertedEvent = retryResult.data;
+        insertError = null;
+        console.log('Event created successfully after retry (without colleges column)');
+      } else {
+        return { success: false, error: insertError.message || 'Failed to create event' };
+      }
     }
+    
+    if (!insertedEvent) {
+      return { success: false, error: 'Event was not created - no data returned' };
+    }
+    
+    console.log('Event inserted successfully:', insertedEvent.id);
 
     // Handle images if provided (images should already be uploaded URLs)
     if (eventData.images && eventData.images.length > 0) {
