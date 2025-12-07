@@ -519,6 +519,19 @@ async function updateEvent(eventId, eventData) {
     // Update updated_at
     dbEvent.updated_at = new Date().toISOString();
 
+    // Remove undefined values to avoid issues
+    Object.keys(dbEvent).forEach(key => {
+      if (dbEvent[key] === undefined) {
+        delete dbEvent[key];
+      }
+    });
+    
+    console.log('Updating event:', eventId, 'with data:', { 
+      ...dbEvent, 
+      description: dbEvent.description ? '[truncated]' : undefined,
+      colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
+    });
+
     // Update event
     const { data: updatedEvent, error: updateError } = await supabase
       .from('events')
@@ -530,8 +543,20 @@ async function updateEvent(eventId, eventData) {
     if (updateError) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error updating event');
       console.error('Error updating event:', updateError);
+      console.error('Event data that failed:', { 
+        ...dbEvent, 
+        description: dbEvent.description ? '[truncated]' : undefined,
+        colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
+      });
       return { success: false, error: updateError.message };
     }
+    
+    if (!updatedEvent) {
+      console.error('Update succeeded but no event returned for ID:', eventId);
+      return { success: false, error: 'Event was updated but could not be retrieved' };
+    }
+    
+    console.log('Event updated successfully:', updatedEvent.id);
 
     // Update images if provided (images should already be uploaded URLs)
     if (eventData.images !== undefined) {

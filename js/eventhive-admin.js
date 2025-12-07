@@ -1191,7 +1191,7 @@ async function saveTitleEdit() {
           // Persist failed (likely RLS) - keep local change and inform the user
           console.warn('Failed to persist pending edit:', result.error);
           // Optionally show a non-blocking notice
-          showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+          alert(`Draft saved locally. Sync failed: ${result.error}`);
         } else if (result.event) {
           Object.assign(event, result.event);
         }
@@ -1250,7 +1250,7 @@ async function saveDescEdit() {
         const result = await updateEvent(event.id, event);
         if (!result.success) {
           console.warn('Failed to persist pending description edit:', result.error);
-          showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+          alert(`Draft saved locally. Sync failed: ${result.error}`);
         } else if (result.event) {
           Object.assign(event, result.event);
         }
@@ -1309,7 +1309,7 @@ async function saveLocationEdit() {
         const result = await updateEvent(event.id, event);
         if (!result.success) {
           console.warn('Failed to persist pending location edit:', result.error);
-          showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+          alert(`Draft saved locally. Sync failed: ${result.error}`);
         } else if (result.event) {
           Object.assign(event, result.event);
         }
@@ -1351,8 +1351,13 @@ async function saveCollegeEdit() {
   const checked = document.querySelectorAll('#collegeTagSelector input[type="checkbox"]:checked');
   const colleges = Array.from(checked).map(cb => cb.value);
   
-  // Ensure main college is included in colleges array
+  // Ensure main college is included in colleges array (always at least one college)
   if (!colleges.includes(mainCollegeCode)) {
+    colleges.push(mainCollegeCode);
+  }
+  
+  // Ensure colleges is always an array with at least the main college
+  if (colleges.length === 0) {
     colleges.push(mainCollegeCode);
   }
   
@@ -1388,7 +1393,7 @@ async function saveCollegeEdit() {
         const result = await updateEvent(event.id, event);
         if (!result.success) {
           console.warn('Failed to persist pending college edit:', result.error);
-          showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+          alert(`Draft saved locally. Sync failed: ${result.error}`);
         } else if (result.event) {
           Object.assign(event, result.event);
         }
@@ -1450,7 +1455,7 @@ async function saveOrgEdit() {
         const result = await updateEvent(event.id, event);
         if (!result.success) {
           console.warn('Failed to persist pending organization edit:', result.error);
-          showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+          alert(`Draft saved locally. Sync failed: ${result.error}`);
         } else if (result.event) {
           Object.assign(event, result.event);
         }
@@ -1545,7 +1550,7 @@ async function saveDateEdit() {
           const result = await updateEvent(event.id, event);
           if (!result.success) {
             console.warn('Failed to persist pending date edit:', result.error);
-            showNonBlockingMessage && showNonBlockingMessage(`Draft saved locally. Sync failed: ${result.error}`);
+            alert(`Draft saved locally. Sync failed: ${result.error}`);
           } else if (result.event) {
             Object.assign(event, result.event);
           }

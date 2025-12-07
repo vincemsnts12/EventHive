@@ -255,12 +255,23 @@ function eventToDatabase(event) {
     // Note: Images and thumbnailIndex are handled separately via saveEventImages()
   };
   
-  // Store multiple colleges as JSONB array (only if colleges array exists and has items)
-  // Don't include if empty/undefined to avoid database issues
-  if (event.colleges && Array.isArray(event.colleges) && event.colleges.length > 0) {
-    dbEvent.colleges = event.colleges;
+  // Store multiple colleges as JSONB array
+  // Always include colleges if it exists (even for single college) to ensure proper updates
+  if (event.colleges && Array.isArray(event.colleges)) {
+    if (event.colleges.length > 0) {
+      dbEvent.colleges = event.colleges;
+    } else {
+      // If empty array, set to array with main college for consistency
+      const mainCollege = event.mainCollege || event.college;
+      if (mainCollege) {
+        dbEvent.colleges = [mainCollege];
+      }
+    }
+  } else if (event.mainCollege || event.college) {
+    // If colleges array doesn't exist but mainCollege does, create array with just main college
+    dbEvent.colleges = [event.mainCollege || event.college];
   }
-  // If colleges is not set or empty, don't include it (column may not exist yet or will use default)
+  // If colleges is not set at all, don't include it (for inserts where column may not exist)
   
   // Only include id if it's provided (for updates), otherwise let database generate it
   if (event.id) {
