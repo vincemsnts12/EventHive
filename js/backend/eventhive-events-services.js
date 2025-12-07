@@ -749,35 +749,78 @@ async function createEvent(eventData) {
     let eventId = null;
     let insertError = null;
     
-    console.log('Performing direct INSERT (trusting cache, no function calls)...');
+    console.log('Calling create_event function (bypasses RLS completely)...');
     
-    // Direct INSERT without .select() to avoid RLS on SELECT part
-    // We'll fetch the event separately using guest client
-    const insertPromise = supabase
-      .from('events')
-      .insert(dbEvent);
+    // Use SECURITY DEFINER function to bypass RLS entirely
+    // This is faster because it doesn't evaluate RLS policies at all
+    const functionPromise = supabase.rpc('create_event', {
+      p_title: dbEvent.title,
+      p_description: dbEvent.description,
+      p_location: dbEvent.location,
+      p_start_date: dbEvent.start_date,
+      p_end_date: dbEvent.end_date,
+      p_college_code: dbEvent.college_code,
+      p_organization_name: dbEvent.organization_name,
+      p_university_logo_url: dbEvent.university_logo_url,
+      p_created_by: dbEvent.created_by,
+      p_status: dbEvent.status || 'Pending',
+      p_is_featured: dbEvent.is_featured || false
+    });
     
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database insert timed out after 5 seconds')), 5000)
+      setTimeout(() => reject(new Error('Database function timed out after 3 seconds')), 3000)
     );
     
     try {
-      const result = await Promise.race([insertPromise, timeoutPromise]);
+      const result = await Promise.race([functionPromise, timeoutPromise]);
       const insertDuration = Date.now() - insertStartTime;
-      console.log(`INSERT completed in ${insertDuration}ms`);
+      console.log(`create_event function completed in ${insertDuration}ms`);
       
       if (result.error) {
-        console.error('INSERT error:', result.error);
+        console.error('Function error:', result.error);
         insertError = result.error;
       } else {
-        // INSERT succeeded, but we don't have the ID yet
-        // We'll fetch it using guest client
-        console.log('INSERT succeeded, fetching event ID...');
+        // Function returns the event ID directly
+        eventId = result.data;
+        console.log('Event created via function, ID:', eventId);
       }
     } catch (error) {
       const insertDuration = Date.now() - insertStartTime;
-      console.error(`INSERT failed after ${insertDuration}ms:`, error);
-      insertError = { message: error.message || 'Database insert failed' };
+      console.error(`Function failed after ${insertDuration}ms:`, error);
+      
+      // If function doesn't exist or timed out, fall back to direct INSERT
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('function') || 
+          errorMsg.includes('does not exist') ||
+          errorMsg.includes('timed out')) {
+        console.log('Function unavailable, falling back to direct INSERT...');
+        
+        // Fallback to direct INSERT
+        const insertPromise = supabase
+          .from('events')
+          .insert(dbEvent);
+        
+        const insertTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Direct INSERT timed out after 3 seconds')), 3000)
+        );
+        
+        try {
+          const insertResult = await Promise.race([insertPromise, insertTimeout]);
+          const fallbackDuration = Date.now() - insertStartTime;
+          console.log(`Direct INSERT fallback completed in ${fallbackDuration}ms`);
+          
+          if (insertResult.error) {
+            insertError = insertResult.error;
+          } else {
+            // INSERT succeeded, will fetch event below
+            console.log('Direct INSERT succeeded, fetching event...');
+          }
+        } catch (insertErr) {
+          insertError = { message: insertErr.message || 'Database insert failed' };
+        }
+      } else {
+        insertError = { message: error.message || 'Database function call failed' };
+      }
     }
     
     // If INSERT failed, handle retry logic
@@ -818,32 +861,50 @@ async function createEvent(eventData) {
       }
     }
     
-    // INSERT succeeded - fetch the event using guest client (bypasses RLS for SELECT)
+    // If we have eventId from function, fetch the event directly
+    // Otherwise, fetch the most recent event created by this user
     let insertedEvent = null;
     const fetchStartTime = Date.now();
-    console.log('INSERT succeeded, fetching created event...');
     
-    // Fetch the most recent event created by this user in the last minute
-    const guestClient = getGuestSupabaseClient();
-    if (guestClient) {
-      const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-      const fetchResult = await guestClient
-        .from('events')
-        .select('*')
-        .eq('created_by', user.id)
-        .eq('title', dbEvent.title)
-        .gte('created_at', oneMinuteAgo)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (fetchResult.data && !fetchResult.error) {
-        insertedEvent = fetchResult.data;
-        eventId = insertedEvent.id;
-        const fetchDuration = Date.now() - fetchStartTime;
-        console.log(`Event fetched in ${fetchDuration}ms, ID: ${eventId}`);
-      } else {
-        console.error('Failed to fetch event:', fetchResult.error?.message || 'No data');
+    if (eventId) {
+      // Function returned the ID - fetch by ID (fastest)
+      console.log('Fetching event by ID:', eventId);
+      const guestClient = getGuestSupabaseClient();
+      if (guestClient) {
+        const fetchResult = await guestClient
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .single();
+        
+        if (fetchResult.data && !fetchResult.error) {
+          insertedEvent = fetchResult.data;
+          const fetchDuration = Date.now() - fetchStartTime;
+          console.log(`Event fetched by ID in ${fetchDuration}ms`);
+        }
+      }
+    } else {
+      // No ID from function - fetch most recent event created by this user
+      console.log('Fetching most recent event created by user...');
+      const guestClient = getGuestSupabaseClient();
+      if (guestClient) {
+        const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+        const fetchResult = await guestClient
+          .from('events')
+          .select('*')
+          .eq('created_by', user.id)
+          .eq('title', dbEvent.title)
+          .gte('created_at', oneMinuteAgo)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (fetchResult.data && !fetchResult.error) {
+          insertedEvent = fetchResult.data;
+          eventId = insertedEvent.id;
+          const fetchDuration = Date.now() - fetchStartTime;
+          console.log(`Event fetched in ${fetchDuration}ms, ID: ${eventId}`);
+        }
       }
     }
     
