@@ -20,10 +20,25 @@
  * @returns {Promise<{success: boolean, events: Array, error?: string}>}
  */
 async function getEvents(options = {}) {
+  // Check if getSupabaseClient is available
+  if (typeof getSupabaseClient !== 'function') {
+    console.error('getSupabaseClient function not available');
+    return { success: false, events: [], error: 'Supabase client not available. Make sure eventhive-supabase.js is loaded.' };
+  }
+  
   const supabase = getSupabaseClient();
   if (!supabase) {
+    console.error('Supabase client is null');
     return { success: false, events: [], error: 'Supabase not initialized' };
   }
+  
+  // Verify the client is actually functional
+  if (typeof supabase.from !== 'function') {
+    console.error('Supabase client is not properly initialized - missing .from() method');
+    return { success: false, events: [], error: 'Supabase client is not properly initialized' };
+  }
+  
+  console.log('Supabase client verified - proceeding with query');
 
   // Input validation
   if (options.status && typeof options.status !== 'string') {
@@ -34,13 +49,29 @@ async function getEvents(options = {}) {
   }
 
   try {
-    // Try selecting all columns first - if colleges column doesn't exist, Supabase will handle it
-    // Using '*' is actually safer as it will automatically handle missing columns
+    console.log('Fetching events from database with options:', options);
+    console.log('Query starting at:', new Date().toISOString());
+    
+    // Check if user is authenticated - for authenticated users, order by might cause RLS issues
+    // So we'll fetch without order by and sort in JavaScript
+    let shouldSortInJS = false;
+    try {
+      const user = await getSafeUser();
+      if (user) {
+        console.log('User is authenticated - will sort in JavaScript to avoid RLS timeout');
+        shouldSortInJS = true;
+      }
+    } catch (userCheckError) {
+      // Ignore - continue with normal query
+      console.log('Could not check user auth status, proceeding with normal query');
+    }
+    
+    // Build query
     let query = supabase
       .from('events')
       .select('*');
     
-    // Apply filters first (before ordering) - this might help with performance
+    // Apply filters first
     if (options.status) {
       query = query.eq('status', options.status);
     }
@@ -51,8 +82,10 @@ async function getEvents(options = {}) {
       query = query.eq('college_code', options.collegeCode);
     }
     
-    // Add ordering after filters (this is more efficient)
-    query = query.order('start_date', { ascending: true });
+    // Only add order by if user is NOT authenticated (guests work fine with order by)
+    if (!shouldSortInJS) {
+      query = query.order('start_date', { ascending: true });
+    }
     
     // Apply limit/offset last
     if (options.limit) {
@@ -60,27 +93,6 @@ async function getEvents(options = {}) {
     }
     if (options.offset) {
       query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
-    }
-
-    console.log('Fetching events from database with options:', options);
-    console.log('Query starting at:', new Date().toISOString());
-    
-    // Test connection with a simple query first (only if no filters)
-    if (Object.keys(options).length === 0) {
-      console.log('Testing connection with simple count query...');
-      try {
-        const countPromise = supabase
-          .from('events')
-          .select('id', { count: 'exact', head: true });
-        const countTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Count query timeout')), 3000)
-        );
-        const countResult = await Promise.race([countPromise, countTimeout]);
-        console.log('Count query result:', countResult);
-      } catch (countError) {
-        console.warn('Count query test failed (non-critical):', countError.message || countError);
-        // Continue anyway - the main query might still work
-      }
     }
     
     // Add timeout protection for the query
@@ -99,62 +111,20 @@ async function getEvents(options = {}) {
       const duration = Date.now() - startTime;
       console.error(`Query timed out after ${duration}ms`);
       if (timeoutError.message && timeoutError.message.includes('timed out')) {
-        console.error('Database query timed out after 15 seconds');
-        console.error('Attempting fallback query without colleges column...');
-        
-        // Try a simpler query without the colleges column as fallback
-        try {
-          const fallbackQuery = supabase
-            .from('events')
-            .select('id, title, description, location, start_date, end_date, is_featured, college_code, organization_name, university_logo_url, status, created_at, updated_at, created_by')
-            .order('start_date', { ascending: true });
-          
-          // Apply same filters
-          let fallback = fallbackQuery;
-          if (options.status) {
-            fallback = fallback.eq('status', options.status);
-          }
-          if (options.isFeatured !== undefined) {
-            fallback = fallback.eq('is_featured', options.isFeatured);
-          }
-          if (options.collegeCode) {
-            fallback = fallback.eq('college_code', options.collegeCode);
-          }
-          if (options.limit) {
-            fallback = fallback.limit(options.limit);
-          }
-          if (options.offset) {
-            fallback = fallback.range(options.offset, options.offset + (options.limit || 10) - 1);
-          }
-          
-          const fallbackTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fallback query timed out')), 10000)
-          );
-          
-          const fallbackResult = await Promise.race([fallback, fallbackTimeout]);
-          const { data: fallbackData, error: fallbackError } = fallbackResult;
-          
-          if (fallbackError) {
-            console.error('Fallback query also failed:', fallbackError);
-            return { success: false, events: [], error: `Database query timed out. Fallback also failed: ${fallbackError.message}` };
-          }
-          
-          console.log('Fallback query succeeded!', { dataCount: fallbackData?.length || 0 });
-          // Use fallback data - note: colleges column will be undefined
-          const { data, error } = { data: fallbackData, error: fallbackError };
-          queryResult = { data, error };
-        } catch (fallbackError) {
-          console.error('Fallback query attempt failed:', fallbackError);
-          console.error('This might indicate:');
-          console.error('  1. Database connection issues');
-          console.error('  2. Too many events in the database');
-          console.error('  3. Database performance issues');
-          console.error('  4. Network latency');
-          return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
-        }
-      } else {
-        throw timeoutError;
+        console.error('Database query timed out');
+        return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
       }
+      throw timeoutError;
+    }
+    
+    // Sort in JavaScript if needed (for authenticated users)
+    if (shouldSortInJS && queryResult.data && queryResult.data.length > 0) {
+      console.log('Sorting events in JavaScript...');
+      queryResult.data.sort((a, b) => {
+        const dateA = a.start_date ? new Date(a.start_date).getTime() : 0;
+        const dateB = b.start_date ? new Date(b.start_date).getTime() : 0;
+        return dateA - dateB;
+      });
     }
     
     const { data, error } = queryResult;
