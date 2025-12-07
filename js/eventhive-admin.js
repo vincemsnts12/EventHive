@@ -389,12 +389,21 @@ async function createNewPendingEvent() {
 
   const todayDate = formatTodayDate();
 
+  // Create Date objects for start and end times (today, 9 AM - 5 PM)
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setHours(9, 0, 0, 0);
+  const endDate = new Date(today);
+  endDate.setHours(17, 0, 0, 0);
+
   // Create new event with default values (matching old implementation structure)
   const newEvent = {
     title: 'Add Title',
     description: 'Add Description',
     location: 'Add Location',
     date: todayDate,
+    startDate: startDate, // Explicit Date object for database
+    endDate: endDate, // Explicit Date object for database
     status: 'Pending',
     isFeatured: false,
     likes: 0,
@@ -418,17 +427,22 @@ async function createNewPendingEvent() {
   }
 
   try {
-    // Create event directly in database
-    const result = await createEvent(newEvent);
+    // Create event directly in database with timeout protection
+    const createPromise = createEvent(newEvent);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Event creation timed out after 30 seconds')), 30000)
+    );
     
-    // Restore cursor
+    const result = await Promise.race([createPromise, timeoutPromise]);
+    
+    // Restore cursor immediately after promise resolves
     document.body.style.cursor = '';
     if (addRow) {
       addRow.style.opacity = '1';
       addRow.style.pointerEvents = 'auto';
     }
 
-    if (result.success && result.event && result.event.id) {
+    if (result && result.success && result.event && result.event.id) {
       // Add event to pendingEventsData with DB ID
       pendingEventsData[result.event.id] = result.event;
       
@@ -442,13 +456,14 @@ async function createNewPendingEvent() {
       }, 100);
     } else {
       // Show error message with more details in console
-      const errorMsg = result.error || 'Unknown error';
+      const errorMsg = result?.error || 'Unknown error';
       console.error('Failed to create event:', errorMsg);
       console.error('Event data that failed:', newEvent);
-      alert('An error has occurred, a new event was not created.');
+      console.error('Full result:', result);
+      alert('An error has occurred, a new event was not created. Check console for details.');
     }
   } catch (error) {
-    // Restore cursor on error
+    // Restore cursor on error (always restore, even on timeout)
     document.body.style.cursor = '';
     if (addRow) {
       addRow.style.opacity = '1';
@@ -457,8 +472,14 @@ async function createNewPendingEvent() {
     
     // Show error message with details
     console.error('Error creating event:', error);
+    console.error('Error stack:', error.stack);
     console.error('Event data that failed:', newEvent);
-    alert('An error has occurred, a new event was not created.');
+    
+    if (error.message && error.message.includes('timed out')) {
+      alert('Event creation is taking too long. Please check your connection and try again.');
+    } else {
+      alert('An error has occurred, a new event was not created. Check console for details.');
+    }
   }
 }
 

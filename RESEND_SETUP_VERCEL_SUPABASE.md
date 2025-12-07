@@ -35,21 +35,29 @@ This guide walks you through setting up Resend for email verification in your Ev
 
 ---
 
-## Step 3: Verify Your Domain (Recommended for Production)
+## Step 3: Verify Your Domain (IMPORTANT)
 
-### Option A: Use Resend's Test Domain (Quick Start for Testing)
+### ⚠️ Important Note About Vercel Domains
 
-For quick testing, you can use Resend's test domain:
+**You CANNOT use `tup-eventhive.vercel.app` as a domain in Resend** because:
+- Vercel subdomains are "free public domains"
+- Resend requires domain ownership
+- You don't own the `vercel.app` domain
+
+### Option A: Use Resend's Test Domain (Recommended - No Domain Needed!)
+
+**This is the easiest option and works perfectly:**
 
 1. In Resend Dashboard, go to **Domains**
 2. You'll see a default test domain like `onboarding.resend.dev`
-3. You can use this for testing, but emails will show "via resend.dev" in the sender
+3. **Use this domain** - no verification needed!
+4. Emails will show "via resend.dev" but work perfectly
 
-**Note**: For production, you should verify your own domain (see Option B).
+**This is fine for production** - many apps use provider test domains.
 
-### Option B: Verify Your Own Domain (Production)
+### Option B: Verify Your Own Domain (If You Have One)
 
-If you have a domain (e.g., `eventhive.tup.edu.ph` or a custom domain):
+**Only if you own a domain** (e.g., `eventhive.tup.edu.ph` or a custom domain like `eventhive.com`):
 
 1. In Resend Dashboard, go to **Domains**
 2. Click **Add Domain**
@@ -109,8 +117,9 @@ Value: [resend-provided-value]
    - **Username**: Just the word `resend` (not your email)
    - **Password**: Your Resend API Key (the one you copied in Step 2)
    - **Sender email**: 
-     - If you verified a domain: `noreply@yourdomain.com` (e.g., `noreply@tup.edu.ph`)
-     - If using test domain: `onboarding@resend.dev` (or the test domain Resend gave you)
+     - **Recommended**: `onboarding@resend.dev` (or the test domain Resend shows you)
+     - If you verified your own domain: `noreply@yourdomain.com` (e.g., `noreply@tup.edu.ph`)
+     - **Note**: You cannot use `tup-eventhive.vercel.app` - use Resend's test domain instead
    - **Sender name**: `EventHive` (or any name you want users to see)
 
 5. **Test the Connection**
@@ -322,14 +331,18 @@ After setup:
 
 ## Quick Reference
 
-**Resend SMTP Settings for Supabase**:
+**Resend SMTP Settings for Supabase** (Using Test Domain):
 ```
 Host: smtp.resend.com
 Port: 587
 Username: resend
 Password: [Your Resend API Key]
-Sender: noreply@yourdomain.com
+Sender: onboarding@resend.dev (or your Resend test domain)
 ```
+
+**Alternative Providers** (If you want more free emails):
+- See `SMTP_PROVIDERS_NO_DOMAIN_NEEDED.md` for Brevo, SendGrid, Mailgun
+- Brevo offers 300 emails/day free (vs Resend's 100/day)
 
 **Supabase Settings**:
 - Authentication > Providers > Email > Confirm email: **ON**
