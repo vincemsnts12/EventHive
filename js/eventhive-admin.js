@@ -106,7 +106,16 @@ function populatePublishedEventsTable() {
   
   tbody.innerHTML = '';
   
-  const sortedEvents = sortEvents(eventsData);
+  // Filter out pending events from published table
+  const publishedEvents = {};
+  for (const eventId in eventsData) {
+    const event = eventsData[eventId];
+    if (event.status !== 'Pending') {
+      publishedEvents[eventId] = event;
+    }
+  }
+  
+  const sortedEvents = sortEvents(publishedEvents);
   
   sortedEvents.forEach(([eventId, event]) => {
     const row = document.createElement('tr');

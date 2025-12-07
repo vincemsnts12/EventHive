@@ -14,40 +14,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Wait a bit for Supabase to initialize
   await new Promise(resolve => setTimeout(resolve, 500));
   
-  // Load events from Supabase if functions are available
-  if (typeof getPublishedEvents === 'function' && typeof getPendingEvents === 'function') {
-    console.log('Loading events from Supabase...');
+  // Load all events from Supabase in one query, then classify locally
+  if (typeof getEvents === 'function') {
+    console.log('Loading all events from Supabase...');
     try {
-      // Load published events
-      console.log('Fetching published events...');
-      const publishedResult = await getPublishedEvents();
-      console.log('Published events result:', publishedResult);
+      // Fetch all events in one query
+      console.log('Fetching all events...');
+      const allEventsResult = await getEvents();
+      console.log('All events result:', allEventsResult);
       
-      if (publishedResult.success) {
-        // Convert array to object format for compatibility
-        publishedResult.events.forEach(event => {
-          eventsData[event.id] = event;
-        });
-        console.log(`Loaded ${publishedResult.events.length} published events`);
-      } else {
-        console.error('Failed to load published events:', publishedResult.error);
-      }
-      
-      // Load pending events
-      console.log('Fetching pending events...');
-      const pendingResult = await getPendingEvents();
-      console.log('Pending events result:', pendingResult);
-      
-      if (pendingResult.success) {
-        // Replace with DB data (no merge needed since we create directly in DB now)
-        // Convert array to object format for compatibility
+      if (allEventsResult.success && allEventsResult.events) {
+        // Clear existing data
+        eventsData = {};
         pendingEventsData = {};
-        pendingResult.events.forEach(event => {
-          pendingEventsData[event.id] = event;
+        
+        // Classify events based on status
+        allEventsResult.events.forEach(event => {
+          // Store in eventsData for published events (non-pending)
+          eventsData[event.id] = event;
+          
+          // Also store in pendingEventsData if status is Pending
+          if (event.status === 'Pending') {
+            pendingEventsData[event.id] = event;
+          }
         });
-        console.log(`Loaded ${pendingResult.events.length} pending events`);
+        
+        const publishedCount = Object.keys(eventsData).length - Object.keys(pendingEventsData).length;
+        const pendingCount = Object.keys(pendingEventsData).length;
+        
+        console.log(`Loaded ${allEventsResult.events.length} total events:`);
+        console.log(`  - ${publishedCount} published events`);
+        console.log(`  - ${pendingCount} pending events`);
       } else {
-        console.error('Failed to load pending events:', pendingResult.error);
+        console.error('Failed to load events:', allEventsResult.error);
+        // Clear data on error
+        eventsData = {};
+        pendingEventsData = {};
       }
       
       // Populate tables
@@ -66,7 +68,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Error loading events:', error);
       console.error('Error stack:', error.stack);
-      // Fallback: use local data if Supabase fails
+      // Clear data on error
+      eventsData = {};
+      pendingEventsData = {};
+      // Fallback: populate empty tables
       if (typeof populatePublishedEventsTable === 'function') {
         populatePublishedEventsTable();
       }
@@ -75,11 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
   } else {
-    console.error('getPublishedEvents or getPendingEvents functions not available');
-    console.log('Available functions:', {
-      getPublishedEvents: typeof getPublishedEvents,
-      getPendingEvents: typeof getPendingEvents
-    });
+    console.error('getEvents function not available');
     // Fallback: use local data if Supabase functions not available
     if (typeof populatePublishedEventsTable === 'function') {
       populatePublishedEventsTable();
