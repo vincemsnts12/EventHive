@@ -68,9 +68,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     while (retries < maxAuthRetries && !authStabilized) {
       await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms between checks
+      retries++;
       
       try {
-        const sessionResult = await supabase.auth.getSession();
+        // Add timeout to getSession() to prevent hanging when session exists in localStorage
+        const sessionCheckPromise = supabase.auth.getSession();
+        const sessionCheckTimeout = new Promise((resolve) => 
+          setTimeout(() => resolve({ data: { session: null }, error: { message: 'Session check timeout' } }), 1000) // 1 second timeout
+        );
+        const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
+        
+        // Check if we got a timeout
+        if (sessionResult?.error?.message === 'Session check timeout') {
+          console.log(`Session check timed out (attempt ${retries}/${maxAuthRetries}), retrying...`);
+          continue; // Retry
+        }
+        
         const hasSession = !!sessionResult?.data?.session?.user;
         
         if (hasSession) {
@@ -85,17 +98,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           console.log('Guest user detected, auth state is stable');
         }
       } catch (sessionError) {
-        // If session check fails, assume guest and proceed
-        retries++;
+        // If session check fails, log and retry
+        console.log(`Session check error (attempt ${retries}/${maxAuthRetries}):`, sessionError.message || sessionError);
         if (retries >= maxAuthRetries) {
-          console.warn('Session check failed after max retries, proceeding as guest');
-          authStabilized = true;
+          console.warn('Session check failed after max retries, proceeding anyway');
+          authStabilized = true; // Proceed anyway to avoid infinite loop
         }
       }
     }
     
     if (!authStabilized) {
-      console.warn('Auth state did not stabilize, proceeding anyway...');
+      console.warn('Auth state did not stabilize after max retries, proceeding anyway...');
     }
     
     console.log('Auth state stabilized, proceeding with event fetch...');
