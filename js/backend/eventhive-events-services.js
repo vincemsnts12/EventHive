@@ -780,35 +780,24 @@ async function createEvent(eventData) {
       insertError = { message: error.message || 'Database insert failed' };
     }
     
-    // If INSERT failed, try retry logic
-    if (insertError || !eventId) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError?.message || 'No event ID returned' }, 'Error creating event');
+    // If INSERT failed, handle retry logic
+    if (insertError) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError.message }, 'Error creating event');
       console.error('Error creating event:', insertError);
       
-      // If error is about colleges column or timeout, try again without colleges
-      const errorMsg = insertError?.message || '';
-      if ((errorMsg.includes('colleges') || 
-          errorMsg.includes('column') ||
-          errorMsg.includes('does not exist') ||
-          errorMsg.toLowerCase().includes('jsonb') ||
-          errorMsg.includes('PGRST') ||
-          errorMsg.includes('timed out')) && !dbEvent.colleges) {
-        // Already tried without colleges, give up
-        return { success: false, error: insertError?.message || 'Failed to create event' };
-      } else if (errorMsg.includes('colleges') || errorMsg.includes('column')) {
-        // Try again without colleges column
+      // If error is about colleges column, try again without colleges
+      const errorMsg = insertError.message || '';
+      if (errorMsg.includes('colleges') || errorMsg.includes('column')) {
         console.log('Retrying insert without colleges column...');
         const retryDbEvent = { ...dbEvent };
         delete retryDbEvent.colleges;
         const retryStartTime = Date.now();
         const retryPromise = supabase
           .from('events')
-          .insert(retryDbEvent)
-          .select('id')
-          .single();
+          .insert(retryDbEvent);
         
         const retryTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Retry insert timed out after 2 seconds')), 2000)
+          setTimeout(() => reject(new Error('Retry insert timed out after 5 seconds')), 5000)
         );
         
         try {
@@ -819,20 +808,14 @@ async function createEvent(eventData) {
           if (retryResult.error) {
             return { success: false, error: retryResult.error.message || 'Failed to create event' };
           }
-          eventId = retryResult.data?.id;
-          console.log('Retry INSERT succeeded, event ID:', eventId);
+          // Retry succeeded - will fetch event below
+          console.log('Retry INSERT succeeded, fetching event...');
         } catch (retryError) {
           return { success: false, error: retryError.message || 'Failed to create event after retry' };
         }
       } else {
-        return { success: false, error: insertError?.message || 'Failed to create event' };
+        return { success: false, error: insertError.message || 'Failed to create event' };
       }
-    }
-    
-    // If INSERT failed, handle retry logic
-    if (insertError && !eventId) {
-      // Retry logic is handled above, if we get here it means retry also failed
-      return { success: false, error: insertError.message || 'Failed to create event' };
     }
     
     // INSERT succeeded - fetch the event using guest client (bypasses RLS for SELECT)
