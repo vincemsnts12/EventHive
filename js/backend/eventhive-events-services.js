@@ -65,29 +65,68 @@ async function getEvents(options = {}) {
       );
       
       if (supabaseSessionKey) {
+        console.log('Found Supabase session key in localStorage:', supabaseSessionKey);
         const sessionDataStr = localStorage.getItem(supabaseSessionKey);
         if (sessionDataStr) {
           try {
             const sessionData = JSON.parse(sessionDataStr);
-            // Check if session has access_token and expires_at
+            console.log('Parsed session data structure:', {
+              hasAccessToken: !!sessionData.access_token,
+              hasExpiresAt: !!sessionData.expires_at,
+              hasSession: !!sessionData.session,
+              keys: Object.keys(sessionData)
+            });
+            
+            // Supabase stores session in different formats:
+            // 1. Direct: { access_token, expires_at, ... }
+            // 2. Nested: { session: { access_token, expires_at, ... } }
+            let accessToken = null;
+            let expiresAt = null;
+            
             if (sessionData.access_token && sessionData.expires_at) {
-              const expiresAt = sessionData.expires_at;
+              // Direct format
+              accessToken = sessionData.access_token;
+              expiresAt = sessionData.expires_at;
+            } else if (sessionData.session?.access_token && sessionData.session?.expires_at) {
+              // Nested format
+              accessToken = sessionData.session.access_token;
+              expiresAt = sessionData.session.expires_at;
+            }
+            
+            if (accessToken && expiresAt) {
               const now = Math.floor(Date.now() / 1000); // Current time in seconds
               const thirtyMinutesAgo = now - (30 * 60); // 30 minutes ago in seconds
+              
+              console.log('Session expiry check:', {
+                expiresAt,
+                now,
+                thirtyMinutesAgo,
+                isRecent: expiresAt > thirtyMinutesAgo
+              });
               
               // If session expires_at is within the last 30 minutes, it's recent enough
               if (expiresAt > thirtyMinutesAgo) {
                 console.log('Valid session found in localStorage, assuming authenticated');
                 isAuthenticated = true;
                 shouldSortInJS = true;
+              } else {
+                console.log('Session found but expired (older than 30 minutes)');
               }
+            } else {
+              console.log('Session data found but missing access_token or expires_at');
             }
           } catch (parseError) {
+            console.warn('Error parsing session data from localStorage:', parseError);
             // Ignore parse errors, will check session normally
           }
+        } else {
+          console.log('Session key found but value is empty');
         }
+      } else {
+        console.log('No Supabase session key found in localStorage');
       }
     } catch (localStorageError) {
+      console.warn('Error checking localStorage for session:', localStorageError);
       // Ignore localStorage errors, will check session normally
     }
     
@@ -140,8 +179,15 @@ async function getEvents(options = {}) {
     // NEVER use order by for authenticated users - it causes RLS timeout
     // Always sort in JavaScript for authenticated users
     // Only use database order by for guests (when shouldSortInJS is false)
+    console.log('Query configuration:', {
+      shouldSortInJS,
+      isAuthenticated,
+      willUseOrderBy: !shouldSortInJS
+    });
+    
     if (!shouldSortInJS) {
       query = query.order('start_date', { ascending: true });
+      console.log('Using database order by (guest user)');
     } else {
       console.log('Skipping database order by for authenticated user - will sort in JavaScript');
     }
