@@ -196,7 +196,16 @@ async function handleOAuthCallback() {
       } else if (oauthError === 'access_denied') {
         userMsg = 'Authentication was denied. Please allow access to continue.';
       }
-      if (safeDescription) userMsg += '\n\nDetails: ' + safeDescription;
+      // Check if error is related to database/email domain restriction
+      if (safeDescription && (safeDescription.toLowerCase().includes('database error') || 
+          safeDescription.toLowerCase().includes('database error saving new user') ||
+          safeDescription.toLowerCase().includes('tup university') ||
+          safeDescription.toLowerCase().includes('email domain') ||
+          safeDescription.toLowerCase().includes('use the email provided'))) {
+        userMsg = 'Use the email provided by the TUP University';
+      } else if (safeDescription) {
+        userMsg += '\n\nDetails: ' + safeDescription;
+      }
       alert(userMsg);
       try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) { /* ignore */ }
       return;
@@ -207,7 +216,26 @@ async function handleOAuthCallback() {
     if (typeof supabaseClient.auth.getSessionFromUrl === 'function') {
       const { data, error } = await supabaseClient.auth.getSessionFromUrl({ store: true });
       if (error) {
-        console.warn('OAuth callback parsing error:', error.code, error.message);
+        console.warn('OAuth callback parsing error:', error);
+        console.warn('Error code:', error.code);
+        console.warn('Error message:', error.message);
+        console.warn('Error details:', error.details);
+        
+        // Check if error is due to database/email domain restriction
+        const errorMsg = (error.message || '').toLowerCase();
+        const errorDetails = (error.details || error.message || '').toLowerCase();
+        const fullErrorText = errorMsg + ' ' + errorDetails;
+        
+        if (fullErrorText.includes('database error') || 
+            fullErrorText.includes('database error saving') ||
+            fullErrorText.includes('saving new user') ||
+            fullErrorText.includes('tup university') ||
+            fullErrorText.includes('use the email provided')) {
+          alert('Use the email provided by the TUP University');
+        } else {
+          // Show the error for debugging (remove in production)
+          console.error('OAuth callback error:', error);
+        }
         return; // Silent fail - may not be an OAuth callback
       }
 

@@ -419,15 +419,26 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (error) {
+              // Log the full error object for debugging
+              console.log('Signup error object:', error);
+              console.log('Error message:', error.message);
+              console.log('Error details:', error.details);
+              
               // Check if error is due to email domain restriction
+              // Supabase wraps database errors, so check both message and any nested error info
               let errorMessage = error.message || '';
               const errorDetails = error.details || error.message || '';
-              const fullError = (errorMessage + ' ' + errorDetails).toLowerCase();
+              const errorStatus = error.status || '';
+              const fullError = (errorMessage + ' ' + errorDetails + ' ' + errorStatus).toLowerCase();
               
               // Check for database error related to email domain restriction
+              // This catches "Database error saving new user" and similar messages
               if (fullError.includes('database error') || 
+                  fullError.includes('database error saving') ||
+                  fullError.includes('saving new user') ||
                   fullError.includes('use the email provided by the tup university') ||
-                  fullError.includes('email domain not allowed')) {
+                  fullError.includes('email domain not allowed') ||
+                  fullError.includes('tup university')) {
                 errorMessage = 'Use the email provided by the TUP University';
               } else if (error.message) {
                 errorMessage = error.message;
