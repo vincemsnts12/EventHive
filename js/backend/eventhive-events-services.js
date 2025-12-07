@@ -1070,14 +1070,13 @@ async function updateEvent(eventId, eventData) {
       }
     }
     
-    // Update event - don't use .single() to avoid errors when RLS blocks or no rows match
-    const { data: updatedEvents, error: updateError } = await supabase
+    // Strategy: Update without .select() to avoid RLS blocking on SELECT
+    // Then fetch the event separately using guest client
+    console.log('Updating event (without SELECT to avoid RLS timeout)...');
+    const { error: updateError } = await supabase
       .from('events')
       .update(dbEvent)
-      .eq('id', eventId)
-      .select();
-
-    let updatedEvent = null;
+      .eq('id', eventId);
 
     if (updateError) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error updating event');
@@ -1101,37 +1100,48 @@ async function updateEvent(eventId, eventData) {
         const retryResult = await supabase
           .from('events')
           .update(retryDbEvent)
-          .eq('id', eventId)
-          .select();
+          .eq('id', eventId);
         
         if (retryResult.error) {
           console.error('Retry update also failed:', retryResult.error);
           return { success: false, error: retryResult.error.message || 'Failed to update event' };
         }
         
-        if (!retryResult.data || retryResult.data.length === 0) {
-          console.error('Retry update succeeded but no event returned for ID:', eventId);
-          return { success: false, error: 'Event was updated but could not be retrieved (RLS may be blocking)' };
-        }
-        
-        console.log('Event updated successfully after retry (without colleges column):', retryResult.data[0].id);
-        updatedEvent = retryResult.data[0];
+        // Retry succeeded - now fetch the event
+        console.log('Retry update succeeded, fetching updated event...');
       } else {
         return { success: false, error: updateError.message };
       }
-    } else if (!updatedEvents || updatedEvents.length === 0) {
-      // No rows returned - could be RLS blocking or event doesn't exist
-      console.error('Update succeeded but no rows returned for event ID:', eventId);
-      console.error('This could mean: 1) RLS policy is blocking the SELECT, 2) Event does not exist, 3) Update matched 0 rows');
-      return { success: false, error: 'Event update completed but could not retrieve updated event (RLS may be blocking SELECT)' };
+    }
+    
+    // --- Fetch the updated event using guest client to avoid RLS issues ---
+    console.log('UPDATE succeeded, fetching updated event by ID:', eventId);
+    const fetchStartTime = Date.now();
+    let updatedEvent = null;
+    
+    const guestClient = getGuestSupabaseClient();
+    if (guestClient) {
+      const fetchResult = await guestClient
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .maybeSingle(); // Use maybeSingle to avoid error if 0 rows
+      
+      if (fetchResult.data && !fetchResult.error) {
+        updatedEvent = fetchResult.data;
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.log(`Updated event fetched by ID in ${fetchDuration}ms`);
+      } else {
+        console.error('Failed to fetch updated event by ID:', fetchResult.error?.message || 'No data');
+        return { success: false, error: 'Event was updated but could not be retrieved. Please refresh the page.' };
+      }
     } else {
-      // Success - get first row (should only be one)
-      updatedEvent = updatedEvents[0];
+      return { success: false, error: 'Could not fetch updated event (guest client unavailable)' };
     }
     
     if (!updatedEvent) {
-      console.error('Update succeeded but no event returned for ID:', eventId);
-      return { success: false, error: 'Event was updated but could not be retrieved' };
+      console.error('Update succeeded but could not fetch event for ID:', eventId);
+      return { success: false, error: 'Event was updated but could not be retrieved. Please refresh the page.' };
     }
     
     console.log('Event updated successfully:', updatedEvent.id);
