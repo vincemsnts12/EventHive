@@ -743,190 +743,124 @@ async function createEvent(eventData) {
     console.log('User ID for INSERT:', user.id);
     console.log('Created_by field:', dbEvent.created_by);
 
-    // Strategy: Use database function to bypass RLS (faster, no RLS evaluation overhead)
-    // The function still validates admin status but bypasses RLS policy evaluation
+    // Direct INSERT - trust cache completely, no function calls
+    // Cache is validated on login and refreshed every 5 minutes
     const insertStartTime = Date.now();
     let eventId = null;
     let insertError = null;
     
+    console.log('Performing direct INSERT (trusting cache, no function calls)...');
+    
+    // Direct INSERT without .select() to avoid RLS on SELECT part
+    // We'll fetch the event separately using guest client
+    const insertPromise = supabase
+      .from('events')
+      .insert(dbEvent);
+    
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database insert timed out after 2 seconds')), 2000)
+    );
+    
     try {
-      console.log('Calling create_event database function (bypasses RLS)...');
-      
-      // Call the database function instead of direct INSERT
-      // This bypasses RLS and should be much faster
-      const functionPromise = supabase.rpc('create_event', {
-        p_title: dbEvent.title,
-        p_description: dbEvent.description,
-        p_location: dbEvent.location,
-        p_start_date: dbEvent.start_date,
-        p_end_date: dbEvent.end_date,
-        p_college_code: dbEvent.college_code,
-        p_organization_name: dbEvent.organization_name,
-        p_university_logo_url: dbEvent.university_logo_url,
-        p_created_by: dbEvent.created_by,
-        p_status: dbEvent.status || 'Pending',
-        p_is_featured: dbEvent.is_featured || false
-      });
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database function timed out after 5 seconds')), 5000)
-      );
-      
-      const result = await Promise.race([functionPromise, timeoutPromise]);
+      const result = await Promise.race([insertPromise, timeoutPromise]);
       const insertDuration = Date.now() - insertStartTime;
-      console.log(`create_event function completed in ${insertDuration}ms`);
+      console.log(`INSERT completed in ${insertDuration}ms`);
       
       if (result.error) {
-        console.error('Database function error:', result.error);
+        console.error('INSERT error:', result.error);
         insertError = result.error;
       } else {
-        eventId = result.data; // Function returns the event ID
-        console.log('Event created via function, ID:', eventId);
+        // INSERT succeeded, but we don't have the ID yet
+        // We'll fetch it using guest client
+        console.log('INSERT succeeded, fetching event ID...');
       }
     } catch (error) {
       const insertDuration = Date.now() - insertStartTime;
-      console.error(`create_event function failed after ${insertDuration}ms:`, error);
-      
-      // If function doesn't exist or timed out, fall back to direct INSERT with retry logic
-      const errorMsg = error.message || '';
-      if (errorMsg.includes('function') || 
-          errorMsg.includes('does not exist') ||
-          errorMsg.includes('timed out') ||
-          errorMsg.includes('timeout')) {
-        console.log('Database function unavailable or timed out, falling back to direct INSERT...');
-        
-        // Fallback to direct INSERT with retry logic
-        const maxRetries = 2;
-        let retryCount = 0;
-        let insertResult = null;
-        
-        while (retryCount <= maxRetries && !insertResult && !insertError) {
-          if (retryCount > 0) {
-            console.log(`Retrying INSERT (attempt ${retryCount + 1}/${maxRetries + 1})...`);
-            await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
-          }
-          
-          const attemptStartTime = Date.now();
-          const insertPromise = supabase
-            .from('events')
-            .insert(dbEvent);
-          
-          let timeoutId;
-          const timeoutPromise = new Promise((_, reject) => {
-            timeoutId = setTimeout(() => {
-              reject(new Error('Database insert timed out after 8 seconds'));
-            }, 8000);
-          });
-          
-          try {
-            const result = await Promise.race([insertPromise, timeoutPromise]);
-            if (timeoutId) clearTimeout(timeoutId);
-            
-            const attemptDuration = Date.now() - attemptStartTime;
-            console.log(`INSERT attempt ${retryCount + 1} completed in ${attemptDuration}ms`);
-            insertResult = result;
-            insertError = result?.error;
-            break;
-          } catch (err) {
-            if (timeoutId) clearTimeout(timeoutId);
-            if (err.message && err.message.includes('timed out') && retryCount < maxRetries) {
-              retryCount++;
-              continue;
-            } else {
-              insertError = { message: err.message || 'Unknown error' };
-              break;
-            }
-          }
-        }
-      } else {
-        insertError = { message: error.message || 'Database function call failed' };
-      }
+      console.error(`INSERT failed after ${insertDuration}ms:`, error);
+      insertError = { message: error.message || 'Database insert failed' };
     }
     
-    const totalInsertDuration = Date.now() - insertStartTime;
-    console.log(`Total INSERT operation completed in ${totalInsertDuration}ms`);
-    
-    // If INSERT failed, return error
-    if (insertError) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError.message }, 'Error creating event');
+    // If INSERT failed, try retry logic
+    if (insertError || !eventId) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError?.message || 'No event ID returned' }, 'Error creating event');
       console.error('Error creating event:', insertError);
-      console.error('Event data that failed:', { 
-        ...dbEvent, 
-        description: dbEvent.description ? '[truncated]' : undefined,
-        colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
-      });
       
-      // If error is about colleges column, try again without it
-      const errorMsg = insertError.message || '';
-      if (errorMsg.includes('colleges') || 
+      // If error is about colleges column or timeout, try again without colleges
+      const errorMsg = insertError?.message || '';
+      if ((errorMsg.includes('colleges') || 
           errorMsg.includes('column') ||
           errorMsg.includes('does not exist') ||
           errorMsg.toLowerCase().includes('jsonb') ||
-          errorMsg.includes('PGRST')) {
+          errorMsg.includes('PGRST') ||
+          errorMsg.includes('timed out')) && !dbEvent.colleges) {
+        // Already tried without colleges, give up
+        return { success: false, error: insertError?.message || 'Failed to create event' };
+      } else if (errorMsg.includes('colleges') || errorMsg.includes('column')) {
+        // Try again without colleges column
         console.log('Retrying insert without colleges column...');
         const retryDbEvent = { ...dbEvent };
         delete retryDbEvent.colleges;
         const retryStartTime = Date.now();
-        const retryResult = await supabase
+        const retryPromise = supabase
           .from('events')
-          .insert(retryDbEvent);
-        const retryDuration = Date.now() - retryStartTime;
-        console.log(`Retry INSERT completed in ${retryDuration}ms`);
+          .insert(retryDbEvent)
+          .select('id')
+          .single();
         
-        if (retryResult.error) {
-          console.error('Retry also failed:', retryResult.error);
-          return { success: false, error: retryResult.error.message || 'Failed to create event' };
+        const retryTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Retry insert timed out after 2 seconds')), 2000)
+        );
+        
+        try {
+          const retryResult = await Promise.race([retryPromise, retryTimeout]);
+          const retryDuration = Date.now() - retryStartTime;
+          console.log(`Retry INSERT completed in ${retryDuration}ms`);
+          
+          if (retryResult.error) {
+            return { success: false, error: retryResult.error.message || 'Failed to create event' };
+          }
+          eventId = retryResult.data?.id;
+          console.log('Retry INSERT succeeded, event ID:', eventId);
+        } catch (retryError) {
+          return { success: false, error: retryError.message || 'Failed to create event after retry' };
         }
-        // Retry succeeded - now fetch the event
-        console.log('Retry INSERT succeeded, fetching event...');
       } else {
-        return { success: false, error: insertError.message || 'Failed to create event' };
+        return { success: false, error: insertError?.message || 'Failed to create event' };
       }
     }
     
-    // If we don't have an event ID, something went wrong
-    if (!eventId) {
-      console.error('Database function returned no event ID');
-      return { success: false, error: 'Event was created but could not retrieve the ID. Please refresh the page.' };
+    // If INSERT failed, handle retry logic
+    if (insertError && !eventId) {
+      // Retry logic is handled above, if we get here it means retry also failed
+      return { success: false, error: insertError.message || 'Failed to create event' };
     }
     
-    // --- Fetch the created event using the ID from the function ---
+    // INSERT succeeded - fetch the event using guest client (bypasses RLS for SELECT)
     let insertedEvent = null;
     const fetchStartTime = Date.now();
-    console.log('INSERT succeeded via function, fetching created event by ID:', eventId);
+    console.log('INSERT succeeded, fetching created event...');
     
+    // Fetch the most recent event created by this user in the last minute
     const guestClient = getGuestSupabaseClient();
     if (guestClient) {
+      const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
       const fetchResult = await guestClient
         .from('events')
         .select('*')
-        .eq('id', eventId)
-        .maybeSingle(); // Use maybeSingle to avoid error if 0 rows
+        .eq('created_by', user.id)
+        .eq('title', dbEvent.title)
+        .gte('created_at', oneMinuteAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
       
       if (fetchResult.data && !fetchResult.error) {
         insertedEvent = fetchResult.data;
+        eventId = insertedEvent.id;
         const fetchDuration = Date.now() - fetchStartTime;
-        console.log(`Event fetched by ID in ${fetchDuration}ms`);
+        console.log(`Event fetched in ${fetchDuration}ms, ID: ${eventId}`);
       } else {
-        console.error('Failed to fetch event by ID:', fetchResult.error?.message || 'No data');
-        // Fallback: Try fetching by created_by and title
-        console.log('Trying fallback fetch by created_by and title...');
-        const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-        const fallbackResult = await guestClient
-          .from('events')
-          .select('*')
-          .eq('created_by', user.id)
-          .eq('title', dbEvent.title)
-          .gte('created_at', oneMinuteAgo)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (fallbackResult.data && !fallbackResult.error) {
-          insertedEvent = fallbackResult.data;
-          const fetchDuration = Date.now() - fetchStartTime;
-          console.log(`Event fetched by fallback in ${fetchDuration}ms`);
-        }
+        console.error('Failed to fetch event:', fetchResult.error?.message || 'No data');
       }
     }
     
