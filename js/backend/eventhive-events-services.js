@@ -10,6 +10,8 @@ function getSupabaseClient() {
   return supabaseClient;
 }
 
+// `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
+
 // ===== GET EVENTS =====
 
 /**
@@ -215,7 +217,7 @@ async function createEvent(eventData) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: false, error: 'User not authenticated' };
   }
@@ -340,7 +342,7 @@ async function updateEvent(eventId, eventData) {
     return { success: false, error: 'Only admins can update events' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
 
   // Validate and sanitize inputs
   const validatedData = { ...eventData };
@@ -449,7 +451,7 @@ async function deleteEvent(eventId) {
     return { success: false, error: 'Only admins can delete events' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
 
   try {
     // Delete event (cascade will delete images, likes, comments)
@@ -503,7 +505,7 @@ async function approveEvent(eventId) {
     return { success: false, error: 'Only admins can approve events' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
 
   try {
     // Get event to recalculate status
@@ -556,7 +558,7 @@ async function rejectEvent(eventId) {
     return { success: false, error: 'Invalid event ID' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   logSecurityEvent('EVENT_REJECTED', { userId: user?.id, eventId }, 'Event rejected by admin');
   
   // Rejecting is the same as deleting for pending events

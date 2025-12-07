@@ -13,8 +13,16 @@ let supabaseClient = null;
 
 // Initialize Supabase (call this after Supabase library is loaded)
 function initSupabase() {
+  // Reuse a single Supabase client instance when possible to avoid
+  // Multiple GoTrueClient instances and undefined behavior.
+  if (window.__EH_SUPABASE_CLIENT) {
+    supabaseClient = window.__EH_SUPABASE_CLIENT;
+    return supabaseClient;
+  }
+
   if (typeof supabase !== 'undefined') {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try { window.__EH_SUPABASE_CLIENT = supabaseClient; } catch (e) { /* ignore */ }
     return supabaseClient;
   } else {
     console.error('Supabase library not loaded. Please include: <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>');

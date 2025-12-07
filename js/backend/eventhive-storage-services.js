@@ -13,6 +13,8 @@ function getSupabaseClient() {
   return supabaseClient;
 }
 
+// `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
+
 /**
  * Upload an image file to Supabase Storage
  * @param {File} file - Image file to upload
@@ -43,7 +45,7 @@ async function uploadEventImage(file, eventId) {
     return { success: false, error: 'Only admins can upload images' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
 
   // Validate file type
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
@@ -167,7 +169,7 @@ async function deleteEventImage(imageUrl) {
     return { success: false, error: 'Only admins can delete images' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
 
   try {
     // Extract file path from URL

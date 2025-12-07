@@ -10,6 +10,8 @@ function getSupabaseClient() {
   return supabaseClient;
 }
 
+// `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
+
 // ===== LIKES SERVICES =====
 
 /**
@@ -23,7 +25,7 @@ async function toggleEventLike(eventId) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: false, error: 'User not authenticated' };
   }
@@ -133,7 +135,7 @@ async function hasUserLikedEvent(eventId) {
     return { success: false, liked: false, error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: true, liked: false }; // Not logged in = not liked
   }
@@ -173,7 +175,7 @@ async function getUserLikedEventIds() {
     return { success: false, eventIds: [], error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: true, eventIds: [] }; // Not logged in = no likes
   }
@@ -273,7 +275,7 @@ async function createComment(eventId, content) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: false, error: 'User not authenticated' };
   }
@@ -370,7 +372,7 @@ async function deleteComment(commentId) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: false, error: 'User not authenticated' };
   }
@@ -418,7 +420,7 @@ async function getUserProfile(userId = null) {
 
   // If no userId provided, get current user
   if (!userId) {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getSafeUser();
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -460,7 +462,7 @@ async function updateUserProfile(profileData) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: false, error: 'User not authenticated' };
   }
@@ -546,17 +548,11 @@ async function getCurrentUser() {
   }
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error) {
-      console.error('Error getting current user:', error);
-      return { success: false, error: error.message };
-    }
-
+    // Use the safe helper which returns null when no session exists
+    const user = await getSafeUser();
     if (!user) {
       return { success: true, user: null }; // Not logged in
     }
-
     return { success: true, user };
   } catch (error) {
     console.error('Unexpected error getting current user:', error);
@@ -574,7 +570,7 @@ async function checkIfUserIsAdmin() {
     return { success: false, isAdmin: false, error: 'Supabase not initialized' };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSafeUser();
   if (!user) {
     return { success: true, isAdmin: false }; // Not logged in = not admin
   }

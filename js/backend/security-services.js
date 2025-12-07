@@ -168,6 +168,8 @@ function validateUUID(uuid) {
   return uuidRegex.test(uuid);
 }
 
+// `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
+
 // ===== PASSWORD VALIDATION =====
 
 /**
@@ -345,7 +347,7 @@ async function sendLogToBackend(logEntry) {
       const supabase = getSupabaseClient();
       if (supabase) {
         // Get current user if available
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getSafeUser();
         
         // Extract IP address and user agent from metadata if available
         const metadata = logEntry.metadata || {};
@@ -496,8 +498,8 @@ async function handleSessionTimeout() {
     const supabase = getSupabaseClient();
     
     if (supabase) {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const user = await getSafeUser();
+
       if (user) {
         logSecurityEvent(SECURITY_EVENT_TYPES.SESSION_TIMEOUT, {
           userId: user.id,
