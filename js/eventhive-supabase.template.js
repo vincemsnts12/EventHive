@@ -65,7 +65,7 @@ async function signInWithGoogle() {
         redirectTo: window.location.origin,
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
+          prompt: 'login',
         },
       },
     });
