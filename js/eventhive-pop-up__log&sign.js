@@ -287,10 +287,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 await updateMobileMenuAuthState();
               }
               
+              // Check if this is a first-time signup or regular login
+              const signupFlag = localStorage.getItem('eventhive_just_signed_up');
+              const signupEmailFlag = localStorage.getItem('eventhive_just_signed_up_email');
+              const userId = data?.user?.id;
+              const isFirstTimeSignup = (signupFlag && signupFlag === userId) || 
+                                       (signupEmailFlag && signupEmailFlag === loginEmail);
+              
               // Now close modal and complete login (both auth and profile are loaded)
               loginModal.style.display = 'none';
               emailInput.value = '';
               passwordInput.value = '';
+              
+              // Show appropriate message
+              if (isFirstTimeSignup) {
+                // First-time signup - show welcome message
+                alert('Welcome! You have been successfully authenticated with ' + loginEmail);
+                // Clear flags so it doesn't show again on next login
+                localStorage.removeItem('eventhive_just_signed_up');
+                localStorage.removeItem('eventhive_just_signed_up_email');
+              } else {
+                // Regular login - show login success message
+                alert('Log in successful!');
+              }
               
               console.log('Login complete - auth cache and profile cache loaded, 5-minute timer started');
               
@@ -419,11 +438,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (error) {
-              // Log the full error object for debugging
-              console.log('Signup error object:', error);
-              console.log('Error message:', error.message);
-              console.log('Error details:', error.details);
-              
               // Check if error is due to email domain restriction
               // Supabase wraps database errors, so check both message and any nested error info
               let errorMessage = error.message || '';

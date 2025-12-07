@@ -145,15 +145,29 @@ function setupAuthStateListener() {
       const isFirstTimeSignup = (signupFlag && signupFlag === userId) || 
                                  (signupEmailFlag && signupEmailFlag === email);
       
-      if (isFirstTimeSignup && !isProcessingOAuthCallback) {
+      // Only show message if user changed (not just a token refresh)
+      const isNewUserLogin = lastAuthenticatedUserId !== userId;
+      
+      if (isFirstTimeSignup && !isProcessingOAuthCallback && isNewUserLogin) {
         // This is a first-time signup - show welcome message
         lastAuthenticatedUserId = userId;
         alert('Welcome! You have been successfully authenticated with ' + email);
         // Clear both flags so it doesn't show again on next login
         localStorage.removeItem('eventhive_just_signed_up');
         localStorage.removeItem('eventhive_just_signed_up_email');
+      } else if (!isProcessingOAuthCallback && isNewUserLogin && !isFirstTimeSignup) {
+        // This is a regular login (not first-time, and different user than last time)
+        // Show login success message for OAuth logins (email/password login shows message in login form handler)
+        lastAuthenticatedUserId = userId;
+        // Check if this is coming from OAuth (not email/password login form)
+        // OAuth logins don't go through the login form, so show message here
+        const isOAuthLogin = window.location.hash.includes('access_token') || 
+                            window.location.search.includes('code=');
+        if (isOAuthLogin) {
+          alert('Log in successful!');
+        }
       } else {
-        // This is a regular login - update lastAuthenticatedUserId but don't show alert
+        // Same user, just updating - don't show message
         lastAuthenticatedUserId = userId;
       }
       // TODO: Update UI to reflect logged-in state (e.g., show username in dropdown, enable dashboard link)
@@ -216,11 +230,6 @@ async function handleOAuthCallback() {
     if (typeof supabaseClient.auth.getSessionFromUrl === 'function') {
       const { data, error } = await supabaseClient.auth.getSessionFromUrl({ store: true });
       if (error) {
-        console.warn('OAuth callback parsing error:', error);
-        console.warn('Error code:', error.code);
-        console.warn('Error message:', error.message);
-        console.warn('Error details:', error.details);
-        
         // Check if error is due to database/email domain restriction
         const errorMsg = (error.message || '').toLowerCase();
         const errorDetails = (error.details || error.message || '').toLowerCase();
@@ -232,9 +241,6 @@ async function handleOAuthCallback() {
             fullErrorText.includes('tup university') ||
             fullErrorText.includes('use the email provided')) {
           alert('Use the email provided by the TUP University');
-        } else {
-          // Show the error for debugging (remove in production)
-          console.error('OAuth callback error:', error);
         }
         return; // Silent fail - may not be an OAuth callback
       }
