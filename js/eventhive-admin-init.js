@@ -4,14 +4,24 @@
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Admin dashboard initializing...');
   
+  // Check if required functions are available
+  console.log('Checking for required functions:', {
+    initSupabase: typeof initSupabase,
+    getSupabaseClient: typeof getSupabaseClient,
+    getEvents: typeof getEvents
+  });
+  
   // Wait for Supabase to initialize
   if (typeof initSupabase === 'function') {
-    initSupabase();
+    const supabaseInitResult = initSupabase();
+    console.log('Supabase initialization result:', supabaseInitResult ? 'Success' : 'Failed');
   } else {
-    console.warn('initSupabase function not found');
+    console.error('initSupabase function not found - Supabase may not be loaded');
   }
   
-  // Don't wait - let it initialize naturally like homepage/search pages do
+  // Wait a moment for Supabase to fully initialize (like other pages do implicitly)
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
   // Load all events from Supabase in one query, then classify locally
   if (typeof getEvents === 'function') {
     console.log('Loading all events from Supabase...');

@@ -2,13 +2,8 @@
 // This file contains all event-related database operations
 // Moved to backend folder with security enhancements
 
-// Ensure Supabase client is initialized
-function getSupabaseClient() {
-  if (!supabaseClient) {
-    supabaseClient = initSupabase();
-  }
-  return supabaseClient;
-}
+// Note: getSupabaseClient() should be available globally from eventhive-supabase.js
+// If it's not available, we'll get an error which will help diagnose the issue
 
 // `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
 
@@ -67,22 +62,24 @@ async function getEvents(options = {}) {
       query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
     }
 
-    // Filters are now applied above, before ordering
-
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     
-    // For empty tables, try a simpler query first to test connection
-    // If we have no filters and it's likely empty, test with a simple count first
+    // Test connection with a simple query first (only if no filters)
     if (Object.keys(options).length === 0) {
       console.log('Testing connection with simple count query...');
       try {
-        const countResult = await supabase
+        const countPromise = supabase
           .from('events')
           .select('id', { count: 'exact', head: true });
+        const countTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Count query timeout')), 3000)
+        );
+        const countResult = await Promise.race([countPromise, countTimeout]);
         console.log('Count query result:', countResult);
       } catch (countError) {
-        console.warn('Count query test failed (non-critical):', countError);
+        console.warn('Count query test failed (non-critical):', countError.message || countError);
+        // Continue anyway - the main query might still work
       }
     }
     
