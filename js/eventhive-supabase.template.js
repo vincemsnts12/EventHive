@@ -135,10 +135,26 @@ function setupAuthStateListener() {
       }
       
       console.log('User successfully authenticated with TUP email:', email);
-      // Show success message to user only on first sign-in (and not during OAuth callback processing)
-      if (lastAuthenticatedUserId !== session?.user?.id && !isProcessingOAuthCallback) {
-        lastAuthenticatedUserId = session.user.id;
+      // Show welcome message only on first-time signup (not on subsequent logins)
+      const userId = session?.user?.id;
+      const signupFlag = localStorage.getItem('eventhive_just_signed_up');
+      const signupEmailFlag = localStorage.getItem('eventhive_just_signed_up_email');
+      
+      // Check if this is a first-time signup by looking for the signup flag
+      // Flag can be either user ID (from email/password signup) or email (fallback)
+      const isFirstTimeSignup = (signupFlag && signupFlag === userId) || 
+                                 (signupEmailFlag && signupEmailFlag === email);
+      
+      if (isFirstTimeSignup && !isProcessingOAuthCallback) {
+        // This is a first-time signup - show welcome message
+        lastAuthenticatedUserId = userId;
         alert('Welcome! You have been successfully authenticated with ' + email);
+        // Clear both flags so it doesn't show again on next login
+        localStorage.removeItem('eventhive_just_signed_up');
+        localStorage.removeItem('eventhive_just_signed_up_email');
+      } else {
+        // This is a regular login - update lastAuthenticatedUserId but don't show alert
+        lastAuthenticatedUserId = userId;
       }
       // TODO: Update UI to reflect logged-in state (e.g., show username in dropdown, enable dashboard link)
     } else if (event === 'SIGNED_OUT') {
@@ -198,6 +214,7 @@ async function handleOAuthCallback() {
       const session = data?.session;
       if (session?.user?.email) {
         const email = session.user.email;
+        const userId = session.user.id;
         console.log('OAuth callback: user email detected -', email);
         
         // Enforce email domain restriction
@@ -213,6 +230,31 @@ async function handleOAuthCallback() {
           alert('Access Denied: Only TUP email addresses (@tup.edu.ph) are allowed. Your account has been removed.');
           window.history.replaceState({}, document.title, window.location.pathname);
           return;
+        }
+        
+        // Check if this is a first-time signup via Google OAuth
+        // by checking if the profile was just created (within last 10 seconds)
+        try {
+          const { data: profile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('created_at')
+            .eq('id', userId)
+            .single();
+          
+          if (!profileError && profile) {
+            const profileCreatedAt = new Date(profile.created_at);
+            const now = new Date();
+            const secondsSinceCreation = (now - profileCreatedAt) / 1000;
+            
+            // If profile was created within last 10 seconds, it's likely a new signup
+            if (secondsSinceCreation < 10) {
+              localStorage.setItem('eventhive_just_signed_up', userId);
+              console.log('New user detected via Google OAuth, welcome message will be shown');
+            }
+          }
+        } catch (err) {
+          console.warn('Could not check if user is new via OAuth:', err);
+          // Continue anyway - not critical
         }
         
         console.log('OAuth callback validated for TUP user:', email);

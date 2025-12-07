@@ -423,6 +423,16 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
               // Success - show message and close modal
               alert('Signup successful! Please check your email to verify your account.');
+              
+              // Set flag to show welcome message on first sign-in (after email verification)
+              // Store the user ID if available, otherwise store email as fallback
+              if (data?.user?.id) {
+                localStorage.setItem('eventhive_just_signed_up', data.user.id);
+              } else {
+                // If user ID not available yet, store email - will be checked in auth listener
+                localStorage.setItem('eventhive_just_signed_up_email', email);
+              }
+              
               signupModal.style.display = 'none';
               // Clear form
               emailInput.value = '';
