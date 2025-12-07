@@ -26,6 +26,13 @@ SECURITY DEFINER
 SET search_path = public, pg_catalog
 AS $$
 BEGIN
+  -- Enforce email domain restriction: Only allow @tup.edu.ph emails
+  -- This prevents non-TUP users from being created in the database
+  IF NEW.email IS NULL OR LOWER(NEW.email) NOT LIKE '%@tup.edu.ph' THEN
+    -- Raise exception to prevent user creation (rolls back the transaction)
+    RAISE EXCEPTION 'Email domain not allowed. Only @tup.edu.ph email addresses are permitted.';
+  END IF;
+  
   INSERT INTO public.profiles (id, email, username, full_name, avatar_url, is_admin)
   VALUES (
     NEW.id,

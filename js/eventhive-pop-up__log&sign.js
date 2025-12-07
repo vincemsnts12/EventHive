@@ -347,7 +347,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const confirmPassword = confirmPasswordInput.value;
       
       // Validate email domain
-      if (!email.endsWith('@tup.edu.ph')) {
+      if (typeof isAllowedEmailDomain === 'function') {
+        if (!isAllowedEmailDomain(email)) {
+          alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
+          return;
+        }
+      } else if (!email.endsWith('@tup.edu.ph')) {
         alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
         return;
       }
@@ -414,7 +419,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (error) {
-              alert('Signup failed: ' + error.message);
+              // Check if error is due to email domain restriction
+              let errorMessage = error.message;
+              if (error.message && error.message.includes('Email domain not allowed')) {
+                errorMessage = 'Only TUP email addresses (@tup.edu.ph) are allowed to sign up.';
+              }
+              alert('Signup failed: ' + errorMessage);
               // Re-enable submit button
               if (submitBtn) {
                 submitBtn.disabled = false;

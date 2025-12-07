@@ -120,6 +120,12 @@ CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- Enforce email domain restriction: Only allow @tup.edu.ph emails
+  IF NEW.email IS NULL OR LOWER(NEW.email) NOT LIKE '%@tup.edu.ph' THEN
+    -- Raise exception to prevent user creation
+    RAISE EXCEPTION 'Email domain not allowed. Only @tup.edu.ph email addresses are permitted.';
+  END IF;
+  
   INSERT INTO public.profiles (id, email, username, full_name, avatar_url, is_admin)
   VALUES (
     NEW.id,
