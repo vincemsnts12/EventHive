@@ -801,18 +801,6 @@ async function createEvent(eventData) {
     
     const totalInsertDuration = Date.now() - insertStartTime;
     console.log(`Total INSERT operation completed in ${totalInsertDuration}ms after ${retryCount + 1} attempt(s)`);
-    } catch (error) {
-      const insertDuration = Date.now() - insertStartTime;
-      console.error(`INSERT failed after ${insertDuration}ms:`, error);
-      // Handle timeout or other errors
-      if (error.message && error.message.includes('timed out')) {
-        console.error('Database insert timed out');
-        insertError = { message: 'Database operation timed out. Please check your connection and try again.' };
-      } else {
-        console.error('Unexpected error during insert:', error);
-        insertError = { message: error.message || 'Unknown error during event creation' };
-      }
-    }
     
     // If INSERT failed, return error
     if (insertError) {
