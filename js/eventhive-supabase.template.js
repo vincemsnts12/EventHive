@@ -61,7 +61,8 @@ async function signInWithGoogle() {
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + window.location.pathname,
+        // Use origin-only redirect to reduce state/redirect mismatches
+        redirectTo: window.location.origin,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -149,6 +150,26 @@ async function handleOAuthCallback() {
 
   try {
     console.log('Processing OAuth callback...');
+
+    // Early check: provider returned an error (e.g. state missing, access_denied)
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = (window.location.hash || '').startsWith('#') ? new URLSearchParams(window.location.hash.slice(1)) : null;
+    const oauthError = searchParams.get('error') || (hashParams && hashParams.get('error'));
+    const oauthErrorDesc = searchParams.get('error_description') || (hashParams && hashParams.get('error_description'));
+    if (oauthError) {
+      const safeDescription = oauthErrorDesc ? decodeURIComponent(oauthErrorDesc).replace(/[^\w\s\-.,:;()<>@!?'"/\\]/g, '') : '';
+      console.warn('OAuth provider returned error:', oauthError, safeDescription);
+      let userMsg = 'Authentication failed. Please try signing in again.';
+      if (oauthError === 'invalid_request' && safeDescription.toLowerCase().includes('state')) {
+        userMsg = 'Authentication failed: missing or invalid state parameter. Please try signing in again.';
+      } else if (oauthError === 'access_denied') {
+        userMsg = 'Authentication was denied. Please allow access to continue.';
+      }
+      if (safeDescription) userMsg += '\n\nDetails: ' + safeDescription;
+      alert(userMsg);
+      try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) { /* ignore */ }
+      return;
+    }
     
     // Use Supabase v2 helper to parse the URL and obtain the session
     // This is more reliable than manually parsing the hash/query string
