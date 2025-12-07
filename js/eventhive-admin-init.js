@@ -58,57 +58,108 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // CRITICAL: Wait for auth state to fully stabilize before fetching events
   // This prevents RLS evaluation issues for authenticated users
+  // OPTIMIZATION: Check localStorage for session data first - if valid and recent, skip session check
   const supabase = getSupabaseClient();
   if (supabase) {
     let authStabilized = false;
-    let retries = 0;
-    const maxAuthRetries = 20; // 20 retries * 200ms = 4 seconds max wait
+    let shouldSkipSessionCheck = false;
     
-    console.log('Waiting for auth state to stabilize...');
-    
-    while (retries < maxAuthRetries && !authStabilized) {
-      await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms between checks
-      retries++;
+    // Check localStorage for Supabase session data
+    // Supabase stores session in localStorage with key pattern: sb-{project-ref}-auth-token
+    // We'll check all localStorage keys that match this pattern
+    try {
+      const localStorageKeys = Object.keys(localStorage);
+      const supabaseSessionKey = localStorageKeys.find(key => 
+        key.includes('supabase') && key.includes('auth-token')
+      ) || localStorageKeys.find(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
       
-      try {
-        // Add timeout to getSession() to prevent hanging when session exists in localStorage
-        const sessionCheckPromise = supabase.auth.getSession();
-        const sessionCheckTimeout = new Promise((resolve) => 
-          setTimeout(() => resolve({ data: { session: null }, error: { message: 'Session check timeout' } }), 1000) // 1 second timeout
-        );
-        const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
-        
-        // Check if we got a timeout
-        if (sessionResult?.error?.message === 'Session check timeout') {
-          console.log(`Session check timed out (attempt ${retries}/${maxAuthRetries}), retrying...`);
-          continue; // Retry
-        }
-        
-        const hasSession = !!sessionResult?.data?.session?.user;
-        
-        if (hasSession) {
-          // User is authenticated - wait a bit more to ensure SIGNED_IN event completed
-          console.log('Authenticated user detected, waiting for auth state to fully stabilize...');
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second after session detected
-          authStabilized = true;
-          console.log('Auth state stabilized for authenticated user');
-        } else {
-          // No session - guest user, can proceed immediately
-          authStabilized = true;
-          console.log('Guest user detected, auth state is stable');
-        }
-      } catch (sessionError) {
-        // If session check fails, log and retry
-        console.log(`Session check error (attempt ${retries}/${maxAuthRetries}):`, sessionError.message || sessionError);
-        if (retries >= maxAuthRetries) {
-          console.warn('Session check failed after max retries, proceeding anyway');
-          authStabilized = true; // Proceed anyway to avoid infinite loop
+      if (supabaseSessionKey) {
+        const sessionDataStr = localStorage.getItem(supabaseSessionKey);
+        if (sessionDataStr) {
+          try {
+            const sessionData = JSON.parse(sessionDataStr);
+            // Check if session has access_token and expires_at
+            if (sessionData.access_token && sessionData.expires_at) {
+              const expiresAt = sessionData.expires_at;
+              const now = Math.floor(Date.now() / 1000); // Current time in seconds
+              const thirtyMinutesAgo = now - (30 * 60); // 30 minutes ago in seconds
+              
+              // If session expires_at is within the last 30 minutes, it's recent enough
+              // (expires_at is in the future, so if it's > 30 mins from now, it's valid)
+              if (expiresAt > thirtyMinutesAgo) {
+                console.log('Valid session found in localStorage (less than 30 minutes old), skipping session check');
+                shouldSkipSessionCheck = true;
+                // Wait a short time for connection to initialize, then proceed
+                await new Promise(resolve => setTimeout(resolve, 500)); // 500ms for connection
+                authStabilized = true;
+                console.log('Auth state stabilized (using cached session)');
+              } else {
+                console.log('Session in localStorage is older than 30 minutes, will verify with session check');
+              }
+            }
+          } catch (parseError) {
+            console.log('Could not parse session data from localStorage, will verify with session check');
+          }
         }
       }
+    } catch (localStorageError) {
+      console.log('Could not check localStorage for session, will verify with session check');
     }
     
-    if (!authStabilized) {
-      console.warn('Auth state did not stabilize after max retries, proceeding anyway...');
+    // If we didn't skip the session check, do the normal verification
+    if (!shouldSkipSessionCheck) {
+      let retries = 0;
+      const maxAuthRetries = 20; // 20 retries * 200ms = 4 seconds max wait
+      
+      console.log('Waiting for auth state to stabilize...');
+      
+      while (retries < maxAuthRetries && !authStabilized) {
+        await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms between checks
+        retries++;
+        
+        try {
+          // Add timeout to getSession() to prevent hanging when session exists in localStorage
+          const sessionCheckPromise = supabase.auth.getSession();
+          const sessionCheckTimeout = new Promise((resolve) => 
+            setTimeout(() => resolve({ data: { session: null }, error: { message: 'Session check timeout' } }), 1000) // 1 second timeout
+          );
+          const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
+          
+          // Check if we got a timeout
+          if (sessionResult?.error?.message === 'Session check timeout') {
+            console.log(`Session check timed out (attempt ${retries}/${maxAuthRetries}), retrying...`);
+            continue; // Retry
+          }
+          
+          const hasSession = !!sessionResult?.data?.session?.user;
+          
+          if (hasSession) {
+            // User is authenticated - wait a bit more to ensure SIGNED_IN event completed
+            console.log('Authenticated user detected, waiting for auth state to fully stabilize...');
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second after session detected
+            authStabilized = true;
+            console.log('Auth state stabilized for authenticated user');
+          } else {
+            // No session - guest user, can proceed immediately
+            authStabilized = true;
+            console.log('Guest user detected, auth state is stable');
+          }
+        } catch (sessionError) {
+          // If session check fails, log and retry
+          console.log(`Session check error (attempt ${retries}/${maxAuthRetries}):`, sessionError.message || sessionError);
+          if (retries >= maxAuthRetries) {
+            console.warn('Session check failed after max retries, proceeding anyway');
+            authStabilized = true; // Proceed anyway to avoid infinite loop
+          }
+        }
+      }
+      
+      if (!authStabilized) {
+        console.warn('Auth state did not stabilize after max retries, proceeding anyway...');
+        authStabilized = true; // Proceed anyway
+      }
     }
     
     console.log('Auth state stabilized, proceeding with event fetch...');
