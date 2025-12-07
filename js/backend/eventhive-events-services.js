@@ -26,7 +26,49 @@ async function getEvents(options = {}) {
     return { success: false, events: [], error: 'Supabase client not available. Make sure eventhive-supabase.js is loaded.' };
   }
   
-  const supabase = getSupabaseClient();
+  // CRITICAL FIX: Use a guest client (no session) for SELECT queries to avoid RLS timeout
+  // Even though the SELECT policy is USING (true), authenticated users still timeout
+  // By using a guest client, we bypass RLS evaluation entirely for SELECT queries
+  let supabase;
+  
+  // Check if we need to create a guest client
+  const hasAuthToken = Object.keys(localStorage).some(key => 
+    (key.includes('supabase') && key.includes('auth-token')) || 
+    (key.startsWith('sb-') && key.includes('auth-token'))
+  );
+  
+  if (hasAuthToken) {
+    // Create a fresh guest client for SELECT queries (no session = no RLS evaluation issues)
+    console.log('Auth token detected - using guest client for SELECT query to avoid RLS timeout');
+    try {
+      // Get Supabase URL and key from window (exposed by eventhive-supabase.js)
+      const SUPABASE_URL = window.__EH_SUPABASE_URL;
+      const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+      
+      if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof window.supabase !== 'undefined') {
+        // Create a new client instance without session (guest mode)
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: false, // Don't persist session for guest client
+            autoRefreshToken: false, // Don't auto-refresh
+            detectSessionInUrl: false // Don't detect session in URL
+          }
+        });
+        console.log('Guest client created for SELECT query');
+      } else {
+        // Fallback to regular client if we can't create guest client
+        console.warn('Could not create guest client (missing URL/key or Supabase lib), using regular client');
+        supabase = getSupabaseClient();
+      }
+    } catch (error) {
+      console.warn('Error creating guest client, using regular client:', error);
+      supabase = getSupabaseClient();
+    }
+  } else {
+    // No auth token, use regular client (already a guest)
+    supabase = getSupabaseClient();
+  }
+  
   if (!supabase) {
     console.error('Supabase client is null');
     return { success: false, events: [], error: 'Supabase not initialized' };

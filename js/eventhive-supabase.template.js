@@ -26,7 +26,12 @@ function initSupabase() {
 
   if (typeof supabase !== 'undefined') {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    try { window.__EH_SUPABASE_CLIENT = supabaseClient; } catch (e) { /* ignore */ }
+    try { 
+      window.__EH_SUPABASE_CLIENT = supabaseClient;
+      // Expose URL and key for creating guest clients
+      window.__EH_SUPABASE_URL = SUPABASE_URL;
+      window.__EH_SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+    } catch (e) { /* ignore */ }
     return supabaseClient;
   } else {
     console.error('Supabase library not loaded. Please include: <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>');
