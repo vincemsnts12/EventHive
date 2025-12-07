@@ -311,7 +311,10 @@ async function handleOAuthCallback() {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
   }
   
-  isProcessingOAuthCallback = false; // OAuth callback processing complete
+  // Delay flag clear to ensure SIGNED_IN event fires while flag is still true
+  setTimeout(() => {
+    isProcessingOAuthCallback = false;
+  }, 500);
 }
 
 // ===== INITIALIZE ON PAGE LOAD =====
