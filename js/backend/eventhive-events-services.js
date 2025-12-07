@@ -49,182 +49,17 @@ async function getEvents(options = {}) {
   }
 
   try {
-    // CRITICAL: Check if user is authenticated FIRST - auth state should already be stabilized by caller
-    // DO NOT build or execute any queries until after this check completes
-    // OPTIMIZATION: Check localStorage first to avoid hanging getSession() calls
-    let shouldSortInJS = false;
-    let isAuthenticated = false;
-    
-    // First, check localStorage for session data (faster, doesn't hang)
-    try {
-      const localStorageKeys = Object.keys(localStorage);
-      const supabaseSessionKey = localStorageKeys.find(key => 
-        key.includes('supabase') && key.includes('auth-token')
-      ) || localStorageKeys.find(key => 
-        key.startsWith('sb-') && key.includes('auth-token')
-      );
-      
-      if (supabaseSessionKey) {
-        console.log('Found Supabase session key in localStorage:', supabaseSessionKey);
-        const sessionDataStr = localStorage.getItem(supabaseSessionKey);
-        if (sessionDataStr) {
-          try {
-            const sessionData = JSON.parse(sessionDataStr);
-            console.log('Parsed session data structure:', {
-              hasAccessToken: !!sessionData.access_token,
-              hasExpiresAt: !!sessionData.expires_at,
-              hasSession: !!sessionData.session,
-              keys: Object.keys(sessionData)
-            });
-            
-            // Supabase stores session in different formats:
-            // 1. Direct: { access_token, expires_at, ... }
-            // 2. Nested: { session: { access_token, expires_at, ... } }
-            let accessToken = null;
-            let expiresAt = null;
-            
-            if (sessionData.access_token && sessionData.expires_at) {
-              // Direct format
-              accessToken = sessionData.access_token;
-              expiresAt = sessionData.expires_at;
-            } else if (sessionData.session?.access_token && sessionData.session?.expires_at) {
-              // Nested format
-              accessToken = sessionData.session.access_token;
-              expiresAt = sessionData.session.expires_at;
-            }
-            
-            if (accessToken && expiresAt) {
-              const now = Math.floor(Date.now() / 1000); // Current time in seconds
-              const thirtyMinutesAgo = now - (30 * 60); // 30 minutes ago in seconds
-              
-              console.log('Session expiry check:', {
-                expiresAt,
-                now,
-                thirtyMinutesAgo,
-                isRecent: expiresAt > thirtyMinutesAgo
-              });
-              
-              // If session expires_at is within the last 30 minutes, it's recent enough
-              if (expiresAt > thirtyMinutesAgo) {
-                console.log('Valid session found in localStorage, assuming authenticated');
-                isAuthenticated = true;
-                shouldSortInJS = true;
-              } else {
-                console.log('Session found but expired (older than 30 minutes)');
-              }
-            } else {
-              console.log('Session data found but missing access_token or expires_at');
-            }
-          } catch (parseError) {
-            console.warn('Error parsing session data from localStorage:', parseError);
-            // Ignore parse errors, will check session normally
-          }
-        } else {
-          console.log('Session key found but value is empty');
-        }
-      } else {
-        console.log('No Supabase session key found in localStorage');
-      }
-    } catch (localStorageError) {
-      console.warn('Error checking localStorage for session:', localStorageError);
-      // Ignore localStorage errors, will check session normally
-    }
-    
-    // If localStorage check didn't find a session, try getSession() with timeout
-    if (!isAuthenticated) {
-      try {
-        const sessionCheckPromise = supabase.auth.getSession();
-        const sessionCheckTimeout = new Promise((resolve) => 
-          setTimeout(() => resolve({ data: { session: null }, error: null }), 500) // 500ms timeout
-        );
-        const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
-        if (sessionResult?.data?.session?.user) {
-          console.log('User is authenticated (from session check) - will sort in JavaScript to avoid RLS timeout');
-          shouldSortInJS = true;
-          isAuthenticated = true;
-        } else {
-          console.log('User is not authenticated - using database order by');
-        }
-      } catch (userCheckError) {
-        // If session check fails, assume guest
-        console.log('Session check failed, assuming guest - using database order by');
-      }
-    } else {
-      console.log('User is authenticated (from localStorage) - will sort in JavaScript to avoid RLS timeout');
-    }
-    
-    // NOW that auth state is confirmed, proceed with query building and execution
-    // The caller (admin-init.js) has already ensured connection is ready
-    // Add a delay to ensure auth events have fully settled, especially on reload
-    // This prevents race conditions when SIGNED_IN event fires during initialization
-    if (isAuthenticated) {
-      console.log('Waiting for auth state to fully settle before query...');
-      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay for authenticated users
-    } else {
-      await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay for guests
-    }
+    // SIMPLIFIED: Treat authenticated users the same as guests for fetching events
+    // RLS policies allow both to see events, so use the same query structure
+    // Authorization checks happen AFTER fetching, not during the query
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     
-    // For authenticated users, verify session is stable before querying
-    // This ensures SIGNED_IN event has fully completed and session is ready
-    if (isAuthenticated) {
-      console.log('Verifying session stability for authenticated user...');
-      let sessionStable = false;
-      let stabilityChecks = 0;
-      const maxStabilityChecks = 5; // Check up to 5 times
-      
-      while (!sessionStable && stabilityChecks < maxStabilityChecks) {
-        try {
-          const sessionCheckPromise = supabase.auth.getSession();
-          const sessionCheckTimeout = new Promise((resolve) => 
-            setTimeout(() => resolve({ data: { session: null }, error: { message: 'Session check timeout' } }), 1000)
-          );
-          const sessionResult = await Promise.race([sessionCheckPromise, sessionCheckTimeout]);
-          
-          if (sessionResult?.data?.session?.user && !sessionResult?.error) {
-            sessionStable = true;
-            console.log('Session is stable, proceeding with query');
-          } else {
-            stabilityChecks++;
-            if (stabilityChecks < maxStabilityChecks) {
-              console.log(`Session not yet stable (check ${stabilityChecks}/${maxStabilityChecks}), waiting...`);
-              await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms between checks
-            }
-          }
-        } catch (sessionError) {
-          stabilityChecks++;
-          if (stabilityChecks < maxStabilityChecks) {
-            console.log(`Session check error (check ${stabilityChecks}/${maxStabilityChecks}), retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        }
-      }
-      
-      if (!sessionStable) {
-        console.warn('Session stability check incomplete, but proceeding with query anyway');
-      }
-    }
-    
-    // Build query - for authenticated users, skip order by to avoid RLS timeout
-    // CRITICAL: For authenticated users, select minimal columns first to test if RLS is the issue
-    // If this works, we can add more columns back
-    // Select specific columns instead of '*' to avoid JSONB overhead
-    // Don't select 'colleges' JSONB column initially - it's expensive and we'll check it after successful fetch
-    // Just use college_code (one college) for now
-    
-    // For authenticated users, try minimal columns first to avoid RLS timeout
-    const minimalColumns = 'id, title, description, location, start_date, end_date, status, is_featured, college_code, organization_name, created_at, updated_at';
-    const fullColumns = 'id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, organization_id, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by';
-    
-    // Use minimal columns for authenticated users to reduce RLS evaluation overhead
-    const columnsToSelect = isAuthenticated ? minimalColumns : fullColumns;
-    
-    console.log('Selecting columns for query:', { isAuthenticated, columnCount: columnsToSelect.split(',').length });
-    
+    // Build query - use same structure for both guests and authenticated users
+    // Select all necessary columns (same for everyone)
     let query = supabase
       .from('events')
-      .select(columnsToSelect);
+      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, organization_id, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
     
     // Apply filters first
     if (options.status) {
@@ -237,93 +72,37 @@ async function getEvents(options = {}) {
       query = query.eq('college_code', options.collegeCode);
     }
     
-    // NEVER use order by for authenticated users - it causes RLS timeout
-    // Always sort in JavaScript for authenticated users
-    // Only use database order by for guests (when shouldSortInJS is false)
-    console.log('Query configuration:', {
-      shouldSortInJS,
-      isAuthenticated,
-      willUseOrderBy: !shouldSortInJS
-    });
-    
-    if (!shouldSortInJS) {
-      query = query.order('start_date', { ascending: true });
-      console.log('Using database order by (guest user)');
-    } else {
-      console.log('Skipping database order by for authenticated user - will sort in JavaScript');
-    }
+    // Use database order by for everyone (guests can do it, so authenticated users can too)
+    query = query.order('start_date', { ascending: true });
     
     // Apply limit/offset last
-    // For authenticated users, if no limit specified, use a reasonable limit to avoid RLS timeout
-    // We can fetch more in subsequent calls if needed
     if (options.limit) {
       query = query.limit(options.limit);
-    } else if (isAuthenticated && !options.limit) {
-      // For authenticated users without a limit, use a default limit to reduce RLS evaluation
-      // This helps avoid timeout when there are many events
-      query = query.limit(100); // Limit to 100 events initially
-      console.log('Using default limit of 100 for authenticated user to avoid RLS timeout');
     }
     if (options.offset) {
       query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
     }
     
-    // Add timeout protection for the query with retry logic for authenticated users
-    // For authenticated users, try shorter timeout first, then retry if needed
+    // Add timeout protection for the query
+    const queryPromise = query;
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database query timed out after 15 seconds')), 15000)
+    );
+    
     let queryResult;
     const startTime = Date.now();
-    let retries = 0;
-    const maxRetries = isAuthenticated ? 2 : 0; // Retry once for authenticated users
-    let lastError = null;
-    
-    while (retries <= maxRetries) {
-      try {
-        const timeoutDuration = isAuthenticated && retries === 0 ? 8000 : 15000; // 8s first try, 15s retry
-        const queryPromise = query;
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error(`Database query timed out after ${timeoutDuration}ms`)), timeoutDuration)
-        );
-        
-        console.log(`Attempting query (attempt ${retries + 1}/${maxRetries + 1}) with ${timeoutDuration}ms timeout...`);
-        queryResult = await Promise.race([queryPromise, timeoutPromise]);
-        const duration = Date.now() - startTime;
-        console.log(`Query completed in ${duration}ms`);
-        break; // Success, exit retry loop
-      } catch (timeoutError) {
-        const duration = Date.now() - startTime;
-        lastError = timeoutError;
-        console.error(`Query attempt ${retries + 1} timed out after ${duration}ms`);
-        
-        if (retries < maxRetries) {
-          console.log(`Retrying query (attempt ${retries + 2}/${maxRetries + 1})...`);
-          // Wait a bit before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second between retries
-          retries++;
-        } else {
-          // All retries exhausted
-          if (timeoutError.message && timeoutError.message.includes('timed out')) {
-            console.error('Database query timed out after all retries');
-            return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
-          }
-          throw timeoutError;
-        }
+    try {
+      queryResult = await Promise.race([queryPromise, timeoutPromise]);
+      const duration = Date.now() - startTime;
+      console.log(`Query completed in ${duration}ms`);
+    } catch (timeoutError) {
+      const duration = Date.now() - startTime;
+      console.error(`Query timed out after ${duration}ms`);
+      if (timeoutError.message && timeoutError.message.includes('timed out')) {
+        console.error('Database query timed out');
+        return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
       }
-    }
-    
-    if (!queryResult) {
-      // Should not happen, but just in case
-      console.error('Query failed: no result after retries');
-      return { success: false, events: [], error: lastError?.message || 'Database query failed' };
-    }
-    
-    // Sort in JavaScript if needed (for authenticated users)
-    if (shouldSortInJS && queryResult.data && queryResult.data.length > 0) {
-      console.log('Sorting events in JavaScript...');
-      queryResult.data.sort((a, b) => {
-        const dateA = a.start_date ? new Date(a.start_date).getTime() : 0;
-        const dateB = b.start_date ? new Date(b.start_date).getTime() : 0;
-        return dateA - dateB;
-      });
+      throw timeoutError;
     }
     
     const { data, error } = queryResult;
