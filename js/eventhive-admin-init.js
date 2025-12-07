@@ -11,9 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('initSupabase function not found');
   }
   
-  // Wait a bit for Supabase to initialize
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
+  // Don't wait - let it initialize naturally like homepage/search pages do
   // Load all events from Supabase in one query, then classify locally
   if (typeof getEvents === 'function') {
     console.log('Loading all events from Supabase...');

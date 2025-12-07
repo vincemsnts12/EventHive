@@ -41,16 +41,11 @@ async function getEvents(options = {}) {
   try {
     // Try selecting all columns first - if colleges column doesn't exist, Supabase will handle it
     // Using '*' is actually safer as it will automatically handle missing columns
-    // Try without order by first to see if that's causing the timeout
     let query = supabase
       .from('events')
       .select('*');
     
-    // Only add order by if we have data (to avoid timeout on empty tables with index issues)
-    // Actually, let's always try with order by - if it times out, we'll know
-    query = query.order('start_date', { ascending: true });
-
-    // Apply filters
+    // Apply filters first (before ordering) - this might help with performance
     if (options.status) {
       query = query.eq('status', options.status);
     }
@@ -60,6 +55,11 @@ async function getEvents(options = {}) {
     if (options.collegeCode) {
       query = query.eq('college_code', options.collegeCode);
     }
+    
+    // Add ordering after filters (this is more efficient)
+    query = query.order('start_date', { ascending: true });
+    
+    // Apply limit/offset last
     if (options.limit) {
       query = query.limit(options.limit);
     }
@@ -67,8 +67,24 @@ async function getEvents(options = {}) {
       query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
     }
 
+    // Filters are now applied above, before ordering
+
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
+    
+    // For empty tables, try a simpler query first to test connection
+    // If we have no filters and it's likely empty, test with a simple count first
+    if (Object.keys(options).length === 0) {
+      console.log('Testing connection with simple count query...');
+      try {
+        const countResult = await supabase
+          .from('events')
+          .select('id', { count: 'exact', head: true });
+        console.log('Count query result:', countResult);
+      } catch (countError) {
+        console.warn('Count query test failed (non-critical):', countError);
+      }
+    }
     
     // Add timeout protection for the query
     const queryPromise = query;
@@ -154,7 +170,8 @@ async function getEvents(options = {}) {
     }
 
     if (!data || data.length === 0) {
-      console.log('No events found in database');
+      console.log('No events found in database - returning empty array');
+      // Return early if no data - don't try to transform empty array
       return { success: true, events: [] };
     }
 
