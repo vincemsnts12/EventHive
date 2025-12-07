@@ -587,37 +587,11 @@ async function createEvent(eventData) {
     // Set status to Pending by default
     dbEvent.status = 'Pending';
     
-    // Ensure colleges is valid JSONB format (array or omit if not set)
-    // Only include colleges if it's a valid non-empty array
-    // If the column doesn't exist yet, omitting it won't cause an error
+    // TEMPORARY: Omit colleges field to avoid RLS/timeout issues during INSERT
+    // The college_code field will be set, and colleges can be updated later if needed
+    // This allows events to be created successfully even if the colleges column has issues
     if (dbEvent.colleges !== null && dbEvent.colleges !== undefined) {
-      if (!Array.isArray(dbEvent.colleges)) {
-        console.warn('Colleges is not an array, attempting to convert:', dbEvent.colleges);
-        try {
-          // Try to parse if it's a string
-          if (typeof dbEvent.colleges === 'string') {
-            dbEvent.colleges = JSON.parse(dbEvent.colleges);
-          } else {
-            // If it's not an array and not a string, remove it
-            delete dbEvent.colleges;
-          }
-        } catch (e) {
-          console.error('Failed to parse colleges, removing it:', e);
-          delete dbEvent.colleges;
-        }
-      }
-      
-      // After conversion attempt, check again
-      if (dbEvent.colleges && !Array.isArray(dbEvent.colleges)) {
-        console.warn('Colleges is still not an array after conversion, omitting:', dbEvent.colleges);
-        delete dbEvent.colleges;
-      } else if (dbEvent.colleges && dbEvent.colleges.length === 0) {
-        // Omit empty arrays - column might not exist or we don't need it
-        delete dbEvent.colleges;
-      }
-      // If it's a valid array with items, keep it (Supabase will handle JSONB conversion)
-    } else {
-      // If colleges is null/undefined, don't include it in the insert
+      console.log('Omitting colleges field from INSERT to avoid timeout issues. Will use college_code only.');
       delete dbEvent.colleges;
     }
     
@@ -631,8 +605,10 @@ async function createEvent(eventData) {
     console.log('Inserting event with data:', { 
       ...dbEvent, 
       description: dbEvent.description ? '[truncated]' : undefined,
-      colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
+      colleges: dbEvent.colleges ? (Array.isArray(dbEvent.colleges) ? JSON.stringify(dbEvent.colleges) : dbEvent.colleges) : 'not included'
     });
+    console.log('Colleges field type:', dbEvent.colleges ? typeof dbEvent.colleges : 'not included');
+    console.log('Colleges is array?', Array.isArray(dbEvent.colleges));
     console.log('Starting INSERT at:', new Date().toISOString());
 
     // Strategy: Insert without .select() first to avoid RLS blocking on SELECT
