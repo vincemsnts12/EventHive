@@ -569,17 +569,44 @@ async function createEvent(eventData) {
   console.log('User authenticated:', user.id);
   
   // Check if user is admin BEFORE attempting INSERT (fail fast)
-  console.log('Checking if user is admin...');
+  // First check localStorage cache (fast, no database query)
+  console.log('Checking if user is admin (checking cache first)...');
   const adminCheckStart = Date.now();
-  const adminCheckPromise = checkIfUserIsAdmin();
-  const adminCheckTimeout = new Promise((resolve) => 
-    setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Admin check timed out' }), 3000) // 3 second timeout
-  );
-  const adminCheck = await Promise.race([adminCheckPromise, adminCheckTimeout]);
-  const adminCheckDuration = Date.now() - adminCheckStart;
-  console.log(`Admin check completed in ${adminCheckDuration}ms:`, adminCheck);
+  let isAdmin = false;
   
-  if (!adminCheck.success || !adminCheck.isAdmin) {
+  try {
+    const cached = localStorage.getItem('eventhive_auth_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const now = Date.now();
+      const timeSinceLogin = now - parsed.timestamp;
+      const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+      
+      // Use cache if it's less than 5 minutes old
+      if (timeSinceLogin < AUTH_CHECK_INTERVAL && parsed.state) {
+        isAdmin = parsed.state.isAdmin || false;
+        const adminCheckDuration = Date.now() - adminCheckStart;
+        console.log(`Admin check from cache completed in ${adminCheckDuration}ms:`, { isAdmin });
+      }
+    }
+  } catch (e) {
+    console.error('Error reading auth cache:', e);
+  }
+  
+  // If cache doesn't have admin status, fall back to database check (with timeout)
+  if (!isAdmin) {
+    console.log('Cache check failed or user not admin in cache, checking database...');
+    const adminCheckPromise = checkIfUserIsAdmin();
+    const adminCheckTimeout = new Promise((resolve) => 
+      setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Admin check timed out' }), 2000) // 2 second timeout
+    );
+    const adminCheck = await Promise.race([adminCheckPromise, adminCheckTimeout]);
+    const adminCheckDuration = Date.now() - adminCheckStart;
+    console.log(`Admin check from database completed in ${adminCheckDuration}ms:`, adminCheck);
+    isAdmin = adminCheck.success && adminCheck.isAdmin;
+  }
+  
+  if (!isAdmin) {
     logSecurityEvent('SUSPICIOUS_ACTIVITY', { userId: user.id }, 'Non-admin attempted to create event');
     return { success: false, error: 'Only admins can create events' };
   }
