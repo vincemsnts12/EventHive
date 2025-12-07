@@ -19,64 +19,54 @@
  * @param {number} options.offset - Offset for pagination
  * @returns {Promise<{success: boolean, events: Array, error?: string}>}
  */
-async function getEvents(options = {}) {
-  // Check if getSupabaseClient is available
-  if (typeof getSupabaseClient !== 'function') {
-    console.error('getSupabaseClient function not available');
-    return { success: false, events: [], error: 'Supabase client not available. Make sure eventhive-supabase.js is loaded.' };
+// Global guest client for fetching events (no session, no RLS issues)
+let guestSupabaseClient = null;
+
+function getGuestSupabaseClient() {
+  // Reuse existing guest client if available
+  if (guestSupabaseClient) {
+    return guestSupabaseClient;
   }
   
-  // CRITICAL FIX: Use a guest client (no session) for SELECT queries to avoid RLS timeout
-  // Even though the SELECT policy is USING (true), authenticated users still timeout
-  // By using a guest client, we bypass RLS evaluation entirely for SELECT queries
-  let supabaseClient;
+  // Get Supabase URL and key from window (exposed by eventhive-supabase.js)
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
   
-  // Check if we need to create a guest client
-  const hasAuthToken = Object.keys(localStorage).some(key => 
-    (key.includes('supabase') && key.includes('auth-token')) || 
-    (key.startsWith('sb-') && key.includes('auth-token'))
-  );
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('Supabase URL or key not available');
+    return null;
+  }
   
-  if (hasAuthToken) {
-    // Create a fresh guest client for SELECT queries (no session = no RLS evaluation issues)
-    console.log('Auth token detected - using guest client for SELECT query to avoid RLS timeout');
-    try {
-      // Get Supabase URL and key from window (exposed by eventhive-supabase.js)
-      const SUPABASE_URL = window.__EH_SUPABASE_URL;
-      const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-      
-      // Try to get Supabase library from global scope
-      // Check window.supabase first (CDN), then global supabase variable
-      const supabaseLib = (typeof window !== 'undefined' && window.supabase) ? window.supabase : 
-                          (typeof supabase !== 'undefined' ? supabase : null);
-      
-      if (SUPABASE_URL && SUPABASE_ANON_KEY && supabaseLib && typeof supabaseLib.createClient === 'function') {
-        // Create a new client instance without session (guest mode)
-        supabaseClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: {
-            persistSession: false, // Don't persist session for guest client
-            autoRefreshToken: false, // Don't auto-refresh
-            detectSessionInUrl: false // Don't detect session in URL
-          }
-        });
-        console.log('Guest client created for SELECT query');
-      } else {
-        // Fallback to regular client if we can't create guest client
-        console.warn('Could not create guest client (missing URL/key or Supabase lib), using regular client');
-        supabaseClient = getSupabaseClient();
-      }
-    } catch (error) {
-      console.warn('Error creating guest client, using regular client:', error);
-      supabaseClient = getSupabaseClient();
+  // Try to get Supabase library from global scope
+  const supabaseLib = (typeof window !== 'undefined' && window.supabase) ? window.supabase : 
+                      (typeof supabase !== 'undefined' ? supabase : null);
+  
+  if (!supabaseLib || typeof supabaseLib.createClient !== 'function') {
+    console.error('Supabase library not available');
+    return null;
+  }
+  
+  // Create a guest client (no session, no auth) - reuse same instance
+  guestSupabaseClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: false, // Don't persist session
+      autoRefreshToken: false, // Don't auto-refresh
+      detectSessionInUrl: false // Don't detect session in URL
     }
-  } else {
-    // No auth token, use regular client (already a guest)
-    supabaseClient = getSupabaseClient();
-  }
+  });
+  
+  return guestSupabaseClient;
+}
+
+async function getEvents(options = {}) {
+  // ALWAYS use guest client for fetching events - no authentication needed
+  // This bypasses all RLS evaluation issues since guests can fetch successfully
+  // Authorization checks happen AFTER fetching, not during the query
+  const supabaseClient = getGuestSupabaseClient();
   
   if (!supabaseClient) {
-    console.error('Supabase client is null');
-    return { success: false, events: [], error: 'Supabase not initialized' };
+    console.error('Guest Supabase client could not be created');
+    return { success: false, events: [], error: 'Supabase client not available. Make sure eventhive-supabase.js is loaded.' };
   }
   
   // Verify the client is actually functional
@@ -85,7 +75,7 @@ async function getEvents(options = {}) {
     return { success: false, events: [], error: 'Supabase client is not properly initialized' };
   }
   
-  console.log('Supabase client verified - proceeding with query');
+  console.log('Using guest client for event fetch (no authentication required)');
 
   // Input validation
   if (options.status && typeof options.status !== 'string') {
