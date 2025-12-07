@@ -91,8 +91,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               if (expiresAt > thirtyMinutesAgo) {
                 console.log('Valid session found in localStorage (less than 30 minutes old), skipping session check');
                 shouldSkipSessionCheck = true;
-                // Wait a short time for connection to initialize, then proceed
-                await new Promise(resolve => setTimeout(resolve, 500)); // 500ms for connection
+                // Wait longer for connection to fully initialize and auth state to settle
+                // This is critical for authenticated users to avoid RLS timeout
+                console.log('Waiting for connection to fully initialize...');
+                await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 seconds for connection
                 authStabilized = true;
                 console.log('Auth state stabilized (using cached session)');
               } else {
@@ -136,9 +138,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           const hasSession = !!sessionResult?.data?.session?.user;
           
           if (hasSession) {
-            // User is authenticated - wait a bit more to ensure SIGNED_IN event completed
+            // User is authenticated - wait longer to ensure SIGNED_IN event completed and connection is ready
             console.log('Authenticated user detected, waiting for auth state to fully stabilize...');
-            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second after session detected
+            await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 seconds after session detected
             authStabilized = true;
             console.log('Auth state stabilized for authenticated user');
           } else {
@@ -162,7 +164,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     
-    console.log('Auth state stabilized, proceeding with event fetch...');
+    console.log('Auth state stabilized, ensuring connection is ready...');
+    
+    // Final connection readiness check - wait a bit more to ensure everything is settled
+    await new Promise(resolve => setTimeout(resolve, 500)); // 500ms final wait
+    
+    console.log('Connection ready, proceeding with event fetch...');
   }
   
   // Load all events from Supabase in one query, then classify locally

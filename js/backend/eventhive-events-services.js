@@ -154,6 +154,9 @@ async function getEvents(options = {}) {
     }
     
     // NOW that auth state is confirmed, proceed with query building and execution
+    // The caller (admin-init.js) has already ensured connection is ready
+    // Add a small delay to ensure everything is settled
+    await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay for connection readiness
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     
