@@ -10,6 +10,7 @@ const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}'; // Injected from Vercel env: 
 // <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 let supabaseClient = null;
+let lastAuthenticatedUserId = null; // Track user to show alert only once per sign-in
 
 // Initialize Supabase (call this after Supabase library is loaded)
 function initSupabase() {
@@ -125,11 +126,15 @@ function setupAuthStateListener() {
       }
       
       console.log('User successfully authenticated with TUP email:', email);
-      // Show success message to user
-      alert('Welcome! You have been successfully authenticated with ' + email);
+      // Show success message to user only on first sign-in, not on every page load
+      if (lastAuthenticatedUserId !== session?.user?.id) {
+        lastAuthenticatedUserId = session.user.id;
+        alert('Welcome! You have been successfully authenticated with ' + email);
+      }
       // TODO: Update UI to reflect logged-in state (e.g., show username in dropdown, enable dashboard link)
     } else if (event === 'SIGNED_OUT') {
       console.log('User signed out');
+      lastAuthenticatedUserId = null; // Reset so alert shows again on next sign-in
       // TODO: Update UI to reflect logged-out state
     } else if (event === 'TOKEN_REFRESHED') {
       console.log('Session token refreshed');
