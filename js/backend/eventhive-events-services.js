@@ -1070,8 +1070,8 @@ async function updateEvent(eventId, eventData) {
       }
     }
     
-    // Strategy: Update without .select() to avoid RLS blocking on SELECT
-    // Then fetch the event separately using guest client
+    // Strategy: Use database function to bypass RLS (faster, no RLS evaluation overhead)
+    // The function still validates admin status but bypasses RLS policy evaluation
     console.log('updateEvent: Starting UPDATE operation at:', new Date().toISOString());
     console.log('updateEvent: Event ID:', eventId);
     console.log('updateEvent: Update data:', { 
@@ -1081,30 +1081,150 @@ async function updateEvent(eventId, eventData) {
     });
     
     const updateStartTime = Date.now();
-    const updatePromise = supabase
-      .from('events')
-      .update(dbEvent)
-      .eq('id', eventId);
-    
-    const updateTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('UPDATE query timed out after 5 seconds')), 5000)
-    );
-    
     let updateError = null;
+    let updateSucceeded = false;
+    
     try {
-      console.log('updateEvent: Awaiting UPDATE query (with 5s timeout)...');
-      const result = await Promise.race([updatePromise, updateTimeoutPromise]);
+      console.log('updateEvent: Calling update_event database function (bypasses RLS)...');
+      
+      // Call the database function instead of direct UPDATE
+      // This bypasses RLS and should be much faster
+      const functionPromise = supabase.rpc('update_event', {
+        p_event_id: eventId,
+        p_title: dbEvent.title || null,
+        p_description: dbEvent.description || null,
+        p_location: dbEvent.location || null,
+        p_start_date: dbEvent.start_date || null,
+        p_end_date: dbEvent.end_date || null,
+        p_college_code: dbEvent.college_code || null,
+        p_organization_name: dbEvent.organization_name || null,
+        p_university_logo_url: dbEvent.university_logo_url || null,
+        p_status: dbEvent.status || null,
+        p_is_featured: dbEvent.is_featured !== undefined ? dbEvent.is_featured : null,
+        p_updated_at: dbEvent.updated_at || null
+      });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database function timed out after 3 seconds')), 3000)
+      );
+      
+      const result = await Promise.race([functionPromise, timeoutPromise]);
       const updateDuration = Date.now() - updateStartTime;
-      console.log(`updateEvent: UPDATE query completed in ${updateDuration}ms`);
-      console.log('updateEvent: UPDATE result:', { hasError: !!result?.error, error: result?.error?.message });
-      updateError = result?.error;
+      console.log(`updateEvent: update_event function completed in ${updateDuration}ms`);
+      console.log('updateEvent: Function result:', { 
+        hasError: !!result?.error, 
+        error: result?.error?.message,
+        returnedId: result?.data
+      });
+      
+      if (result.error) {
+        console.error('updateEvent: Database function error:', result.error);
+        updateError = result.error;
+      } else if (result.data === eventId) {
+        // Function returns the event ID if successful
+        updateSucceeded = true;
+        console.log('updateEvent: Event updated via function, ID:', result.data);
+      } else {
+        console.error('updateEvent: Function returned unexpected result:', result);
+        updateError = { message: 'Update function returned unexpected result' };
+      }
     } catch (error) {
       const updateDuration = Date.now() - updateStartTime;
-      console.error(`updateEvent: UPDATE query failed after ${updateDuration}ms:`, error);
-      if (error.message && error.message.includes('timed out')) {
-        return { success: false, error: 'Event update timed out. Please check your connection and try again.' };
+      console.error(`updateEvent: update_event function failed after ${updateDuration}ms:`, error);
+      
+      // If function doesn't exist or timed out, fall back to direct UPDATE with retry logic
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('function') || 
+          errorMsg.includes('does not exist') ||
+          errorMsg.includes('timed out') ||
+          errorMsg.includes('timeout')) {
+        console.log('updateEvent: Database function unavailable or timed out, falling back to direct UPDATE...');
+        
+        // Fallback to direct UPDATE
+        const fallbackPromise = supabase
+          .from('events')
+          .update(dbEvent)
+          .eq('id', eventId);
+        
+        const fallbackTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Fallback UPDATE timed out after 5 seconds')), 5000)
+        );
+        
+        try {
+          const fallbackResult = await Promise.race([fallbackPromise, fallbackTimeoutPromise]);
+          const fallbackDuration = Date.now() - updateStartTime;
+          console.log(`updateEvent: Fallback UPDATE completed in ${fallbackDuration}ms`);
+          console.log('updateEvent: Fallback result:', { 
+            hasError: !!fallbackResult?.error, 
+            error: fallbackResult?.error?.message,
+            dataCount: fallbackResult?.data ? (Array.isArray(fallbackResult.data) ? fallbackResult.data.length : 1) : 0
+          });
+          updateError = fallbackResult?.error;
+          updateSucceeded = !fallbackResult?.error;
+          
+          // Check if UPDATE actually affected any rows (RLS might block silently)
+          if (!updateError && (!fallbackResult?.data || (Array.isArray(fallbackResult.data) && fallbackResult.data.length === 0))) {
+            console.warn('updateEvent: Fallback UPDATE returned no error but also no data - RLS may have blocked the update');
+            updateSucceeded = false;
+            updateError = { message: 'Update completed but no rows were affected (RLS may be blocking)' };
+          }
+        } catch (fallbackError) {
+          const fallbackDuration = Date.now() - updateStartTime;
+          console.error(`updateEvent: Fallback UPDATE failed after ${fallbackDuration}ms:`, fallbackError);
+          updateError = fallbackError;
+        }
+      } else {
+        updateError = error;
       }
-      updateError = error;
+    }
+    
+    if (updateError || !updateSucceeded) {
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError?.message }, 'Error updating event');
+      console.error('updateEvent: Error updating event:', updateError);
+      
+      // If error is about colleges column, try again without it
+      const errorMsg = updateError?.message || '';
+      if (errorMsg.includes('colleges') || 
+          errorMsg.includes('column') ||
+          errorMsg.includes('does not exist') ||
+          errorMsg.toLowerCase().includes('jsonb') ||
+          errorMsg.includes('PGRST')) {
+        console.log('updateEvent: Retrying update without colleges column...');
+        const retryDbEvent = { ...dbEvent };
+        delete retryDbEvent.colleges;
+        
+        // Try direct UPDATE without colleges (function won't have this issue)
+        const retryStartTime = Date.now();
+        const retryPromise = supabase
+          .from('events')
+          .update(retryDbEvent)
+          .eq('id', eventId);
+        const retryTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Retry UPDATE timed out after 5 seconds')), 5000)
+        );
+        
+        try {
+          const retryResult = await Promise.race([retryPromise, retryTimeoutPromise]);
+          const retryDuration = Date.now() - retryStartTime;
+          console.log(`updateEvent: Retry UPDATE completed in ${retryDuration}ms`);
+          if (retryResult.error) {
+            console.error('updateEvent: Retry update also failed:', retryResult.error);
+            return { success: false, error: retryResult.error.message || 'Failed to update event' };
+          }
+          if (!retryResult.data || (Array.isArray(retryResult.data) && retryResult.data.length === 0)) {
+            console.error('updateEvent: Retry update succeeded but no rows returned');
+            return { success: false, error: 'Event was updated but could not be retrieved (RLS may be blocking)' };
+          }
+          console.log('updateEvent: Retry update succeeded, fetching updated event...');
+          updateSucceeded = true;
+        } catch (retryError) {
+          const retryDuration = Date.now() - retryStartTime;
+          console.error(`updateEvent: Retry UPDATE failed after ${retryDuration}ms:`, retryError);
+          return { success: false, error: retryError.message || 'Retry update timed out' };
+        }
+      } else {
+        return { success: false, error: updateError?.message || 'Failed to update event' };
+      }
     }
 
     if (updateError) {
