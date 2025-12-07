@@ -528,16 +528,31 @@ async function createEvent(eventData) {
   }
   console.log('Supabase client obtained');
 
-  const user = await getSafeUser();
+  // Get user with timeout protection
+  console.log('Getting user...');
+  const userCheckStart = Date.now();
+  const userPromise = getSafeUser();
+  const userTimeout = new Promise((resolve) => 
+    setTimeout(() => resolve(null), 3000) // 3 second timeout for user check
+  );
+  const user = await Promise.race([userPromise, userTimeout]);
+  const userCheckDuration = Date.now() - userCheckStart;
+  console.log(`User check completed in ${userCheckDuration}ms`);
+  
   if (!user) {
-    return { success: false, error: 'User not authenticated' };
+    console.error('User check failed or timed out');
+    return { success: false, error: 'User not authenticated or authentication check timed out' };
   }
   console.log('User authenticated:', user.id);
   
   // Check if user is admin BEFORE attempting INSERT (fail fast)
   console.log('Checking if user is admin...');
   const adminCheckStart = Date.now();
-  const adminCheck = await checkIfUserIsAdmin();
+  const adminCheckPromise = checkIfUserIsAdmin();
+  const adminCheckTimeout = new Promise((resolve) => 
+    setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Admin check timed out' }), 3000) // 3 second timeout
+  );
+  const adminCheck = await Promise.race([adminCheckPromise, adminCheckTimeout]);
   const adminCheckDuration = Date.now() - adminCheckStart;
   console.log(`Admin check completed in ${adminCheckDuration}ms:`, adminCheck);
   
