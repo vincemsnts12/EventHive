@@ -446,6 +446,8 @@ async function createNewPendingEvent() {
       // Add event to pendingEventsData with DB ID
       pendingEventsData[result.event.id] = result.event;
       
+      console.log('Event created successfully:', result.event.id);
+      
       // Refresh table and scroll to new event
       populatePendingEventsTable();
       setTimeout(() => {

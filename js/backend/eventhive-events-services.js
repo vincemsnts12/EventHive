@@ -302,29 +302,15 @@ async function createEvent(eventData) {
 
     logSecurityEvent('EVENT_CREATED', { userId: user.id, eventId: insertedEvent.id, title: title }, 'Event created successfully');
 
-    // Get full event with images and likes
-    // Wrap in try-catch to prevent hanging if getEventById fails
-    try {
-      const fullEvent = await getEventById(insertedEvent.id);
-      if (fullEvent.success) {
-        return fullEvent;
-      } else {
-        // If getEventById fails, return basic event data
-        console.warn('Event created but getEventById failed:', fullEvent.error);
-        // Return basic event structure
-        return {
-          success: true,
-          event: eventFromDatabase(insertedEvent, [], 0, 0)
-        };
-      }
-    } catch (error) {
-      console.error('Error getting full event after creation:', error);
-      // Return basic event structure even if getEventById fails
-      return {
-        success: true,
-        event: eventFromDatabase(insertedEvent, [], 0, 0)
-      };
-    }
+    // For new events, we don't need to fetch images/likes (they're empty anyway)
+    // Just return the basic event structure to avoid slow getEventById call
+    // The admin dashboard will refresh and load the full event if needed
+    const newEvent = eventFromDatabase(insertedEvent, [], 0, 0);
+    
+    return {
+      success: true,
+      event: newEvent
+    };
   } catch (error) {
     logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, error: error.message }, 'Unexpected error creating event');
     console.error('Unexpected error creating event:', error);
