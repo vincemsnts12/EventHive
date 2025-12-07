@@ -598,29 +598,45 @@ async function createEvent(eventData) {
   console.log('Checking if user is admin (checking cache first)...');
   const adminCheckStart = Date.now();
   let isAdmin = false;
+  let cacheValid = false;
   
   try {
     const cached = localStorage.getItem('eventhive_auth_cache');
+    console.log('Cache data:', cached ? 'found' : 'not found');
     if (cached) {
       const parsed = JSON.parse(cached);
+      console.log('Parsed cache:', { timestamp: parsed.timestamp, state: parsed.state });
       const now = Date.now();
       const timeSinceLogin = now - parsed.timestamp;
       const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
       
+      console.log('Time since login:', timeSinceLogin, 'ms (valid if <', AUTH_CHECK_INTERVAL, 'ms)');
+      
       // Use cache if it's less than 5 minutes old
-      if (timeSinceLogin < AUTH_CHECK_INTERVAL && parsed.state) {
-        isAdmin = parsed.state.isAdmin || false;
-        const adminCheckDuration = Date.now() - adminCheckStart;
-        console.log(`Admin check from cache completed in ${adminCheckDuration}ms:`, { isAdmin });
+      if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
+        if (parsed.state) {
+          isAdmin = parsed.state.isAdmin === true; // Explicitly check for true
+          cacheValid = true;
+          const adminCheckDuration = Date.now() - adminCheckStart;
+          console.log(`Admin check from cache completed in ${adminCheckDuration}ms:`, { isAdmin, cacheState: parsed.state });
+        } else {
+          console.log('Cache exists but state is missing');
+        }
+      } else {
+        console.log('Cache expired (older than 5 minutes)');
       }
     }
   } catch (e) {
     console.error('Error reading auth cache:', e);
   }
   
-  // If cache doesn't have admin status, fall back to database check (with timeout)
-  if (!isAdmin) {
-    console.log('Cache check failed or user not admin in cache, checking database...');
+  // If cache doesn't have admin status or is invalid, fall back to database check (with timeout)
+  if (!cacheValid || !isAdmin) {
+    if (!cacheValid) {
+      console.log('Cache invalid or missing, checking database...');
+    } else {
+      console.log('User not admin in cache, checking database to confirm...');
+    }
     const adminCheckPromise = checkIfUserIsAdmin();
     const adminCheckTimeout = new Promise((resolve) => 
       setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Admin check timed out' }), 2000) // 2 second timeout
@@ -628,7 +644,15 @@ async function createEvent(eventData) {
     const adminCheck = await Promise.race([adminCheckPromise, adminCheckTimeout]);
     const adminCheckDuration = Date.now() - adminCheckStart;
     console.log(`Admin check from database completed in ${adminCheckDuration}ms:`, adminCheck);
-    isAdmin = adminCheck.success && adminCheck.isAdmin;
+    
+    // Use database result if cache was invalid, otherwise trust cache
+    if (!cacheValid) {
+      isAdmin = adminCheck.success && adminCheck.isAdmin;
+    }
+    // If cache was valid but said not admin, still check database (might have been updated)
+    else if (!isAdmin && adminCheck.success) {
+      isAdmin = adminCheck.isAdmin;
+    }
   }
   
   if (!isAdmin) {
