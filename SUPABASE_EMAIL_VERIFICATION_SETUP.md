@@ -36,19 +36,89 @@ This guide explains how to enable email verification for EventHive signups.
    - The verification link is automatically included
    - Make sure the link points to your site URL
 
-## Step 4: Configure SMTP (Recommended for Production)
+## Step 4: Configure SMTP (Required - Supabase Default is Too Limited)
 
-For production, configure a custom SMTP server:
+**Important**: Supabase's default SMTP has a rate limit of **4 emails/hour**, which is too restrictive for production. You **must** configure a custom SMTP provider.
 
-1. Go to **Authentication** > **SMTP Settings**
+### Recommended Free/Cheap SMTP Providers:
+
+#### Option 1: Resend (Recommended - Easiest Setup)
+- **Free Tier**: 3,000 emails/month, 100 emails/day
+- **Host**: `smtp.resend.com`
+- **Port**: `587` (TLS)
+- **Setup**:
+  1. Sign up at [resend.com](https://resend.com)
+  2. Verify your domain (or use their test domain)
+  3. Create an API key
+  4. In Supabase: Use API key as password, `resend` as username
+- **Best for**: Quick setup, generous free tier
+
+#### Option 2: SendGrid
+- **Free Tier**: 100 emails/day forever
+- **Host**: `smtp.sendgrid.net`
+- **Port**: `587` (TLS)
+- **Setup**:
+  1. Sign up at [sendgrid.com](https://sendgrid.com)
+  2. Verify your sender email
+  3. Create an API key in Settings > API Keys
+  4. In Supabase: Username = `apikey`, Password = your API key
+- **Best for**: Reliable, well-established service
+
+#### Option 3: Brevo (formerly Sendinblue)
+- **Free Tier**: 300 emails/day
+- **Host**: `smtp-relay.brevo.com`
+- **Port**: `587` (TLS)
+- **Setup**:
+  1. Sign up at [brevo.com](https://brevo.com)
+  2. Verify your email
+  3. Go to SMTP & API > SMTP
+  4. Copy SMTP key
+  5. In Supabase: Use your Brevo email as username, SMTP key as password
+- **Best for**: Highest free tier (300/day)
+
+#### Option 4: Mailgun
+- **Free Tier**: 5,000 emails/month for first 3 months, then paid
+- **Host**: `smtp.mailgun.org`
+- **Port**: `587` (TLS)
+- **Setup**:
+  1. Sign up at [mailgun.com](https://mailgun.com)
+  2. Verify your domain
+  3. Get SMTP credentials from Domain Settings
+- **Best for**: High volume after trial
+
+#### Option 5: Amazon SES (Very Cheap)
+- **Pricing**: $0.10 per 1,000 emails (extremely cheap)
+- **Host**: `email-smtp.[region].amazonaws.com` (e.g., `email-smtp.us-east-1.amazonaws.com`)
+- **Port**: `587` (TLS)
+- **Setup**:
+  1. Create AWS account
+  2. Go to Amazon SES console
+  3. Verify your email/domain
+  4. Create SMTP credentials
+- **Best for**: Production with high volume
+
+### Configuration Steps (Example: Resend)
+
+1. Go to **Authentication** > **SMTP Settings** in Supabase
 2. Enable **Custom SMTP**
-3. Configure your SMTP provider (Gmail, SendGrid, etc.):
-   - **Host**: Your SMTP server hostname
-   - **Port**: SMTP port (usually 587 for TLS)
-   - **Username**: Your SMTP username
-   - **Password**: Your SMTP password
-   - **Sender email**: The email address that will send verification emails
-   - **Sender name**: Display name for verification emails
+3. Fill in the details:
+   - **Host**: `smtp.resend.com`
+   - **Port**: `587`
+   - **Username**: `resend` (or your Resend account email)
+   - **Password**: Your Resend API key
+   - **Sender email**: Your verified email (e.g., `noreply@yourdomain.com` or your Resend verified email)
+   - **Sender name**: `EventHive` (or your preferred name)
+4. Click **Save**
+
+### Quick Comparison:
+
+| Provider | Free Tier | Setup Difficulty | Best For |
+|----------|-----------|------------------|----------|
+| **Resend** | 3,000/month | ⭐ Easy | Quick setup, modern |
+| **SendGrid** | 100/day | ⭐⭐ Medium | Reliability |
+| **Brevo** | 300/day | ⭐⭐ Medium | Highest free tier |
+| **Mailgun** | 5K/month (trial) | ⭐⭐⭐ Harder | High volume |
+| **Amazon SES** | Pay-as-you-go | ⭐⭐⭐ Harder | Production scale |
 
 ## Step 5: Test Email Verification
 
