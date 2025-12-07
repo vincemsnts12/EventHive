@@ -528,16 +528,39 @@ async function createEvent(eventData) {
   }
   console.log('Supabase client obtained');
 
-  // Get user with timeout protection
-  console.log('Getting user...');
+  // Get user from session directly (faster than getUser())
+  console.log('Getting user from session...');
   const userCheckStart = Date.now();
-  const userPromise = getSafeUser();
-  const userTimeout = new Promise((resolve) => 
-    setTimeout(() => resolve(null), 3000) // 3 second timeout for user check
-  );
-  const user = await Promise.race([userPromise, userTimeout]);
-  const userCheckDuration = Date.now() - userCheckStart;
-  console.log(`User check completed in ${userCheckDuration}ms`);
+  let user = null;
+  
+  try {
+    // Try getSession() first (faster, uses cached session)
+    const sessionPromise = supabase.auth.getSession();
+    const sessionTimeout = new Promise((resolve) => 
+      setTimeout(() => resolve({ data: { session: null }, error: { message: 'Timeout' } }), 2000) // 2 second timeout
+    );
+    const sessionResult = await Promise.race([sessionPromise, sessionTimeout]);
+    const userCheckDuration = Date.now() - userCheckStart;
+    console.log(`Session check completed in ${userCheckDuration}ms`);
+    
+    if (sessionResult?.data?.session?.user) {
+      user = sessionResult.data.session.user;
+      console.log('User from session:', user.id);
+    } else {
+      // Fallback to getSafeUser() if session doesn't have user
+      console.log('Session has no user, trying getSafeUser()...');
+      const userPromise = getSafeUser();
+      const userTimeout = new Promise((resolve) => 
+        setTimeout(() => resolve(null), 2000) // 2 second timeout
+      );
+      user = await Promise.race([userPromise, userTimeout]);
+      const totalDuration = Date.now() - userCheckStart;
+      console.log(`Total user check completed in ${totalDuration}ms`);
+    }
+  } catch (error) {
+    console.error('Error getting user:', error);
+    user = null;
+  }
   
   if (!user) {
     console.error('User check failed or timed out');
