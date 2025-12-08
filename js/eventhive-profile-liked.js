@@ -3,12 +3,32 @@
 
 (async function() {
   const listEl = document.getElementById('likedEventsList');
-  if (!listEl || typeof eventsData === 'undefined') return;
+  if (!listEl) return;
 
   // Show loading state
   listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Loading liked events...</div>';
 
+  // Wait for eventsData to be populated
+  async function waitForEvents(maxWait = 5000) {
+    const startTime = Date.now();
+    while (typeof eventsData === 'undefined' || Object.keys(eventsData).length === 0) {
+      if (Date.now() - startTime > maxWait) {
+        console.warn('Timeout waiting for events to load');
+        return false;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return true;
+  }
+
   async function renderLiked() {
+    // Wait for events to be loaded
+    const eventsLoaded = await waitForEvents();
+    if (!eventsLoaded) {
+      listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #B81E20;">Error loading events. Please refresh the page.</div>';
+      return;
+    }
+
     listEl.innerHTML = '';
     
     // Get user's liked event IDs from Supabase
@@ -17,6 +37,7 @@
       const result = await getUserLikedEventIds();
       if (result.success) {
         likedEventIds = result.eventIds;
+        console.log('User liked event IDs:', likedEventIds);
       } else {
         console.error('Error loading liked events:', result.error);
         listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #B81E20;">Error loading liked events. Please try again.</div>';
@@ -32,6 +53,8 @@
     const eventsArr = Object.entries(eventsData)
       .map(([id, ev]) => ({ id, ...ev }))
       .filter(ev => likedEventIds.includes(ev.id));
+    
+    console.log('Filtered liked events:', eventsArr.length, 'out of', Object.keys(eventsData).length, 'total events');
 
     if (eventsArr.length === 0) {
       listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No liked events yet. Like some events to see them here!</div>';
@@ -135,10 +158,16 @@
 
   // Wait for DOM and Supabase to be ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderLiked);
+    document.addEventListener('DOMContentLoaded', () => {
+      // Wait a bit for events to load, then render
+      setTimeout(renderLiked, 500);
+    });
   } else {
-    // Small delay to ensure Supabase services are loaded
-    setTimeout(renderLiked, 100);
+    // Small delay to ensure Supabase services and events are loaded
+    setTimeout(renderLiked, 500);
   }
+
+  // Also listen for eventsLoaded event
+  window.addEventListener('eventsLoaded', renderLiked);
 })();
 

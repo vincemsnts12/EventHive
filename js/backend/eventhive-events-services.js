@@ -67,23 +67,16 @@ if (typeof window !== 'undefined') {
 }
 
 async function getEvents(options = {}) {
-  // ALWAYS use guest client for fetching events - no authentication needed
-  // This bypasses all RLS evaluation issues since guests can fetch successfully
+  // Use direct fetch() API for faster performance
+  // No authentication needed - guests can fetch events
   // Authorization checks happen AFTER fetching, not during the query
-  const supabaseClient = getGuestSupabaseClient();
   
-  if (!supabaseClient) {
-    console.error('Guest Supabase client could not be created');
-    return { success: false, events: [], error: 'Supabase client not available. Make sure eventhive-supabase.js is loaded.' };
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, events: [], error: 'Supabase configuration not available' };
   }
-  
-  // Verify the client is actually functional
-  if (typeof supabaseClient.from !== 'function') {
-    console.error('Supabase client is not properly initialized - missing .from() method');
-    return { success: false, events: [], error: 'Supabase client is not properly initialized' };
-  }
-  
-  console.log('Using guest client for event fetch (no authentication required)');
 
   // Input validation
   if (options.status && typeof options.status !== 'string') {
@@ -93,72 +86,74 @@ async function getEvents(options = {}) {
     return { success: false, events: [], error: 'Invalid college code filter' };
   }
 
-
   try {
-    // SIMPLIFIED: Treat authenticated users the same as guests for fetching events
-    // RLS policies allow both to see events, so use the same query structure
-    // Authorization checks happen AFTER fetching, not during the query
+    console.log('Using direct fetch API for event fetch (no authentication required)');
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
     
-    // Build query - use same structure for both guests and authenticated users
-    // Select all necessary columns (same for everyone)
-    let query = supabaseClient
-      .from('events')
-      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, colleges, organization_name, organizations, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
+    // Build PostgREST query URL
+    let url = `${SUPABASE_URL}/rest/v1/events?select=id,title,description,location,start_date,end_date,start_time,end_time,status,is_featured,college_code,colleges,organization_name,organizations,university_logo_url,created_by,created_at,updated_at,approved_at,approved_by`;
     
-    // Apply filters first
+    // Apply filters
     if (options.status) {
-      query = query.eq('status', options.status);
+      url += `&status=eq.${encodeURIComponent(options.status)}`;
     }
     if (options.isFeatured !== undefined) {
-      query = query.eq('is_featured', options.isFeatured);
+      url += `&is_featured=eq.${options.isFeatured}`;
     }
     if (options.collegeCode) {
-      query = query.eq('college_code', options.collegeCode);
+      url += `&college_code=eq.${encodeURIComponent(options.collegeCode)}`;
     }
     
-    // Use database order by for everyone (guests can do it, so authenticated users can too)
-    query = query.order('start_date', { ascending: true });
+    // Order by start_date ascending
+    url += `&order=start_date.asc`;
     
-    // Apply limit/offset last
+    // Apply limit/offset
     if (options.limit) {
-      query = query.limit(options.limit);
+      url += `&limit=${options.limit}`;
     }
-    if (options.offset) {
-      query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
+    if (options.offset !== undefined) {
+      url += `&offset=${options.offset}`;
     }
     
-    // Add timeout protection for the query
-    const queryPromise = query;
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database query timed out after 15 seconds')), 15000)
-    );
+    // Use direct fetch with timeout protection
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
     
-    let queryResult;
     const startTime = Date.now();
+    let response;
     try {
-      queryResult = await Promise.race([queryPromise, timeoutPromise]);
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      });
+      
+      clearTimeout(fetchTimeout);
       const duration = Date.now() - startTime;
       console.log(`Query completed in ${duration}ms`);
-    } catch (timeoutError) {
+    } catch (fetchError) {
+      clearTimeout(fetchTimeout);
       const duration = Date.now() - startTime;
-      console.error(`Query timed out after ${duration}ms`);
-      if (timeoutError.message && timeoutError.message.includes('timed out')) {
-        console.error('Database query timed out');
+      if (fetchError.name === 'AbortError') {
+        console.error(`Query timed out after ${duration}ms`);
         return { success: false, events: [], error: 'Database query timed out. Please check your connection and try again.' };
       }
-      throw timeoutError;
+      throw fetchError;
     }
     
-    const { data, error } = queryResult;
-    console.log('Query result:', { dataCount: data?.length || 0, error: error?.message });
-
-    if (error) {
-      logSecurityEvent('DATABASE_ERROR', { error: error.message }, 'Error getting events');
-      console.error('Error getting events:', error);
-      return { success: false, events: [], error: error.message };
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error getting events:', response.status, errorText);
+      logSecurityEvent('DATABASE_ERROR', { error: errorText }, 'Error getting events');
+      return { success: false, events: [], error: `HTTP ${response.status}: ${errorText}` };
     }
+    
+    const data = await response.json();
+    console.log('Query result:', { dataCount: data?.length || 0, error: undefined });
 
     if (!data || data.length === 0) {
       console.log('No events found in database - returning empty array');

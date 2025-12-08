@@ -1,7 +1,7 @@
 // --- DOM ELEMENTS ---
 const dropdownBtn = document.getElementById("dropdownCategoryBtn");
 const dropdownContent = document.getElementById("dropdownContent");
-const dropdownItems = dropdownContent.querySelectorAll("div");
+const dropdownItems = dropdownContent ? dropdownContent.querySelectorAll("div") : [];
 const headerTitle = document.getElementById("dynamicHeader"); 
 
 // Containers
@@ -332,6 +332,12 @@ function checkPastSectionVisibility() {
 
 // --- INITIALIZATION ---
 document.addEventListener("DOMContentLoaded", () => {
+  // Only initialize if we're on the search page (check for required elements)
+  if (!activeContainer && !pastContainer) {
+    // Not on search page, skip initialization
+    return;
+  }
+
   // Wait for eventsData to be available
   if (typeof eventsData !== 'undefined') {
     populateEvents();
