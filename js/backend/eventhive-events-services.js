@@ -951,7 +951,30 @@ async function updateEvent(eventId, eventData) {
     return { success: false, error: 'Only admins can update events' };
   }
 
-  const user = await getSafeUser();
+  // Get user ID from localStorage (avoids hanging authenticated client)
+  let user = null;
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (userId) {
+    user = { id: userId };
+  } else {
+    // Fallback: parse from JWT token
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        if (authData?.access_token) {
+          const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+          if (payload.sub) {
+            user = { id: payload.sub };
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error getting user from localStorage:', e);
+    }
+  }
 
   // Validate and sanitize inputs
   const validatedData = { ...eventData };
@@ -1264,7 +1287,20 @@ async function deleteEvent(eventId) {
     return { success: false, error: 'Only admins can delete events' };
   }
 
-  const user = await getSafeUser();
+  // Get user ID from localStorage (avoids hanging authenticated client)
+  let user = { id: localStorage.getItem('eventhive_last_authenticated_user_id') };
+  if (!user.id) {
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => key.startsWith('sb-') && key.includes('auth-token'));
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        if (authData?.access_token) {
+          const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+          user = { id: payload.sub };
+        }
+      }
+    } catch (e) { user = { id: null }; }
+  }
 
   try {
     // Use direct fetch API to bypass Supabase client connection issues
@@ -1363,7 +1399,20 @@ async function approveEvent(eventId) {
     return { success: false, error: 'Only admins can approve events' };
   }
 
-  const user = await getSafeUser();
+  // Get user ID from localStorage (avoids hanging authenticated client)
+  let user = { id: localStorage.getItem('eventhive_last_authenticated_user_id') };
+  if (!user.id) {
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => key.startsWith('sb-') && key.includes('auth-token'));
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        if (authData?.access_token) {
+          const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+          user = { id: payload.sub };
+        }
+      }
+    } catch (e) { user = { id: null }; }
+  }
 
   try {
     // Get event to recalculate status
@@ -1466,8 +1515,9 @@ async function rejectEvent(eventId) {
     return { success: false, error: 'Invalid event ID' };
   }
 
-  const user = await getSafeUser();
-  logSecurityEvent('EVENT_REJECTED', { userId: user?.id, eventId }, 'Event rejected by admin');
+  // Get user ID from localStorage (avoids hanging authenticated client)
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  logSecurityEvent('EVENT_REJECTED', { userId, eventId }, 'Event rejected by admin');
   
   // Rejecting is the same as deleting for pending events
   return deleteEvent(eventId);
