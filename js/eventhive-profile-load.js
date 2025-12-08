@@ -103,20 +103,29 @@ document.addEventListener('DOMContentLoaded', () => {
       if (result.success && result.profile) {
         const profile = result.profile;
 
-        // Get email from Supabase session (profiles table doesn't have email column)
+        // Get email from localStorage (profiles table doesn't have email column)
         let userEmail = null;
         try {
-          if (typeof getSupabaseClient === 'function') {
-            const supabase = getSupabaseClient();
-            if (supabase) {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session && session.user) {
-                userEmail = session.user.email;
+          // Try to get email from auth token in localStorage
+          const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+            key.startsWith('sb-') && key.includes('auth-token')
+          );
+          if (supabaseAuthKeys.length > 0) {
+            const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+            userEmail = authData?.user?.email;
+
+            // If not in user object, try to decode from JWT
+            if (!userEmail && authData?.access_token) {
+              try {
+                const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+                userEmail = payload.email;
+              } catch (e) {
+                // Ignore decode errors
               }
             }
           }
         } catch (e) {
-          console.warn('Error getting email from session:', e);
+          console.warn('Error getting email from localStorage:', e);
         }
 
         // Update UI with fresh data (pass email as second param)
