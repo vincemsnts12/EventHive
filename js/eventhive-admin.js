@@ -1076,38 +1076,56 @@ function openEditCollegeModal(eventId, currentCollege) {
   rightColumn.appendChild(collabLabel);
   
   const checkboxesContainer = document.createElement('div');
+  checkboxesContainer.id = 'collegeCheckboxesContainer';
   checkboxesContainer.style.maxHeight = '300px';
   checkboxesContainer.style.overflowY = 'auto';
   checkboxesContainer.style.border = '2px solid #e0e0e0';
   checkboxesContainer.style.borderRadius = '8px';
   checkboxesContainer.style.padding = '10px';
   
-  // Create checkboxes for all colleges EXCEPT the main college
-  availableColleges.forEach(college => {
-    // Skip the main college from checkboxes
-    if (college.code === mainCollege) {
-      return;
-    }
+  // Function to rebuild checkboxes (excludes the currently selected main college)
+  function rebuildCollegeCheckboxes(selectedMainCollege, checkedColleges) {
+    checkboxesContainer.innerHTML = '';
     
-    const item = document.createElement('div');
-    item.className = 'tag-checkbox-item';
-    item.style.marginBottom = '8px';
+    availableColleges.forEach(college => {
+      // Skip the main college from checkboxes
+      if (college.code === selectedMainCollege) {
+        return;
+      }
+      
+      const item = document.createElement('div');
+      item.className = 'tag-checkbox-item';
+      item.style.marginBottom = '8px';
+      
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = `college-${college.code}`;
+      checkbox.value = college.code;
+      checkbox.checked = checkedColleges.includes(college.code);
+      
+      const label = document.createElement('label');
+      label.setAttribute('for', `college-${college.code}`);
+      label.textContent = college.name;
+      label.style.marginLeft = '8px';
+      label.style.cursor = 'pointer';
+      
+      item.appendChild(checkbox);
+      item.appendChild(label);
+      checkboxesContainer.appendChild(item);
+    });
+  }
+  
+  // Initial build of checkboxes
+  rebuildCollegeCheckboxes(mainCollege, currentColleges);
+  
+  // When main college changes, rebuild checkboxes (excluding the new main college)
+  mainCollegeSelect.addEventListener('change', function() {
+    // Get currently checked collaboration colleges
+    const checkedBoxes = checkboxesContainer.querySelectorAll('input[type="checkbox"]:checked');
+    const checkedColleges = Array.from(checkedBoxes).map(cb => cb.value);
     
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.id = `college-${college.code}`;
-    checkbox.value = college.code;
-    checkbox.checked = currentColleges.includes(college.code);
-    
-    const label = document.createElement('label');
-    label.setAttribute('for', `college-${college.code}`);
-    label.textContent = college.name;
-    label.style.marginLeft = '8px';
-    label.style.cursor = 'pointer';
-    
-    item.appendChild(checkbox);
-    item.appendChild(label);
-    checkboxesContainer.appendChild(item);
+    // Rebuild checkboxes excluding the newly selected main college
+    rebuildCollegeCheckboxes(this.value, checkedColleges);
   });
   
   rightColumn.appendChild(checkboxesContainer);
@@ -1256,26 +1274,20 @@ async function saveTitleEdit() {
   } else if (currentEditingTable === 'pending') {
     // For pending events: if we have a valid DB id, attempt to persist edits immediately.
     if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-      console.log('saveTitleEdit: Calling updateEvent for pending event...');
       const result = await updateEvent(event.id, event);
-      console.log('saveTitleEdit: updateEvent returned:', result?.success, result?.error);
       if (!result.success) {
-        // Persist failed (likely RLS) - keep local change and inform the user
+        // Persist failed - keep local change and inform the user
         console.warn('Failed to persist pending edit:', result.error);
-        // Optionally show a non-blocking notice
         alert(`Draft saved locally. Sync failed: ${result.error}`);
       } else if (result.event) {
-        console.log('saveTitleEdit: Updating local event with result...');
         Object.assign(event, result.event);
       }
     }
   }
   
-  console.log('saveTitleEdit: About to close modal and refresh table...');
   // Save table type BEFORE closing modal (closeModal clears it)
   const tableToRefresh = currentEditingTable;
   closeModal('editTitleModal');
-  console.log('saveTitleEdit: Modal closed, refreshing table:', tableToRefresh);
   
   // Refresh table
   if (tableToRefresh === 'published') {
