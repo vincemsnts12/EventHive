@@ -216,6 +216,7 @@
   justify-content: center;
   z-index: 10;
   color: #666;
+  pointer-events: auto;
 }
 
 .password-form-wrapper .password-toggle:hover {
