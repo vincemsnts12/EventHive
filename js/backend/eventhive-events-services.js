@@ -751,6 +751,24 @@ async function createEvent(eventData) {
     
     console.log('Attempting direct INSERT with RLS policy...');
     
+    // Force refresh the session to ensure fresh JWT token and connection
+    // This fixes stale connection issues that cause timeouts
+    try {
+      console.log('Refreshing session before INSERT...');
+      const refreshStart = Date.now();
+      const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
+      const refreshDuration = Date.now() - refreshStart;
+      if (refreshError) {
+        console.warn(`Session refresh failed in ${refreshDuration}ms:`, refreshError.message);
+        // Continue anyway - the existing session might still work
+      } else {
+        console.log(`Session refreshed in ${refreshDuration}ms`);
+      }
+    } catch (refreshErr) {
+      console.warn('Session refresh threw error:', refreshErr.message);
+      // Continue anyway
+    }
+    
     // Direct INSERT approach - simpler and more reliable
     const directInsertPromise = supabase
       .from('events')
