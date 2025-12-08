@@ -235,8 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Show success message immediately
+      // Show success message and redirect to homepage
       alert('Log out successful');
+      window.location.href = 'eventhive-homepage.html';
     });
   }
 });

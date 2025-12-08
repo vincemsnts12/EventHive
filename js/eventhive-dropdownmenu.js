@@ -522,10 +522,9 @@ if (logoutBtn) {
       }
     }
 
-    // Show success message immediately
+    // Show success message and redirect to homepage
     alert('Log out successful');
-
-    // State is already applied in clearAllCaches
+    window.location.href = 'eventhive-homepage.html';
   });
 }
 

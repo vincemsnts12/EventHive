@@ -399,8 +399,21 @@ document.addEventListener('DOMContentLoaded', function () {
     savePassBtn.addEventListener('click', (e) => {
       e.preventDefault();
 
-      // Get password inputs
+      // Check if user has a password set (for OAuth users who haven't set one yet)
+      const cachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+      const hasPassword = cachedProfile.has_password === true;
+
+      // Get current password input
       const currentPass = document.querySelector('.pass-input[placeholder*="current"]');
+      const currentPassValue = currentPass ? currentPass.value.trim() : '';
+
+      // If user doesn't have a password set, they must use "Set My Password" first
+      if (!hasPassword && !currentPassValue) {
+        alert('You haven\'t set a password yet. Please use "Set My Password" from your account email to create one first, then you can change it here.');
+        return;
+      }
+
+      // Get password inputs
       const newPass = document.querySelector('.pass-input[placeholder*="new password"]');
       const confirmPass = document.querySelector('.pass-input[placeholder*="Confirm"]');
 
@@ -445,61 +458,136 @@ document.addEventListener('DOMContentLoaded', function () {
       const newPass = document.querySelector('.pass-input[placeholder*="new password"]');
       const confirmPass = document.querySelector('.pass-input[placeholder*="Confirm"]');
 
-      if (typeof getSupabaseClient === 'function') {
-        const supabase = getSupabaseClient();
-        if (supabase) {
+      try {
+        const currentPassValue = currentPass ? currentPass.value.trim() : '';
+        const newPassValue = newPass ? newPass.value : '';
+
+        // Get user info from localStorage (no blocking calls)
+        const authCache = JSON.parse(localStorage.getItem('eh_auth_cache') || '{}');
+        const userEmail = authCache.email;
+        const userId = authCache.userId || localStorage.getItem('eh_user_id');
+
+        // Get access token from localStorage
+        let accessToken = null;
+        const supabaseUrl = window.__EH_SUPABASE_URL || '';
+        const supabaseKey = window.__EH_SUPABASE_ANON_KEY || '';
+
+        // Try to find access token from Supabase storage
+        const projectRef = supabaseUrl.split('//')[1]?.split('.')[0];
+        if (projectRef) {
+          const tokenData = JSON.parse(localStorage.getItem(`sb-${projectRef}-auth-token`) || '{}');
+          accessToken = tokenData.access_token;
+        }
+
+        if (!accessToken) {
+          alert('Please log out and log back in to change your password.');
+          return;
+        }
+
+        // If user provided current password, verify it first using direct API
+        if (currentPassValue && userEmail) {
+          // Verify current password by attempting to get a new token
+          const verifyController = new AbortController();
+          const verifyTimeout = setTimeout(() => verifyController.abort(), 10000);
+
           try {
-            const currentPassValue = currentPass ? currentPass.value.trim() : '';
-
-            // If user provided current password, we should verify it first
-            // For OAuth users (no password set), current password can be empty
-            if (currentPassValue) {
-              // User has existing password - get their email and verify current password
-              const { data: sessionData } = await supabase.auth.getSession();
-              const userEmail = sessionData?.session?.user?.email;
-
-              if (userEmail) {
-                // Try to sign in with current password to verify it
-                const { error: verifyError } = await supabase.auth.signInWithPassword({
-                  email: userEmail,
-                  password: currentPassValue
-                });
-
-                if (verifyError) {
-                  alert('Current password is incorrect. Please try again.');
-                  return;
-                }
-              }
-            }
-
-            // Update password using Supabase Auth
-            // This works for both OAuth users (setting password for first time)
-            // and regular users (changing password)
-            const { error } = await supabase.auth.updateUser({
-              password: newPass.value
+            const verifyResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseKey
+              },
+              body: JSON.stringify({
+                email: userEmail,
+                password: currentPassValue
+              }),
+              signal: verifyController.signal
             });
 
-            if (error) {
-              // Check if it's a reauthentication error
-              if (error.message.includes('reauthentication') || error.message.includes('reauth')) {
-                alert('For security, please use "Forgot Password" to reset your password, or re-login and try again.');
-              } else {
-                alert('Failed to update password: ' + error.message);
-              }
-            } else {
-              alert('Password updated successfully!');
-              // Clear password fields
-              if (currentPass) currentPass.value = '';
-              if (newPass) newPass.value = '';
-              if (confirmPass) confirmPass.value = '';
+            clearTimeout(verifyTimeout);
+
+            if (!verifyResponse.ok) {
+              alert('Current password is incorrect. Please try again.');
+              return;
             }
-          } catch (error) {
-            console.error('Error updating password:', error);
-            alert('An error occurred while updating your password. Please try again.');
+          } catch (verifyErr) {
+            if (verifyErr.name === 'AbortError') {
+              alert('Verification timed out. Please try again.');
+            } else {
+              console.error('Password verification error:', verifyErr);
+              alert('Could not verify current password. Please try again.');
+            }
+            return;
           }
         }
-      } else {
-        alert('Password update functionality not available. Please check Supabase configuration.');
+
+        // Update password using direct fetch API with timeout
+        const updateController = new AbortController();
+        const updateTimeout = setTimeout(() => updateController.abort(), 10000);
+
+        const updateResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': supabaseKey
+          },
+          body: JSON.stringify({ password: newPassValue }),
+          signal: updateController.signal
+        });
+
+        clearTimeout(updateTimeout);
+
+        if (!updateResponse.ok) {
+          const errorData = await updateResponse.json().catch(() => ({}));
+          const errorMsg = errorData.message || errorData.error_description || 'Failed to update password';
+
+          if (errorMsg.includes('reauthentication') || errorMsg.includes('reauth')) {
+            alert('For security, please use "Forgot Password" to reset your password, or re-login and try again.');
+          } else {
+            alert('Failed to update password: ' + errorMsg);
+          }
+          return;
+        }
+
+        // Success! Update has_password flag in database
+        try {
+          const userId = authCache.userId || localStorage.getItem('eh_user_id');
+          if (userId) {
+            await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+                'apikey': supabaseKey,
+                'Prefer': 'return=minimal'
+              },
+              body: JSON.stringify({ has_password: true })
+            });
+
+            // Update local cache
+            const cachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+            cachedProfile.has_password = true;
+            localStorage.setItem('eh_cached_profile', JSON.stringify(cachedProfile));
+          }
+        } catch (flagErr) {
+          console.warn('Could not update has_password flag:', flagErr);
+        }
+
+        alert('Password updated successfully!');
+
+        // Clear password fields
+        if (currentPass) currentPass.value = '';
+        if (newPass) newPass.value = '';
+        if (confirmPass) confirmPass.value = '';
+
+      } catch (error) {
+        console.error('Error updating password:', error);
+        if (error.name === 'AbortError') {
+          alert('Request timed out. Please try again.');
+        } else {
+          alert('An error occurred while updating your password. Please try again.');
+        }
       }
     });
 
