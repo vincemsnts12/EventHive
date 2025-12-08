@@ -477,6 +477,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding-left: 0;
   font-size: 1rem;
@@ -491,7 +492,16 @@
 
 .event-slider__date svg {
   vertical-align: middle;
-  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+#event-date {
+  white-space: nowrap;
+}
+
+#event-time {
+  white-space: normal;
+  word-break: break-word;
 }
 
 #event-date {
@@ -1117,10 +1127,13 @@
 
   /* Consistent alignment for all icon+text sections on mobile */
   .event-slider__title-wrapper,
-  .event-slider__description-wrapper,
+  .event-slider__description-wrapper {
+    padding-left: 40px; /* Slightly smaller on mobile */
+  }
+  
   .event-slider__footer,
   .event-slider__date {
-    padding-left: 40px; /* Slightly smaller on mobile */
+    padding-left: 0; /* No padding needed - using flexbox gap */
   }
 
   .event-slider__title-icon {
@@ -1144,7 +1157,7 @@
   .event-slider__footer,
   .event-slider__date {
     font-size: 0.9rem;
-    padding-left: 35px;
+    padding-left: 0; /* No padding needed - using flexbox gap */
   }
 
   .event-slider__tags {

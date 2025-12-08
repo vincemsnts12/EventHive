@@ -74,7 +74,22 @@ function updateEventDetails(eventId) {
   }
   
   if(document.getElementById('event-location')) document.getElementById('event-location').textContent = event.location;
-  if(document.getElementById('event-date')) document.getElementById('event-date').textContent = event.date;
+  
+  // Split date and time
+  if (event.date) {
+    const dateParts = event.date.split(' | ');
+    const dateElement = document.getElementById('event-date');
+    const timeElement = document.getElementById('event-time');
+    
+    if (dateElement) {
+      dateElement.textContent = dateParts[0] || event.date;
+    }
+    if (timeElement && dateParts.length > 1) {
+      timeElement.textContent = ' | ' + dateParts[1];
+    } else if (timeElement) {
+      timeElement.textContent = '';
+    }
+  }
   
   // 2. Update Image (use thumbnail index if available)
   currentImageIndex = 0;
