@@ -96,11 +96,16 @@ async function toggleEventLike(eventId) {
   try {
     // Use direct fetch API to check if user already liked this event
     console.log('toggleEventLike: Using direct fetch API...');
+    console.log('toggleEventLike: Event ID:', eventId, 'User ID:', userId);
     
-    const fetchController = new AbortController();
-    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    // First fetch: Check if like exists (with separate timeout)
+    const checkController = new AbortController();
+    const checkTimeout = setTimeout(() => {
+      console.error('toggleEventLike: Check request timed out after 10 seconds');
+      checkController.abort();
+    }, 10000);
     
-    // Check if like exists
+    console.log('toggleEventLike: Starting check request...');
     const checkResponse = await fetch(
       `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}&select=id`,
       {
@@ -110,12 +115,14 @@ async function toggleEventLike(eventId) {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
-        signal: fetchController.signal
+        signal: checkController.signal
       }
     );
     
+    clearTimeout(checkTimeout);
+    console.log('toggleEventLike: Check request completed, status:', checkResponse.status);
+    
     if (!checkResponse.ok) {
-      clearTimeout(fetchTimeout);
       const errorText = await checkResponse.text();
       logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${checkResponse.status}: ${errorText}` }, 'Error checking like');
       console.error('Error checking like:', checkResponse.status, errorText);
@@ -124,9 +131,17 @@ async function toggleEventLike(eventId) {
 
     const existingLikes = await checkResponse.json();
     const hasLiked = Array.isArray(existingLikes) && existingLikes.length > 0;
+    console.log('toggleEventLike: Has liked:', hasLiked);
 
     if (hasLiked) {
       // Unlike: Delete the like
+      const deleteController = new AbortController();
+      const deleteTimeout = setTimeout(() => {
+        console.error('toggleEventLike: Delete request timed out after 10 seconds');
+        deleteController.abort();
+      }, 10000);
+      
+      console.log('toggleEventLike: Starting delete request...');
       const deleteResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}`,
         {
@@ -135,11 +150,12 @@ async function toggleEventLike(eventId) {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${accessToken}`
           },
-          signal: fetchController.signal
+          signal: deleteController.signal
         }
       );
       
-      clearTimeout(fetchTimeout);
+      clearTimeout(deleteTimeout);
+      console.log('toggleEventLike: Delete request completed, status:', deleteResponse.status);
       
       if (!deleteResponse.ok) {
         const errorText = await deleteResponse.text();
@@ -149,9 +165,17 @@ async function toggleEventLike(eventId) {
       }
 
       logSecurityEvent('EVENT_UNLIKED', { eventId, userId }, 'Event unliked successfully');
+      console.log('toggleEventLike: Successfully unliked event');
       return { success: true, liked: false };
     } else {
       // Like: Insert new like
+      const insertController = new AbortController();
+      const insertTimeout = setTimeout(() => {
+        console.error('toggleEventLike: Insert request timed out after 10 seconds');
+        insertController.abort();
+      }, 10000);
+      
+      console.log('toggleEventLike: Starting insert request...');
       const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/event_likes`, {
         method: 'POST',
         headers: {
@@ -164,10 +188,11 @@ async function toggleEventLike(eventId) {
           event_id: eventId,
           user_id: userId
         }),
-        signal: fetchController.signal
+        signal: insertController.signal
       });
       
-      clearTimeout(fetchTimeout);
+      clearTimeout(insertTimeout);
+      console.log('toggleEventLike: Insert request completed, status:', insertResponse.status);
       
       if (!insertResponse.ok) {
         const errorText = await insertResponse.text();
@@ -177,6 +202,7 @@ async function toggleEventLike(eventId) {
       }
 
       logSecurityEvent('EVENT_LIKED', { eventId, userId }, 'Event liked successfully');
+      console.log('toggleEventLike: Successfully liked event');
       return { success: true, liked: true };
     }
   } catch (error) {
