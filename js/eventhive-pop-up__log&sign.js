@@ -205,17 +205,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (error) {
-              // Check if error is due to unverified email
+              // Check if error is due to unverified email or invalid credentials
               const errorMessage = error.message || '';
               const errorCode = error.status || '';
 
-              // Supabase returns specific error for unverified emails
-              if (errorMessage.toLowerCase().includes('email not confirmed') ||
-                errorMessage.toLowerCase().includes('email not verified') ||
-                errorMessage.toLowerCase().includes('confirm your email') ||
-                errorCode === 400) {
-                alert('Please verify before logging in. A verification has been sent to your TUP Email.');
-              } else if (errorMessage.toLowerCase().includes('invalid login credentials') ||
+              // Check for invalid credentials FIRST (before generic 400 check)
+              // This catches Google OAuth users who don't have a password set
+              if (errorMessage.toLowerCase().includes('invalid login credentials') ||
                 errorMessage.toLowerCase().includes('invalid password') ||
                 errorMessage.toLowerCase().includes('invalid credentials')) {
                 // Check if this might be a Google OAuth user by looking up their profile
@@ -242,6 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isGoogleUser) {
                   alert('Login failed: Invalid email or password.');
                 }
+              } else if (errorMessage.toLowerCase().includes('email not confirmed') ||
+                errorMessage.toLowerCase().includes('email not verified') ||
+                errorMessage.toLowerCase().includes('confirm your email')) {
+                // Specifically check for email verification errors (not just 400 status)
+                alert('Please verify before logging in. A verification has been sent to your TUP Email.');
               } else {
                 alert('Login failed: ' + errorMessage);
               }

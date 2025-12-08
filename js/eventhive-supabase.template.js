@@ -220,7 +220,32 @@ function setupAuthStateListener() {
         // This is a first-time signup - show welcome message
         lastAuthenticatedUserId = userId;
         localStorage.setItem('eventhive_last_authenticated_user_id', userId);
-        alert('Welcome! You have been successfully authenticated with ' + email);
+
+        // For OAuth users (like Google), send them a password reset email
+        // so they can set their own password for email/password login
+        if (isOAuthLogin) {
+          try {
+            // Trigger password reset email so user can set their password
+            const { error: resetError } = await supabaseClient.auth.resetPasswordForEmail(email, {
+              redirectTo: window.location.origin + '/eventhive-profile-edit.html'
+            });
+
+            if (resetError) {
+              console.error('Error sending password setup email:', resetError);
+              alert('Welcome to EventHive! You have been successfully authenticated with ' + email + '\n\nNote: We could not send a password setup email. You can request one later from the "Forgot Password" option.');
+            } else {
+              console.log('Password setup email sent to:', email);
+              alert('Welcome to EventHive!\n\nYou have been successfully authenticated with ' + email + '\n\nWe have sent a "Set Your Password" email to your TUP email inbox. This allows you to log in with email and password in the future.\n\nIf you prefer, you can always use "Continue with Google" to sign in.');
+            }
+          } catch (err) {
+            console.error('Error in password reset flow:', err);
+            alert('Welcome! You have been successfully authenticated with ' + email);
+          }
+        } else {
+          // Regular email/password signup
+          alert('Welcome! You have been successfully authenticated with ' + email);
+        }
+
         // Clear both flags so it doesn't show again on next login
         localStorage.removeItem('eventhive_just_signed_up');
         localStorage.removeItem('eventhive_just_signed_up_email');
