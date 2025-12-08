@@ -1040,142 +1040,109 @@ async function updateEvent(eventId, eventData) {
     let updateError = null;
     let updateSucceeded = false;
     
-    // Use direct UPDATE (function approach requires fetching current event first, which adds complexity)
-    // The UPDATE RLS policy may block, but we'll check if rows were affected
-    console.log('updateEvent: Using direct UPDATE...');
+    // Use direct fetch API to bypass Supabase client connection issues
+    console.log('updateEvent: Using direct fetch UPDATE (bypassing Supabase client)...');
     
-    const updatePromise = supabase
-      .from('events')
-      .update(dbEvent)
-      .eq('id', eventId);
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
     
-    const updateTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('UPDATE query timed out after 5 seconds')), 5000)
-    );
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error('updateEvent: Supabase URL or key not available');
+      return { success: false, error: 'Supabase configuration not available' };
+    }
+    
+    // Get access token from localStorage
+    let accessToken = null;
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      }
+    } catch (e) {
+      console.error('updateEvent: Error getting access token:', e);
+    }
+    
+    if (!accessToken) {
+      console.error('updateEvent: No access token found');
+      return { success: false, error: 'Authentication token not found. Please log in again.' };
+    }
+    
+    console.log('updateEvent: Access token obtained, making direct fetch PATCH request...');
+    
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
     
     try {
-      console.log('updateEvent: Awaiting UPDATE query (with 5s timeout)...');
-      const result = await Promise.race([updatePromise, updateTimeoutPromise]);
-      const updateDuration = Date.now() - updateStartTime;
-      console.log(`updateEvent: UPDATE query completed in ${updateDuration}ms`);
-      console.log('updateEvent: UPDATE result:', { 
-        hasError: !!result?.error, 
-        error: result?.error?.message,
-        dataCount: result?.data ? (Array.isArray(result.data) ? result.data.length : 1) : 0,
-        hasData: !!result?.data
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(dbEvent),
+        signal: fetchController.signal
       });
-      updateError = result?.error;
       
-      // Check if UPDATE actually affected any rows (RLS might block silently)
-      if (!updateError && (!result?.data || (Array.isArray(result.data) && result.data.length === 0))) {
-        console.warn('updateEvent: UPDATE returned no error but also no data - RLS may have blocked the update');
-        updateError = { message: 'Update completed but no rows were affected (RLS may be blocking UPDATE)' };
-      } else if (!updateError) {
+      clearTimeout(fetchTimeout);
+      const updateDuration = Date.now() - updateStartTime;
+      console.log(`updateEvent: Direct fetch PATCH completed in ${updateDuration}ms, status: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('updateEvent: Direct fetch PATCH error:', response.status, errorText);
+        
+        // If error is about colleges column, retry without it
+        if (errorText.includes('colleges') || errorText.includes('PGRST')) {
+          console.log('updateEvent: Retrying without colleges column...');
+          const retryDbEvent = { ...dbEvent };
+          delete retryDbEvent.colleges;
+          
+          const retryResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${accessToken}`,
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(retryDbEvent)
+          });
+          
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            updateError = { message: `HTTP ${retryResponse.status}: ${retryErrorText}` };
+          } else {
+            updateSucceeded = true;
+            console.log('updateEvent: Retry PATCH succeeded');
+          }
+        } else {
+          updateError = { message: `HTTP ${response.status}: ${errorText}` };
+        }
+      } else {
         updateSucceeded = true;
+        console.log('updateEvent: Event updated successfully via direct fetch');
       }
     } catch (error) {
+      clearTimeout(fetchTimeout);
       const updateDuration = Date.now() - updateStartTime;
-      console.error(`updateEvent: UPDATE query failed after ${updateDuration}ms:`, error);
-      if (error.message && error.message.includes('timed out')) {
-        return { success: false, error: 'Event update timed out. Please check your connection and try again.' };
+      if (error.name === 'AbortError') {
+        console.error(`updateEvent: Direct fetch PATCH timed out after ${updateDuration}ms`);
+        updateError = { message: 'Event update timed out after 15 seconds' };
+      } else {
+        console.error(`updateEvent: Direct fetch PATCH failed after ${updateDuration}ms:`, error);
+        updateError = { message: error.message || 'Event update failed' };
       }
-      updateError = error;
     }
     
     if (updateError || !updateSucceeded) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError?.message }, 'Error updating event');
       console.error('updateEvent: Error updating event:', updateError);
-      
-      // If error is about colleges column, try again without it
-      const errorMsg = updateError?.message || '';
-      if (errorMsg.includes('colleges') || 
-          errorMsg.includes('column') ||
-          errorMsg.includes('does not exist') ||
-          errorMsg.toLowerCase().includes('jsonb') ||
-          errorMsg.includes('PGRST')) {
-        console.log('updateEvent: Retrying update without colleges column...');
-        const retryDbEvent = { ...dbEvent };
-        delete retryDbEvent.colleges;
-        
-        // Try direct UPDATE without colleges (function won't have this issue)
-        const retryStartTime = Date.now();
-        const retryPromise = supabase
-          .from('events')
-          .update(retryDbEvent)
-          .eq('id', eventId);
-        const retryTimeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Retry UPDATE timed out after 5 seconds')), 5000)
-        );
-        
-        try {
-          const retryResult = await Promise.race([retryPromise, retryTimeoutPromise]);
-          const retryDuration = Date.now() - retryStartTime;
-          console.log(`updateEvent: Retry UPDATE completed in ${retryDuration}ms`);
-          if (retryResult.error) {
-            console.error('updateEvent: Retry update also failed:', retryResult.error);
-            return { success: false, error: retryResult.error.message || 'Failed to update event' };
-          }
-          if (!retryResult.data || (Array.isArray(retryResult.data) && retryResult.data.length === 0)) {
-            console.error('updateEvent: Retry update succeeded but no rows returned');
-            return { success: false, error: 'Event was updated but could not be retrieved (RLS may be blocking)' };
-          }
-          console.log('updateEvent: Retry update succeeded, fetching updated event...');
-          updateSucceeded = true;
-        } catch (retryError) {
-          const retryDuration = Date.now() - retryStartTime;
-          console.error(`updateEvent: Retry UPDATE failed after ${retryDuration}ms:`, retryError);
-          return { success: false, error: retryError.message || 'Retry update timed out' };
-        }
-      } else {
-        return { success: false, error: updateError?.message || 'Failed to update event' };
-      }
-    }
-
-    if (updateError) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error updating event');
-      console.error('updateEvent: Error updating event:', updateError);
-      console.error('updateEvent: Event data that failed:', { 
-        ...dbEvent, 
-        description: dbEvent.description ? '[truncated]' : undefined,
-        colleges: dbEvent.colleges ? (Array.isArray(dbEvent.colleges) ? `[${dbEvent.colleges.length} colleges]` : dbEvent.colleges) : 'not included'
-      });
-      
-      // If error is about colleges column, try again without it
-      const errorMsg = updateError.message || '';
-      if (errorMsg.includes('colleges') || 
-          errorMsg.includes('column') ||
-          errorMsg.includes('does not exist') ||
-          errorMsg.toLowerCase().includes('jsonb') ||
-          errorMsg.includes('PGRST')) {
-        console.log('updateEvent: Retrying update without colleges column...');
-        const retryDbEvent = { ...dbEvent };
-        delete retryDbEvent.colleges;
-        const retryStartTime = Date.now();
-        const retryPromise = supabase
-          .from('events')
-          .update(retryDbEvent)
-          .eq('id', eventId);
-        const retryTimeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Retry UPDATE timed out after 5 seconds')), 5000)
-        );
-        
-        try {
-          const retryResult = await Promise.race([retryPromise, retryTimeoutPromise]);
-          const retryDuration = Date.now() - retryStartTime;
-          console.log(`updateEvent: Retry UPDATE completed in ${retryDuration}ms`);
-          if (retryResult.error) {
-            console.error('updateEvent: Retry update also failed:', retryResult.error);
-            return { success: false, error: retryResult.error.message || 'Failed to update event' };
-          }
-          console.log('updateEvent: Retry update succeeded, fetching updated event...');
-        } catch (retryError) {
-          const retryDuration = Date.now() - retryStartTime;
-          console.error(`updateEvent: Retry UPDATE failed after ${retryDuration}ms:`, retryError);
-          return { success: false, error: retryError.message || 'Retry update timed out' };
-        }
-      } else {
-        return { success: false, error: updateError.message };
-      }
+      return { success: false, error: updateError?.message || 'Failed to update event' };
     }
     
     // --- Fetch the updated event using guest client to avoid RLS issues ---
@@ -1300,23 +1267,73 @@ async function deleteEvent(eventId) {
   const user = await getSafeUser();
 
   try {
-    // Delete event (cascade will delete images, likes, comments)
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', eventId);
-
-    if (error) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: error.message }, 'Error deleting event');
-      console.error('Error deleting event:', error);
-      return { success: false, error: error.message };
+    // Use direct fetch API to bypass Supabase client connection issues
+    console.log('deleteEvent: Using direct fetch DELETE (bypassing Supabase client)...');
+    
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+    
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error('deleteEvent: Supabase URL or key not available');
+      return { success: false, error: 'Supabase configuration not available' };
     }
-
+    
+    // Get access token from localStorage
+    let accessToken = null;
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      }
+    } catch (e) {
+      console.error('deleteEvent: Error getting access token:', e);
+    }
+    
+    if (!accessToken) {
+      console.error('deleteEvent: No access token found');
+      return { success: false, error: 'Authentication token not found. Please log in again.' };
+    }
+    
+    console.log('deleteEvent: Access token obtained, making direct fetch DELETE request...');
+    
+    const deleteStartTime = Date.now();
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`
+      },
+      signal: fetchController.signal
+    });
+    
+    clearTimeout(fetchTimeout);
+    const deleteDuration = Date.now() - deleteStartTime;
+    console.log(`deleteEvent: Direct fetch DELETE completed in ${deleteDuration}ms, status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('deleteEvent: Direct fetch DELETE error:', response.status, errorText);
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: `HTTP ${response.status}: ${errorText}` }, 'Error deleting event');
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+    }
+    
+    console.log('deleteEvent: Event deleted successfully via direct fetch');
     logSecurityEvent('EVENT_DELETED', { userId: user.id, eventId }, 'Event deleted successfully');
     return { success: true };
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('deleteEvent: Direct fetch DELETE timed out');
+      logSecurityEvent('DATABASE_ERROR', { userId: user?.id, eventId, error: 'Delete timed out' }, 'Error deleting event');
+      return { success: false, error: 'Event deletion timed out after 15 seconds' };
+    }
     logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error deleting event');
-    console.error('Unexpected error deleting event:', error);
+    console.error('deleteEvent: Unexpected error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -1329,11 +1346,6 @@ async function deleteEvent(eventId) {
  * @returns {Promise<{success: boolean, event?: Object, error?: string}>}
  */
 async function approveEvent(eventId) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
-
   // Input validation
   if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
     return { success: false, error: 'Invalid event ID' };
@@ -1365,30 +1377,80 @@ async function approveEvent(eventId) {
     // Recalculate status (will be Upcoming, Ongoing, or Concluded)
     const newStatus = calculateEventStatus(event.startDate, event.endDate, null);
 
-    // Update event: set status, approved_at, approved_by
-    const { error: updateError } = await supabase
-      .from('events')
-      .update({
-        status: newStatus,
-        approved_at: new Date().toISOString(),
-        approved_by: user.id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', eventId);
-
-    if (updateError) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError.message }, 'Error approving event');
-      console.error('Error approving event:', updateError);
-      return { success: false, error: updateError.message };
+    // Use direct fetch API for the update
+    console.log('approveEvent: Using direct fetch PATCH (bypassing Supabase client)...');
+    
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+    
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return { success: false, error: 'Supabase configuration not available' };
+    }
+    
+    // Get access token from localStorage
+    let accessToken = null;
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      }
+    } catch (e) {
+      console.error('approveEvent: Error getting access token:', e);
+    }
+    
+    if (!accessToken) {
+      return { success: false, error: 'Authentication token not found. Please log in again.' };
+    }
+    
+    const approveStartTime = Date.now();
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    
+    const updateData = {
+      status: newStatus,
+      approved_at: new Date().toISOString(),
+      approved_by: user.id,
+      updated_at: new Date().toISOString()
+    };
+    
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(updateData),
+      signal: fetchController.signal
+    });
+    
+    clearTimeout(fetchTimeout);
+    const approveDuration = Date.now() - approveStartTime;
+    console.log(`approveEvent: Direct fetch PATCH completed in ${approveDuration}ms, status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: `HTTP ${response.status}: ${errorText}` }, 'Error approving event');
+      console.error('approveEvent: Error:', response.status, errorText);
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
     }
 
+    console.log('approveEvent: Event approved successfully via direct fetch');
     logSecurityEvent('EVENT_APPROVED', { userId: user.id, eventId, newStatus }, 'Event approved successfully');
 
     // Get updated event
     return getEventById(eventId);
   } catch (error) {
+    if (error.name === 'AbortError') {
+      logSecurityEvent('DATABASE_ERROR', { userId: user?.id, eventId, error: 'Approve timed out' }, 'Error approving event');
+      return { success: false, error: 'Event approval timed out after 15 seconds' };
+    }
     logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error approving event');
-    console.error('Unexpected error approving event:', error);
+    console.error('approveEvent: Unexpected error:', error);
     return { success: false, error: error.message };
   }
 }
