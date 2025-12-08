@@ -218,57 +218,108 @@ async function getUserLikedEventIds() {
  * @returns {Promise<{success: boolean, comments: Array, error?: string}>}
  */
 async function getEventComments(eventId) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, comments: [], error: 'Supabase not initialized' };
-  }
-
   // Input validation
   if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
     return { success: false, comments: [], error: 'Invalid event ID' };
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('comments')
-      .select(`
-        id,
-        content,
-        created_at,
-        updated_at,
-        user_id,
-        profiles:user_id (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
-      .eq('event_id', eventId)
-      .order('created_at', { ascending: true }); // Oldest first
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
-      console.error('Error getting comments:', error);
-      return { success: false, comments: [], error: error.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, comments: [], error: 'Supabase configuration not available' };
+  }
+
+  try {
+    // Use direct fetch API to get comments (public data, no auth needed)
+    console.log('getEventComments: Using direct fetch API...');
+    
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    
+    // Fetch comments
+    const commentsResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/comments?event_id=eq.${eventId}&order=created_at.asc&select=id,content,created_at,updated_at,user_id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      }
+    );
+    
+    clearTimeout(fetchTimeout);
+    
+    if (!commentsResponse.ok) {
+      const errorText = await commentsResponse.text();
+      console.error('Error getting comments:', commentsResponse.status, errorText);
+      return { success: false, comments: [], error: `HTTP ${commentsResponse.status}: ${errorText}` };
+    }
+
+    const commentsData = await commentsResponse.json();
+
+    if (!commentsData || commentsData.length === 0) {
+      return { success: true, comments: [] };
+    }
+
+    // Get unique user IDs from comments
+    const userIds = [...new Set(commentsData.map(c => c.user_id).filter(Boolean))];
+    
+    // Fetch profiles for all users in one query
+    let profilesMap = {};
+    if (userIds.length > 0) {
+      // PostgREST uses parentheses for 'in' operator
+      const userIdsParam = userIds.map(id => `"${id}"`).join(',');
+      const profilesResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?id=in.(${userIdsParam})&select=id,username,full_name,avatar_url`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          signal: fetchController.signal
+        }
+      );
+      
+      if (profilesResponse.ok) {
+        const profilesData = await profilesResponse.json();
+        if (profilesData) {
+          // Create a map for quick lookup
+          profilesMap = profilesData.reduce((acc, profile) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {});
+        }
+      }
     }
 
     // Transform data to match frontend structure
-    const comments = (data || []).map(comment => ({
-      id: comment.id,
-      content: comment.content,
-      createdAt: comment.created_at,
-      updatedAt: comment.updated_at,
-      userId: comment.user_id,
-      user: {
-        id: comment.profiles?.id || comment.user_id,
-        username: comment.profiles?.username || 'Unknown',
-        fullName: comment.profiles?.full_name || comment.profiles?.username || 'Unknown',
-        avatarUrl: comment.profiles?.avatar_url || 'images/prof_default.svg'
-      }
-    }));
+    const comments = commentsData.map(comment => {
+      const profile = profilesMap[comment.user_id];
+      return {
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.created_at,
+        updatedAt: comment.updated_at,
+        userId: comment.user_id,
+        user: {
+          id: profile?.id || comment.user_id,
+          username: profile?.username || 'Unknown',
+          fullName: profile?.full_name || profile?.username || 'Unknown',
+          avatarUrl: profile?.avatar_url || 'images/prof_default.svg'
+        }
+      };
+    });
 
     return { success: true, comments };
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('getEventComments: Fetch timed out');
+      return { success: false, comments: [], error: 'Request timed out after 15 seconds' };
+    }
     console.error('Unexpected error getting comments:', error);
     return { success: false, comments: [], error: error.message };
   }
@@ -281,24 +332,56 @@ async function getEventComments(eventId) {
  * @returns {Promise<{success: boolean, comment?: Object, error?: string}>}
  */
 async function createComment(eventId, content) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
+  // Get user ID from localStorage (check if logged in)
+  let userId = null;
+  try {
+    userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (!userId) {
+      // Fallback: Try to get user ID from Supabase auth token in localStorage
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        (key.includes('supabase') && key.includes('auth-token')) || 
+        (key.startsWith('sb-') && key.includes('auth-token'))
+      );
+      
+      if (supabaseAuthKeys.length > 0) {
+        const authKey = supabaseAuthKeys[0];
+        const authData = localStorage.getItem(authKey);
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            if (parsed?.access_token) {
+              try {
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                userId = payload.sub;
+              } catch (e) {
+                console.error('Error decoding JWT token:', e);
+              }
+            }
+            if (!userId && parsed?.user?.id) {
+              userId = parsed.user.id;
+            }
+          } catch (e) {
+            console.error('Error parsing auth data:', e);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error getting user from localStorage:', error);
   }
 
-  const user = await getSafeUser();
-  if (!user) {
-    return { success: false, error: 'User not authenticated' };
+  if (!userId) {
+    return { success: false, error: 'User not authenticated. Please log in to comment.' };
   }
 
   // Input validation
   if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
-    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id }, 'Invalid eventId in createComment');
+    logSecurityEvent('INVALID_INPUT', { eventId, userId }, 'Invalid eventId in createComment');
     return { success: false, error: 'Invalid event ID' };
   }
 
   if (!content || typeof content !== 'string') {
-    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id }, 'Invalid content in createComment');
+    logSecurityEvent('INVALID_INPUT', { eventId, userId }, 'Invalid content in createComment');
     return { success: false, error: 'Comment cannot be empty' };
   }
 
@@ -309,64 +392,121 @@ async function createComment(eventId, content) {
   }
 
   if (trimmedContent.length > 200) {
-    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id, contentLength: trimmedContent.length }, 'Comment exceeds length limit');
+    logSecurityEvent('INVALID_INPUT', { eventId, userId, contentLength: trimmedContent.length }, 'Comment exceeds length limit');
     return { success: false, error: 'Comment cannot exceed 200 characters' };
   }
 
   // Profanity filtering
   const filteredContent = filterProfanity(trimmedContent);
   if (filteredContent !== trimmedContent) {
-    logSecurityEvent('PROFANITY_FILTERED', { eventId, userId: user.id }, 'Profanity detected in comment');
+    logSecurityEvent('PROFANITY_FILTERED', { eventId, userId }, 'Profanity detected in comment');
+  }
+
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+
+  // Get access token from localStorage
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication token not found. Please log in again.' };
   }
 
   try {
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({
+    // Use direct fetch API to create comment
+    console.log('createComment: Using direct fetch API...');
+    
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/comments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
         event_id: eventId,
-        user_id: user.id,
+        user_id: userId,
         content: filteredContent
-      })
-      .select(`
-        id,
-        content,
-        created_at,
-        updated_at,
-        user_id,
-        profiles:user_id (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
-      .single();
+      }),
+      signal: fetchController.signal
+    });
+    
+    clearTimeout(fetchTimeout);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${response.status}: ${errorText}` }, 'Error creating comment');
+      console.error('Error creating comment:', response.status, errorText);
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+    }
 
-    if (error) {
-      logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: error.message }, 'Error creating comment');
-      console.error('Error creating comment:', error);
-      return { success: false, error: error.message };
+    const commentDataArray = await response.json();
+    const commentData = Array.isArray(commentDataArray) ? commentDataArray[0] : commentDataArray;
+
+    // Fetch profile separately using direct fetch
+    let profile = null;
+    try {
+      const profileResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,full_name,avatar_url`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        profile = Array.isArray(profileData) && profileData.length > 0 ? profileData[0] : null;
+      }
+    } catch (e) {
+      console.error('Error fetching profile:', e);
     }
 
     // Transform data to match frontend structure
     const comment = {
-      id: data.id,
-      content: data.content,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      userId: data.user_id,
+      id: commentData.id,
+      content: commentData.content,
+      createdAt: commentData.created_at,
+      updatedAt: commentData.updated_at,
+      userId: commentData.user_id,
       user: {
-        id: data.profiles?.id || data.user_id,
-        username: data.profiles?.username || 'Unknown',
-        fullName: data.profiles?.full_name || data.profiles?.username || 'Unknown',
-        avatarUrl: data.profiles?.avatar_url || 'images/prof_default.svg'
+        id: profile?.id || commentData.user_id,
+        username: profile?.username || 'Unknown',
+        fullName: profile?.full_name || profile?.username || 'Unknown',
+        avatarUrl: profile?.avatar_url || 'images/prof_default.svg'
       }
     };
 
-    logSecurityEvent('COMMENT_CREATED', { eventId, userId: user.id, commentId: data.id }, 'Comment created successfully');
+    logSecurityEvent('COMMENT_CREATED', { eventId, userId, commentId: commentData.id }, 'Comment created successfully');
     return { success: true, comment };
   } catch (error) {
-    logSecurityEvent('UNEXPECTED_ERROR', { eventId, userId: user?.id, error: error.message }, 'Unexpected error creating comment');
+    if (error.name === 'AbortError') {
+      logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: 'Create timed out' }, 'Error creating comment');
+      return { success: false, error: 'Comment creation timed out after 15 seconds' };
+    }
+    logSecurityEvent('UNEXPECTED_ERROR', { eventId, userId, error: error.message }, 'Unexpected error creating comment');
     console.error('Unexpected error creating comment:', error);
     return { success: false, error: error.message };
   }
@@ -378,39 +518,116 @@ async function createComment(eventId, content) {
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function deleteComment(commentId) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
+  // Get user ID from localStorage (check if logged in)
+  let userId = null;
+  try {
+    userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (!userId) {
+      // Fallback: Try to get user ID from Supabase auth token in localStorage
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        (key.includes('supabase') && key.includes('auth-token')) || 
+        (key.startsWith('sb-') && key.includes('auth-token'))
+      );
+      
+      if (supabaseAuthKeys.length > 0) {
+        const authKey = supabaseAuthKeys[0];
+        const authData = localStorage.getItem(authKey);
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            if (parsed?.access_token) {
+              try {
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                userId = payload.sub;
+              } catch (e) {
+                console.error('Error decoding JWT token:', e);
+              }
+            }
+            if (!userId && parsed?.user?.id) {
+              userId = parsed.user.id;
+            }
+          } catch (e) {
+            console.error('Error parsing auth data:', e);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error getting user from localStorage:', error);
   }
 
-  const user = await getSafeUser();
-  if (!user) {
-    return { success: false, error: 'User not authenticated' };
+  if (!userId) {
+    return { success: false, error: 'User not authenticated. Please log in to delete comments.' };
   }
 
   // Input validation
   if (!commentId || typeof commentId !== 'string' || commentId.trim().length === 0) {
-    logSecurityEvent('INVALID_INPUT', { commentId, userId: user.id }, 'Invalid commentId in deleteComment');
+    logSecurityEvent('INVALID_INPUT', { commentId, userId }, 'Invalid commentId in deleteComment');
     return { success: false, error: 'Invalid comment ID' };
   }
 
-  try {
-    const { error } = await supabase
-      .from('comments')
-      .delete()
-      .eq('id', commentId)
-      .eq('user_id', user.id); // Ensure user can only delete their own comments
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
-      logSecurityEvent('DATABASE_ERROR', { commentId, userId: user.id, error: error.message }, 'Error deleting comment');
-      console.error('Error deleting comment:', error);
-      return { success: false, error: error.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+
+  // Get access token from localStorage
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication token not found. Please log in again.' };
+  }
+
+  try {
+    // Use direct fetch API to delete comment
+    // RLS policy ensures user can only delete their own comments
+    console.log('deleteComment: Using direct fetch API...');
+    
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/comments?id=eq.${commentId}&user_id=eq.${userId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`
+        },
+        signal: fetchController.signal
+      }
+    );
+    
+    clearTimeout(fetchTimeout);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      logSecurityEvent('DATABASE_ERROR', { commentId, userId, error: `HTTP ${response.status}: ${errorText}` }, 'Error deleting comment');
+      console.error('Error deleting comment:', response.status, errorText);
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
     }
 
-    logSecurityEvent('COMMENT_DELETED', { commentId, userId: user.id }, 'Comment deleted successfully');
+    logSecurityEvent('COMMENT_DELETED', { commentId, userId }, 'Comment deleted successfully');
     return { success: true };
   } catch (error) {
-    logSecurityEvent('UNEXPECTED_ERROR', { commentId, userId: user?.id, error: error.message }, 'Unexpected error deleting comment');
+    if (error.name === 'AbortError') {
+      logSecurityEvent('DATABASE_ERROR', { commentId, userId, error: 'Delete timed out' }, 'Error deleting comment');
+      return { success: false, error: 'Comment deletion timed out after 15 seconds' };
+    }
+    logSecurityEvent('UNEXPECTED_ERROR', { commentId, userId, error: error.message }, 'Unexpected error deleting comment');
     console.error('Unexpected error deleting comment:', error);
     return { success: false, error: error.message };
   }
@@ -424,18 +641,27 @@ async function deleteComment(commentId) {
  * @returns {Promise<{success: boolean, profile?: Object, error?: string}>}
  */
 async function getUserProfile(userId = null) {
-  const supabase = getSupabaseClient();
+  // Use guest client for reading profiles (public data, RLS allows SELECT for all)
+  let supabase;
+  if (typeof window !== 'undefined' && typeof window.getGuestSupabaseClient === 'function') {
+    supabase = window.getGuestSupabaseClient();
+  } else if (typeof getGuestSupabaseClient === 'function') {
+    supabase = getGuestSupabaseClient();
+  } else {
+    // Fallback to regular client if guest client function not available
+    supabase = getSupabaseClient();
+  }
+  
   if (!supabase) {
     return { success: false, error: 'Supabase not initialized' };
   }
 
-  // If no userId provided, get current user
+  // If no userId provided, get current user from localStorage
   if (!userId) {
-    const user = await getSafeUser();
-    if (!user) {
+    userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (!userId) {
       return { success: false, error: 'User not authenticated' };
     }
-    userId = user.id;
   }
 
   // Input validation
@@ -553,18 +779,17 @@ async function updateUserProfile(profileData) {
  * @returns {Promise<{success: boolean, user?: Object, error?: string}>}
  */
 async function getCurrentUser() {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
-
   try {
-    // Use the safe helper which returns null when no session exists
-    const user = await getSafeUser();
-    if (!user) {
+    // Get user ID from localStorage to avoid hanging Supabase client
+    const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    
+    if (!userId) {
       return { success: true, user: null }; // Not logged in
     }
-    return { success: true, user };
+    
+    // Return minimal user object with just the ID
+    // Full profile can be fetched separately if needed
+    return { success: true, user: { id: userId } };
   } catch (error) {
     console.error('Unexpected error getting current user:', error);
     return { success: false, error: error.message };

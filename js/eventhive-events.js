@@ -308,22 +308,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventCardButtons();
   }
   
-  if (document.querySelector('.event-slider')) {
-    const selectedEventId = getSelectedEventId();
-    const eventIds = Object.keys(eventsData);
-    
-    const eventToShow = (selectedEventId && eventsData[selectedEventId]) 
-                        ? selectedEventId 
-                        : eventIds[0];
-    
-    // This now also sets up the image carousel
-    updateEventDetails(eventToShow);
-    
-    // Initialize comments and likes for this event
-    if (typeof initializeCommentsAndLikes === 'function') {
-      await initializeCommentsAndLikes(eventToShow);
-    }
-  }
+  // Note: Event loading and updateEventDetails() is handled by eventhive-events-init.js
+  // This file only handles setup functions that don't depend on event data
   
   // Setup comment character counter
   setupCommentCharCounter();
