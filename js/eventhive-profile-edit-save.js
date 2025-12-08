@@ -1,6 +1,12 @@
 // ===== PROFILE EDIT SAVE FUNCTIONALITY =====
 // Handles saving profile changes to Supabase
 
+// Store original values to compare against
+let originalProfileData = {
+  username: '',
+  bio: ''
+};
+
 // Update the confirmMainChanges function to save to Supabase
 function confirmMainChanges() {
   // Get form values
@@ -9,37 +15,59 @@ function confirmMainChanges() {
   const bioTextarea = document.querySelector('.description-box .textarea-mimic-p');
   const profilePicInput = document.getElementById('profileUpload');
   const coverPhotoInput = document.getElementById('coverUpload');
-  
+
   const username = usernameInput ? usernameInput.value.trim() : '';
-  const email = emailInput ? emailInput.value.trim() : '';
   const bio = bioTextarea ? bioTextarea.value.trim() : '';
-  
-  // Validate inputs
-  if (username && typeof validateUsername === 'function') {
+
+  // Validate username - REQUIRED field
+  if (!username) {
+    alert('Username is required. Please enter a username.');
+    if (usernameInput) usernameInput.focus();
+    return false;
+  }
+
+  if (typeof validateUsername === 'function') {
     const validatedUsername = validateUsername(username);
     if (!validatedUsername) {
       alert('Invalid username format. Username must be 3-30 characters, alphanumeric and underscores only.');
       return false;
     }
   }
-  
+
   if (bio && bio.length > 500) {
     alert('Bio cannot exceed 500 characters.');
     return false;
   }
-  
+
+  // Build update object - only include fields that have changed
+  const updateData = {};
+
+  // Username changed?
+  if (username !== originalProfileData.username) {
+    updateData.username = username;
+    updateData.fullName = username; // Keep fullName in sync with username
+  }
+
+  // Bio changed? (empty means "don't change" - keep existing)
+  if (bio && bio !== originalProfileData.bio) {
+    updateData.bio = bio;
+  }
+
+  // Check if anything actually changed
+  if (Object.keys(updateData).length === 0) {
+    alert('No changes detected.');
+    window.location.href = 'eventhive-profile.html';
+    return false;
+  }
+
   // Save to Supabase
   if (typeof updateUserProfile === 'function') {
-    saveProfileToSupabase({
-      username: username || undefined,
-      fullName: username || undefined, // Use username as full name if no separate field
-      bio: bio || null
-    });
+    saveProfileToSupabase(updateData);
   } else {
     alert('Profile update functionality not available. Please check Supabase configuration.');
     return false;
   }
-  
+
   // Don't navigate yet - wait for save to complete
   return false;
 }
@@ -53,9 +81,9 @@ async function saveProfileToSupabase(profileData) {
       confirmBtn.textContent = 'Saving...';
       confirmBtn.disabled = true;
     }
-    
+
     const result = await updateUserProfile(profileData);
-    
+
     if (result.success) {
       alert('Profile updated successfully!');
       // Navigate back to profile page
@@ -91,17 +119,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof getUserProfile === 'function') {
     try {
       const result = await getUserProfile();
-      
+
       if (result.success && result.profile) {
         const profile = result.profile;
-        
+
         // Populate username field
         const usernameInput = document.querySelector('.user-details-edit .input-mimic-h2');
         if (usernameInput) {
           usernameInput.value = profile.username || profile.full_name || '';
           usernameInput.placeholder = profile.username || profile.full_name || 'Username';
         }
-        
+
         // Populate email field (get from auth user)
         const emailInput = document.querySelector('.user-details-edit .input-mimic-p');
         if (emailInput && typeof getCurrentUser === 'function') {
@@ -113,26 +141,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             emailInput.title = 'Email cannot be changed';
           }
         }
-        
+
         // Populate bio textarea
         const bioTextarea = document.querySelector('.description-box .textarea-mimic-p');
         if (bioTextarea) {
           bioTextarea.value = profile.bio || '';
           bioTextarea.placeholder = 'Add a bio...';
         }
-        
+
         // Load profile picture
         const profilePicElement = document.getElementById('profileImgDisplay');
         if (profilePicElement) {
           profilePicElement.src = profile.avatar_url || 'images/prof_default.svg';
         }
-        
+
         // Load cover photo
         const coverPhotoElement = document.getElementById('coverImgDisplay');
         if (coverPhotoElement && profile.cover_photo_url) {
           coverPhotoElement.src = profile.cover_photo_url;
         }
-        
+
+        // Store original values for change detection
+        originalProfileData.username = profile.username || profile.full_name || '';
+        originalProfileData.bio = profile.bio || '';
+
         console.log('Profile data loaded into edit form');
       } else {
         console.warn('Failed to load profile for editing:', result.error);
@@ -144,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Handle password update
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const savePassBtn = document.getElementById('savePassBtn');
   const modal = document.getElementById('passConfirmModal');
   const noBtn = document.getElementById('cancelPassBtn');
@@ -154,23 +186,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // OPEN Modal
     savePassBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      
+
       // Get password inputs
       const currentPass = document.querySelector('.pass-input[placeholder*="current"]');
       const newPass = document.querySelector('.pass-input[placeholder*="new password"]');
       const confirmPass = document.querySelector('.pass-input[placeholder*="Confirm"]');
-      
+
       // Validate passwords
       if (!currentPass || !newPass || !confirmPass) {
         alert('Please fill in all password fields.');
         return;
       }
-      
+
       if (newPass.value !== confirmPass.value) {
         alert('New passwords do not match.');
         return;
       }
-      
+
       // Validate password strength
       if (typeof validatePasswordStrength === 'function') {
         const validation = validatePasswordStrength(newPass.value);
@@ -179,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
           return;
         }
       }
-      
+
       modal.style.display = 'flex';
     });
 
@@ -191,10 +223,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // CONFIRM Password Update (Yes button)
     yesBtn.addEventListener('click', async () => {
       modal.style.display = 'none';
-      
+
       const currentPass = document.querySelector('.pass-input[placeholder*="current"]');
       const newPass = document.querySelector('.pass-input[placeholder*="new password"]');
-      
+
       if (typeof getSupabaseClient === 'function') {
         const supabase = getSupabaseClient();
         if (supabase) {
@@ -203,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const { error } = await supabase.auth.updateUser({
               password: newPass.value
             });
-            
+
             if (error) {
               alert('Failed to update password: ' + error.message);
             } else {
