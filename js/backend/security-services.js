@@ -21,22 +21,7 @@ function validateUsername(username) {
   return trimmed;
 }
 
-/**
- * Validate full name format
- * @param {string} fullName - Full name to validate
- * @returns {string|false} - Validated name or false if invalid
- */
-function validateFullName(fullName) {
-  if (!fullName || typeof fullName !== 'string') return false;
-
-  const trimmed = fullName.trim();
-  // Full name: 2-100 characters, letters, spaces, hyphens, apostrophes
-  if (!/^[a-zA-Z\s\-']{2,100}$/.test(trimmed)) {
-    return false;
-  }
-
-  return trimmed;
-}
+// validateFullName function removed - full_name column is no longer used
 
 /**
  * Validate bio text

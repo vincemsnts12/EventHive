@@ -385,30 +385,69 @@ async function hasUserLikedEvent(eventId) {
  * @returns {Promise<{success: boolean, eventIds: string[], error?: string}>}
  */
 async function getUserLikedEventIds() {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, eventIds: [], error: 'Supabase not initialized' };
-  }
-
-  const user = await getSafeUser();
-  if (!user) {
+  // Get user ID from localStorage (faster than getSafeUser)
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!userId) {
     return { success: true, eventIds: [] }; // Not logged in = no likes
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('event_likes')
-      .select('event_id')
-      .eq('user_id', user.id);
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
-      console.error('Error getting user liked events:', error);
-      return { success: false, eventIds: [], error: error.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, eventIds: [], error: 'Supabase configuration not available' };
+  }
+
+  // Get access token
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: true, eventIds: [] }; // No token = no likes
+  }
+
+  try {
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 10000);
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/event_likes?user_id=eq.${userId}&select=event_id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      }
+    );
+
+    clearTimeout(fetchTimeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error getting user liked events:', response.status, errorText);
+      return { success: false, eventIds: [], error: `HTTP ${response.status}` };
     }
 
-    const eventIds = data ? data.map(row => row.event_id) : [];
+    const data = await response.json();
+    const eventIds = Array.isArray(data) ? data.map(row => row.event_id) : [];
     return { success: true, eventIds };
   } catch (error) {
+    if (error.name === 'AbortError') {
+      return { success: false, eventIds: [], error: 'Request timed out' };
+    }
     console.error('Unexpected error getting user liked events:', error);
     return { success: false, eventIds: [], error: error.message };
   }
@@ -1067,30 +1106,51 @@ async function getCurrentUser() {
  * @returns {Promise<{success: boolean, isAdmin: boolean, error?: string}>}
  */
 async function checkIfUserIsAdmin() {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, isAdmin: false, error: 'Supabase not initialized' };
-  }
-
-  const user = await getSafeUser();
-  if (!user) {
+  // Get user ID from localStorage (faster than getSafeUser)
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!userId) {
     return { success: true, isAdmin: false }; // Not logged in = not admin
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
-      console.error('Error checking admin status:', error);
-      return { success: false, isAdmin: false, error: error.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, isAdmin: false, error: 'Supabase configuration not available' };
+  }
+
+  try {
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 10000);
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=is_admin`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      }
+    );
+
+    clearTimeout(fetchTimeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error checking admin status:', response.status, errorText);
+      return { success: false, isAdmin: false, error: `HTTP ${response.status}` };
     }
 
-    return { success: true, isAdmin: data?.is_admin || false };
+    const data = await response.json();
+    const profile = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+    return { success: true, isAdmin: profile?.is_admin || false };
   } catch (error) {
+    if (error.name === 'AbortError') {
+      return { success: false, isAdmin: false, error: 'Request timed out' };
+    }
     console.error('Unexpected error checking admin status:', error);
     return { success: false, isAdmin: false, error: error.message };
   }
