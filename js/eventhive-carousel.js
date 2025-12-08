@@ -17,14 +17,14 @@ function eventsArray() {
 
 function getFeaturedEvents() {
   const list = eventsArray();
-  const featured = list.filter(ev => ev.isFeatured);
-  if (featured.length >= 3) return featured.sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 3);
-  const topByLikes = list.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-  const merged = [...featured];
-  topByLikes.forEach(ev => {
-    if (merged.length < 3 && !merged.find(f => f.id === ev.id)) merged.push(ev);
-  });
-  return merged.slice(0, 3);
+  // Only return events where is_featured = TRUE
+  const featured = list.filter(ev => ev.isFeatured === true);
+  // Sort by start_date (ascending - upcoming events first) and limit to 5 max
+  return featured.sort((a, b) => {
+    const dateA = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const dateB = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return dateA - dateB;
+  }).slice(0, 5);
 }
 
 function buildHeroData() {
@@ -75,12 +75,14 @@ function goToSlide(n) {
   index = (n + len) % len;
   
   // Move the track
-  const translateX = -index * 33.333;
+  const translateX = -index * 20; // 20% per slide (100% / 5 slides)
   slidesTrack.style.transform = `translateX(${translateX}%)`;
   
   // Update dots
   dots.forEach(dot => dot.classList.remove('active'));
-  dots[index].classList.add('active');
+  if (dots[index]) {
+    dots[index].classList.add('active');
+  }
 }
 
 // Function to reset auto-slide timer
