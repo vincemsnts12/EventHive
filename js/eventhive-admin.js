@@ -1263,10 +1263,12 @@ async function saveTitleEdit() {
     }
   }
   
+  // Save table type BEFORE closing modal (closeModal clears it)
+  const tableToRefresh = currentEditingTable;
   closeModal('editTitleModal');
   
   // Refresh table
-  if (currentEditingTable === 'published') {
+  if (tableToRefresh === 'published') {
     populatePublishedEventsTable();
   } else {
     populatePendingEventsTable();
@@ -1322,10 +1324,12 @@ async function saveDescEdit() {
     }
   }
   
+  // Save table type BEFORE closing modal (closeModal clears it)
+  const tableToRefresh = currentEditingTable;
   closeModal('editDescModal');
   
   // Refresh table
-  if (currentEditingTable === 'published') {
+  if (tableToRefresh === 'published') {
     populatePublishedEventsTable();
   } else {
     populatePendingEventsTable();
@@ -1381,10 +1385,12 @@ async function saveLocationEdit() {
     }
   }
   
+  // Save table type BEFORE closing modal (closeModal clears it)
+  const tableToRefresh = currentEditingTable;
   closeModal('editLocationModal');
   
   // Refresh table
-  if (currentEditingTable === 'published') {
+  if (tableToRefresh === 'published') {
     populatePublishedEventsTable();
   } else {
     populatePendingEventsTable();
@@ -1498,10 +1504,12 @@ async function saveCollegeEdit() {
       Object.assign(event, updateData);
   }
   
+  // Save table type BEFORE closing modal (closeModal clears it)
+  const tableToRefresh = currentEditingTable;
   closeModal('editCollegeModal');
   
   // Refresh table
-  if (currentEditingTable === 'published') {
+  if (tableToRefresh === 'published') {
     populatePublishedEventsTable();
   } else {
     populatePendingEventsTable();
@@ -1563,10 +1571,12 @@ async function saveOrgEdit() {
     }
   }
   
+  // Save table type BEFORE closing modal (closeModal clears it)
+  const tableToRefresh = currentEditingTable;
   closeModal('editOrgModal');
   
   // Refresh table
-  if (currentEditingTable === 'published') {
+  if (tableToRefresh === 'published') {
     populatePublishedEventsTable();
   } else {
     populatePendingEventsTable();
@@ -1659,10 +1669,12 @@ async function saveDateEdit() {
     }
   }
   
+  // Save table type BEFORE closing modal (closeModal clears it)
+  const tableToRefresh = currentEditingTable;
   closeModal('editDateModal');
   
   // Refresh the table
-  if (currentEditingTable === 'published') {
+  if (tableToRefresh === 'published') {
     populatePublishedEventsTable();
   } else {
     populatePendingEventsTable();
@@ -2079,10 +2091,12 @@ async function saveImagesEdit() {
     }
   }
   
+  // Save table type BEFORE closing modal (closeModal clears it)
+  const tableToRefresh = currentEditingTable;
   closeModal('imagesModal');
   
   // Refresh the table
-  if (currentEditingTable === 'published') {
+  if (tableToRefresh === 'published') {
     populatePublishedEventsTable();
   } else {
     populatePendingEventsTable();
