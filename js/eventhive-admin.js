@@ -2175,6 +2175,8 @@ async function addNewOrganization() {
 // ===== EVENT LISTENERS =====
 
 document.addEventListener('DOMContentLoaded', async function() {
+  console.log('=== eventhive-admin.js DOMContentLoaded START ===');
+  
   // DEBUG: Log all clicks on the page to diagnose unresponsive buttons
   document.addEventListener('click', (e) => {
     console.log('Click detected on:', e.target.tagName, e.target.className, e.target.id || '(no id)');
@@ -2188,7 +2190,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   }, true); // Use capture phase to catch all clicks
   
   // Load organizations from database first
+  console.log('Loading organizations from database...');
   await loadOrganizationsFromDatabase();
+  console.log('Organizations loaded, continuing setup...');
   
   // Then populate tables
   populatePublishedEventsTable();
@@ -2211,9 +2215,37 @@ document.addEventListener('DOMContentLoaded', async function() {
   document.getElementById('closeViewDateBtn')?.addEventListener('click', () => closeModal('viewDateModal'));
   
   // Title Modal
-  document.getElementById('closeTitleModal')?.addEventListener('click', () => closeModal('editTitleModal'));
-  document.getElementById('cancelTitleEdit')?.addEventListener('click', () => closeModal('editTitleModal'));
-  document.getElementById('saveTitleEdit')?.addEventListener('click', saveTitleEdit);
+  const closeTitleBtn = document.getElementById('closeTitleModal');
+  const cancelTitleBtn = document.getElementById('cancelTitleEdit');
+  const saveTitleBtn = document.getElementById('saveTitleEdit');
+  
+  console.log('Title modal buttons found:', { 
+    close: !!closeTitleBtn, 
+    cancel: !!cancelTitleBtn, 
+    save: !!saveTitleBtn 
+  });
+  
+  if (closeTitleBtn) {
+    closeTitleBtn.addEventListener('click', () => {
+      console.log('Close title button clicked!');
+      closeModal('editTitleModal');
+    });
+  }
+  if (cancelTitleBtn) {
+    cancelTitleBtn.addEventListener('click', () => {
+      console.log('Cancel title button clicked!');
+      closeModal('editTitleModal');
+    });
+  }
+  if (saveTitleBtn) {
+    saveTitleBtn.addEventListener('click', () => {
+      console.log('Save title button clicked - calling saveTitleEdit!');
+      saveTitleEdit();
+    });
+    console.log('Save title event listener attached successfully');
+  } else {
+    console.error('Save title button NOT FOUND - event listener NOT attached!');
+  }
   
   // Description Modal
   document.getElementById('closeDescModal')?.addEventListener('click', () => closeModal('editDescModal'));
@@ -2273,5 +2305,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       addNewOrganization();
     }
   });
+  
+  console.log('=== eventhive-admin.js DOMContentLoaded COMPLETE ===');
 });
 
