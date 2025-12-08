@@ -29,13 +29,22 @@ function getFeaturedEvents() {
 
 function buildHeroData() {
   const source = getFeaturedEvents();
-  return source.map(ev => ({
-    img: (ev.images && ev.images.length ? ev.images[0] : 'images/tup.png'),
-    title: ev.title || '',
-    desc: ev.description || '',
-    btnText: 'Know More',
-    eventId: ev.id
-  }));
+  return source.map(ev => {
+    // Truncate description to 200 characters for homepage carousel
+    let desc = ev.description || '';
+    const maxLength = 197; // Leave room for "..."
+    if (desc.length > maxLength) {
+      desc = desc.substring(0, maxLength).trim() + '...';
+    }
+    
+    return {
+      img: (ev.images && ev.images.length ? ev.images[0] : 'images/tup.png'),
+      title: ev.title || '',
+      desc: desc,
+      btnText: 'Know More',
+      eventId: ev.id
+    };
+  });
 }
 
 // Initialize all slides with their content
