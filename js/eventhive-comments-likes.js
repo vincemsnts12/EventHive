@@ -269,12 +269,17 @@ async function handleCommentSubmit(eventId) {
 
 // Handle like button click
 async function handleLikeClick(eventId, likeButton) {
-  if (!likeButton) return;
+  console.log('handleLikeClick called - eventId:', eventId, 'likeButton:', likeButton);
+  if (!likeButton) {
+    console.error('handleLikeClick: No like button provided');
+    return;
+  }
 
   // Check if user is authenticated (using localStorage for consistency)
   let userId = null;
   try {
     userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    console.log('handleLikeClick: User ID from localStorage:', userId);
     if (!userId) {
       // Fallback: Try to get from auth token
       const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
@@ -286,35 +291,43 @@ async function handleLikeClick(eventId, likeButton) {
         if (authData?.access_token) {
           const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
           userId = payload.sub;
+          console.log('handleLikeClick: User ID from JWT:', userId);
         }
       }
     }
   } catch (e) {
-    // Ignore errors
+    console.error('handleLikeClick: Error getting user ID:', e);
   }
 
   if (!userId) {
+    console.log('handleLikeClick: User not authenticated');
     alert('Please log in to like events.');
     return;
   }
+
+  console.log('handleLikeClick: User authenticated, proceeding with like toggle...');
 
   // Disable button temporarily
   likeButton.disabled = true;
   likeButton.style.pointerEvents = 'none';
 
   const result = await toggleEventLike(eventId);
+  console.log('handleLikeClick: toggleEventLike result:', result);
 
   if (result.success) {
     // Update button state
     if (result.liked) {
       likeButton.classList.add('active');
+      console.log('handleLikeClick: Event liked, button set to active');
     } else {
       likeButton.classList.remove('active');
+      console.log('handleLikeClick: Event unliked, button set to inactive');
     }
 
     // Update like count
     await loadEventLikeCount(eventId);
   } else {
+    console.error('handleLikeClick: Error toggling like:', result.error);
     alert(`Error: ${result.error}`);
   }
 
@@ -381,17 +394,26 @@ async function initializeCommentsAndLikes(eventId) {
   }
 
   // Setup like button (if exists on this page)
-  const likeButton = document.querySelector('.heart-btn, .like-btn');
+  const likeButton = document.querySelector('.heart-btn, .like-btn, #eventLikeBtn');
+  console.log('initializeCommentsAndLikes: Looking for like button, found:', likeButton);
   if (likeButton && !likeButton.hasAttribute('data-like-listener-attached')) {
+    console.log('initializeCommentsAndLikes: Setting up like button for event:', eventId);
     // Update initial state
     await updateLikeButtonState(eventId, likeButton);
     
     // Setup click handler
     likeButton.addEventListener('click', (e) => {
+      console.log('Like button clicked!');
       e.stopPropagation();
+      e.preventDefault();
       handleLikeClick(eventId, likeButton);
     });
     likeButton.setAttribute('data-like-listener-attached', 'true');
+    console.log('initializeCommentsAndLikes: Like button listener attached');
+  } else if (!likeButton) {
+    console.warn('initializeCommentsAndLikes: No like button found on page');
+  } else {
+    console.log('initializeCommentsAndLikes: Like button already has listener attached');
   }
 
   // Mark as initialized

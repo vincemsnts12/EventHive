@@ -919,12 +919,42 @@
   gap: 0.5rem;
 }
 
+/* Like button in comments header */
+.comments-likes .heart-btn {
+  border: none;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.comments-likes .heart-btn:hover {
+  background-color: #fff5f5;
+}
+
+.comments-likes .heart-btn.active .likes-heart-icon {
+  fill: #B81E20;
+  color: #B81E20;
+}
+
+.comments-likes .heart-btn:not(.active) .likes-heart-icon {
+  fill: transparent;
+  stroke: #B81E20;
+  stroke-width: 2;
+  color: #B81E20;
+}
+
 .likes-heart-icon {
   color: #B81E20;
   fill: #B81E20;
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .likes-count {

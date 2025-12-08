@@ -83,19 +83,55 @@ function buildEventCard(event) {
     const likeBtn = document.createElement('button');
     likeBtn.title = 'heart-btn';
     likeBtn.className = 'heart-btn';
+    likeBtn.setAttribute('data-event-id', event.id);
     likeBtn.innerHTML = `<svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg>`;
-    likeBtn.addEventListener('click', (e) => {
+    
+    // Initialize button state (check if user has liked this event)
+    if (typeof hasUserLikedEvent === 'function') {
+      hasUserLikedEvent(event.id).then(result => {
+        if (result.success && result.liked) {
+          likeBtn.classList.add('active');
+        }
+      }).catch(err => {
+        console.error('Error checking like state:', err);
+      });
+    }
+    
+    // Setup click handler to actually like/unlike the event
+    likeBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      likeBtn.classList.toggle('active');
+      e.preventDefault();
+      
+      // Check if handleLikeClick function is available
+      if (typeof handleLikeClick === 'function') {
+        await handleLikeClick(event.id, likeBtn);
+      } else if (typeof toggleEventLike === 'function') {
+        // Fallback: Use toggleEventLike directly
+        const result = await toggleEventLike(event.id);
+        if (result.success) {
+          if (result.liked) {
+            likeBtn.classList.add('active');
+          } else {
+            likeBtn.classList.remove('active');
+          }
+        }
+      } else {
+        // No like functionality available, just toggle visual state
+        likeBtn.classList.toggle('active');
+      }
     });
+    
     actions.appendChild(likeBtn);
   }
   
-  // College tag (use main college for event card)
+  // College tag (use main college for event card - show abbreviation like homepage)
   const collegeTag = document.createElement('span');
   collegeTag.className = 'college-tag';
   const mainCollegeForTag = event.mainCollege || event.college || 'TUP';
-  collegeTag.textContent = collegeNameMap[mainCollegeForTag] || mainCollegeForTag;
+  // Use abbreviation directly (not full name) to match homepage format
+  collegeTag.textContent = mainCollegeForTag;
+  // Add title attribute with full name for hover tooltip
+  collegeTag.title = collegeNameMap[mainCollegeForTag] || mainCollegeForTag;
   // Use event.collegeColor if available, otherwise derive from main college
   const collegeColor = event.collegeColor || (mainCollegeForTag === 'TUP' ? 'tup' : mainCollegeForTag.toLowerCase());
   if (collegeColor) {
