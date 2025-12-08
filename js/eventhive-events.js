@@ -82,10 +82,10 @@ function updateEventDetails(eventId) {
     const timeElement = document.getElementById('event-time');
     
     if (dateElement) {
-      dateElement.textContent = dateParts[0] || event.date;
+      dateElement.innerHTML = (dateParts[0] || event.date) + '&nbsp;';
     }
     if (timeElement && dateParts.length > 1) {
-      timeElement.textContent = ' | ' + dateParts[1];
+      timeElement.textContent = '| ' + dateParts[1];
     } else if (timeElement) {
       timeElement.textContent = '';
     }
