@@ -108,10 +108,10 @@
 }
 .events-table th:nth-child(3) { width: 7%; }  /* Location */
 .events-table th:nth-child(4) { width: 16%; text-align: center; } /* Date & Time */
-.events-table th:nth-child(5) { width: 8%; } /* College */
-.events-table th:nth-child(6) { width: 14%; } /* Organization */
+.events-table th:nth-child(5) { width: 10%; } /* College */
+.events-table th:nth-child(6) { width: 13%; } /* Organization */
 .events-table th:nth-child(7) { width: 9%; text-align: center; } /* Status */
-.events-table th:nth-child(8) { width: 6%; text-align: center; } /* Images */
+.events-table th:nth-child(8) { width: 5%; text-align: center; } /* Images */
 .events-table th:nth-child(9) { width: 10%; text-align: center; } /* Actions */
 
 .events-table td {
@@ -339,6 +339,32 @@
   font-size: 0.7rem;
   padding: 3px 8px;
   min-width: auto;
+  cursor: pointer;
+}
+
+.tag-item--count:hover {
+  background-color: #4b5563;
+}
+
+/* View-only tags container in modals */
+.view-only-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 15px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 15px;
+}
+
+.view-only-tags .tag-item {
+  cursor: default;
+}
+
+.view-only-tags .tag-item:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .tag-item--tup {

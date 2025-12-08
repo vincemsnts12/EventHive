@@ -271,6 +271,8 @@ function populatePublishedEventsTable() {
       if (rowsInEditMode.has(eventId)) {
         currentEditingTable = 'published';
         openEditCollegeModal(eventId, mainCollegeCode);
+      } else {
+        openViewCollegesModal(colleges, mainCollegeCode);
       }
     });
     collegeContainer.appendChild(collegeTag);
@@ -289,6 +291,8 @@ function populatePublishedEventsTable() {
         if (rowsInEditMode.has(eventId)) {
           currentEditingTable = 'published';
           openEditCollegeModal(eventId, mainCollegeCode);
+        } else {
+          openViewCollegesModal(colleges, mainCollegeCode);
         }
       });
       collegeContainer.appendChild(countTag);
@@ -319,6 +323,8 @@ function populatePublishedEventsTable() {
         if (rowsInEditMode.has(eventId)) {
           currentEditingTable = 'published';
           openEditOrgModal(eventId, event.organization);
+        } else {
+          openViewOrgsModal(orgs);
         }
       });
       orgContainer.appendChild(orgTag);
@@ -333,6 +339,8 @@ function populatePublishedEventsTable() {
           if (rowsInEditMode.has(eventId)) {
             currentEditingTable = 'published';
             openEditOrgModal(eventId, event.organization);
+          } else {
+            openViewOrgsModal(orgs);
           }
         });
         orgContainer.appendChild(countTag);
@@ -1467,6 +1475,51 @@ function openViewLocationModal(location) {
   document.getElementById('viewLocationModal').classList.add('active');
 }
 
+function openViewCollegesModal(colleges, mainCollege) {
+  const container = document.getElementById('viewCollegesList');
+  container.innerHTML = '';
+  
+  colleges.forEach(collegeCode => {
+    const college = availableColleges.find(c => c.code === collegeCode);
+    if (!college) return;
+    
+    const tag = document.createElement('span');
+    tag.className = `tag-item tag-item--college ${college.color === 'tup' ? 'tag-item--tup' : ''}`;
+    tag.textContent = `${college.code} - ${college.name}`;
+    
+    // Mark main college
+    if (collegeCode === mainCollege) {
+      tag.style.fontWeight = 'bold';
+      tag.innerHTML += ' <small>(Main)</small>';
+    }
+    
+    container.appendChild(tag);
+  });
+  
+  document.getElementById('viewCollegesModal').classList.add('active');
+}
+
+function openViewOrgsModal(organizations) {
+  const container = document.getElementById('viewOrgsList');
+  container.innerHTML = '';
+  
+  organizations.forEach((org, index) => {
+    const tag = document.createElement('span');
+    tag.className = 'tag-item tag-item--org';
+    tag.textContent = org;
+    
+    // Mark first organization
+    if (index === 0) {
+      tag.style.fontWeight = 'bold';
+      tag.innerHTML += ' <small>(Primary)</small>';
+    }
+    
+    container.appendChild(tag);
+  });
+  
+  document.getElementById('viewOrgsModal').classList.add('active');
+}
+
 // ===== SAVE FUNCTIONS =====
 
 async function saveTitleEdit() {
@@ -2450,6 +2503,14 @@ document.addEventListener('DOMContentLoaded', async function() {
   // View Date Modal
   document.getElementById('closeViewDateModal')?.addEventListener('click', () => closeModal('viewDateModal'));
   document.getElementById('closeViewDateBtn')?.addEventListener('click', () => closeModal('viewDateModal'));
+  
+  // View Colleges Modal
+  document.getElementById('closeViewCollegesModal')?.addEventListener('click', () => closeModal('viewCollegesModal'));
+  document.getElementById('closeViewCollegesBtn')?.addEventListener('click', () => closeModal('viewCollegesModal'));
+  
+  // View Organizations Modal
+  document.getElementById('closeViewOrgsModal')?.addEventListener('click', () => closeModal('viewOrgsModal'));
+  document.getElementById('closeViewOrgsBtn')?.addEventListener('click', () => closeModal('viewOrgsModal'));
   
   // Title Modal
   document.getElementById('closeTitleModal')?.addEventListener('click', () => closeModal('editTitleModal'));
