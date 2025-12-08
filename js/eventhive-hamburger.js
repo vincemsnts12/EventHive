@@ -19,7 +19,7 @@ function getCachedAuthState() {
       const parsed = JSON.parse(cached);
       const now = Date.now();
       const timeSinceLogin = now - parsed.timestamp;
-      
+
       // Return cache if it's less than 5 minutes old (timer starts from login)
       if (timeSinceLogin < AUTH_CHECK_INTERVAL_HAMBURGER) {
         return parsed.state;
@@ -36,13 +36,13 @@ function applyMobileMenuState(isLoggedIn, isAdmin) {
   // Get elements fresh each time (they might not exist when script loads)
   const guestLinks = document.getElementById('mobileGuestLinks');
   const userLinks = document.getElementById('mobileUserLinks');
-  
+
   if (!guestLinks || !userLinks) return;
-  
+
   if (isLoggedIn) {
     guestLinks.style.display = 'none';
     userLinks.style.display = 'block';
-    
+
     // Show/hide Dashboard link based on admin status
     const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
     if (mobileDashboardBtn) {
@@ -51,7 +51,7 @@ function applyMobileMenuState(isLoggedIn, isAdmin) {
   } else {
     guestLinks.style.display = 'block';
     userLinks.style.display = 'none';
-    
+
     // Hide dashboard link for non-logged-in users
     const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
     if (mobileDashboardBtn) {
@@ -64,7 +64,7 @@ function applyMobileMenuState(isLoggedIn, isAdmin) {
 function updateMobileMenuAuthState() {
   // Get login state from cache (same as desktop dropdown)
   const cached = getCachedAuthState();
-  
+
   if (cached !== null) {
     // Use cached state immediately - NO async operations
     applyMobileMenuState(cached.isLoggedIn, cached.isAdmin);
@@ -82,23 +82,23 @@ function toggleMobileMenu(e) {
     e.preventDefault();
     e.stopPropagation();
   }
-  
+
   // Get elements fresh each time (they might not exist when script loads)
   const btn = document.getElementById('hamburgerBtn');
   const menu = document.getElementById('mobileMenu');
   const overlay = document.getElementById('mobileMenuOverlay');
-  
+
   if (!btn || !menu || !overlay) {
     return;
   }
-  
+
   btn.classList.toggle('active');
   menu.classList.toggle('active');
   overlay.classList.toggle('active');
-  
+
   // Update auth state when opening menu (use cache directly, no async)
   updateMobileMenuAuthState();
-  
+
   // Prevent body scroll when menu is open
   if (menu.classList.contains('active')) {
     document.body.style.overflow = 'hidden';
@@ -113,7 +113,7 @@ function closeMobileMenu() {
   const btn = document.getElementById('hamburgerBtn');
   const menu = document.getElementById('mobileMenu');
   const overlay = document.getElementById('mobileMenuOverlay');
-  
+
   if (btn) btn.classList.remove('active');
   if (menu) menu.classList.remove('active');
   if (overlay) overlay.classList.remove('active');
@@ -213,26 +213,39 @@ document.addEventListener('DOMContentLoaded', () => {
   if (mobileLogoutBtn) {
     mobileLogoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      
-      // Sign out using Supabase immediately
+
+      // Sign out using Supabase with timeout (prevent hanging)
       if (typeof getSupabaseClient === 'function') {
         const supabase = getSupabaseClient();
         if (supabase) {
-          await supabase.auth.signOut();
+          try {
+            // Wrap signOut with a 3-second timeout
+            const signOutPromise = supabase.auth.signOut();
+            const timeoutPromise = new Promise((resolve) => {
+              setTimeout(() => resolve({ timeout: true }), 3000);
+            });
+
+            const result = await Promise.race([signOutPromise, timeoutPromise]);
+            if (result?.timeout) {
+              console.warn('signOut timed out, proceeding with local logout');
+            }
+          } catch (err) {
+            console.warn('signOut error, proceeding with local logout:', err);
+          }
         }
       }
-      
-      // Clear ALL localStorage items
+
+      // Clear ALL localStorage items (this is the important part)
       try {
         localStorage.clear();
       } catch (e) {
         console.error('Error clearing localStorage:', e);
       }
-      
+
       // Update menu state
       applyMobileMenuState(false, false);
       closeMobileMenu();
-      
+
       // Show success message
       alert('Log out successful');
     });

@@ -500,15 +500,28 @@ if (logoutBtn) {
       dropdownMenu.classList.remove('show');
     }
 
-    // Sign out using Supabase immediately
+    // Sign out using Supabase with timeout (prevent hanging)
     if (typeof getSupabaseClient === 'function') {
       const supabase = getSupabaseClient();
       if (supabase) {
-        await supabase.auth.signOut();
+        try {
+          // Wrap signOut with a 3-second timeout
+          const signOutPromise = supabase.auth.signOut();
+          const timeoutPromise = new Promise((resolve) => {
+            setTimeout(() => resolve({ timeout: true }), 3000);
+          });
+
+          const result = await Promise.race([signOutPromise, timeoutPromise]);
+          if (result?.timeout) {
+            console.warn('signOut timed out, proceeding with local logout');
+          }
+        } catch (err) {
+          console.warn('signOut error, proceeding with local logout:', err);
+        }
       }
     }
 
-    // Clear ALL localStorage items
+    // Clear ALL localStorage items (this is the important part)
     try {
       localStorage.clear();
     } catch (e) {
