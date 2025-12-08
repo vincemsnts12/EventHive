@@ -102,22 +102,93 @@ function buildEventCard(event) {
       e.stopPropagation();
       e.preventDefault();
       
-      // Check if handleLikeClick function is available
-      if (typeof handleLikeClick === 'function') {
-        await handleLikeClick(event.id, likeBtn);
-      } else if (typeof toggleEventLike === 'function') {
-        // Fallback: Use toggleEventLike directly
-        const result = await toggleEventLike(event.id);
-        if (result.success) {
-          if (result.liked) {
-            likeBtn.classList.add('active');
-          } else {
-            likeBtn.classList.remove('active');
+      // Prevent multiple clicks while processing
+      if (likeBtn.disabled) {
+        return;
+      }
+      
+      // Check if user is authenticated BEFORE disabling button
+      let userId = null;
+      try {
+        userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+        if (!userId) {
+          // Fallback: Try to get from auth token
+          const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+            (key.includes('supabase') && key.includes('auth-token')) ||
+            (key.startsWith('sb-') && key.includes('auth-token'))
+          );
+          if (supabaseAuthKeys.length > 0) {
+            const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+            if (authData?.access_token) {
+              const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+              userId = payload.sub;
+            }
           }
         }
-      } else {
-        // No like functionality available, just toggle visual state
-        likeBtn.classList.toggle('active');
+      } catch (err) {
+        // Ignore errors - user is not authenticated
+      }
+      
+      if (!userId) {
+        alert('Please log in to like events.');
+        return;
+      }
+      
+      // Disable button only after authentication check passes
+      likeBtn.disabled = true;
+      
+      try {
+        
+        // Check if handleLikeClick function is available
+        if (typeof handleLikeClick === 'function') {
+          await handleLikeClick(event.id, likeBtn);
+        } else if (typeof toggleEventLike === 'function') {
+          // Fallback: Use toggleEventLike directly with timeout wrapper
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Like operation timed out after 20 seconds')), 20000);
+          });
+          
+          const result = await Promise.race([
+            toggleEventLike(event.id),
+            timeoutPromise
+          ]);
+          
+          if (result.success) {
+            if (result.liked) {
+              likeBtn.classList.add('active');
+            } else {
+              likeBtn.classList.remove('active');
+            }
+            // Update like count if getEventLikeCount is available
+            if (typeof getEventLikeCount === 'function') {
+              const countResult = await getEventLikeCount(event.id);
+              if (countResult.success) {
+                // Find and update like count display if it exists
+                const likeCountElement = card.querySelector('.likes-count');
+                if (likeCountElement) {
+                  likeCountElement.textContent = countResult.count;
+                }
+              }
+            }
+          } else {
+            console.error('Error toggling like:', result.error);
+            if (result.error && !result.error.includes('not authenticated')) {
+              alert('Failed to update like. Please try again.');
+            }
+          }
+        } else {
+          // No like functionality available, just toggle visual state
+          likeBtn.classList.toggle('active');
+        }
+      } catch (error) {
+        console.error('Error in like handler:', error);
+        if (error.message && error.message.includes('timed out')) {
+          alert('Like operation timed out. Please refresh the page and try again.');
+        } else {
+          alert('Failed to update like. Please try again.');
+        }
+      } finally {
+        likeBtn.disabled = false;
       }
     });
     
