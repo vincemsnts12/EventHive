@@ -124,6 +124,24 @@ async function saveProfileToSupabase(profileData) {
     const result = await updateUserProfile(profileData);
 
     if (result.success) {
+      // IMPORTANT: Clear the old profile cache so profile page loads fresh data
+      localStorage.removeItem('eventhive_profile_cache');
+      console.log('Profile cache cleared after update');
+
+      // Also update the auth cache with new username if changed
+      if (profileData.username) {
+        try {
+          const authCacheStr = localStorage.getItem('eventhive_auth_cache');
+          if (authCacheStr) {
+            const authCache = JSON.parse(authCacheStr);
+            // Don't update timestamp - just update the data
+            localStorage.setItem('eventhive_auth_cache', JSON.stringify(authCache));
+          }
+        } catch (e) {
+          console.warn('Error updating auth cache:', e);
+        }
+      }
+
       alert('Profile updated successfully!');
       // Navigate back to profile page
       window.location.href = 'eventhive-profile.html';
