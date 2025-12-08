@@ -321,13 +321,18 @@ document.addEventListener('DOMContentLoaded', () => {
                   const profileResult = await getUserProfile();
                   if (profileResult.success && profileResult.profile) {
                     // Cache profile data in localStorage
+                    // IMPORTANT: Add email to profile (profiles table doesn't have email column)
                     try {
+                      const profileWithEmail = {
+                        ...profileResult.profile,
+                        email: loginEmail // email from login form
+                      };
                       const profileCache = {
                         timestamp: Date.now(),
-                        profile: profileResult.profile
+                        profile: profileWithEmail
                       };
                       localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
-                      console.log('Profile cached after login');
+                      console.log('Profile cached after login (with email)');
                     } catch (e) {
                       console.error('Error caching profile:', e);
                     }

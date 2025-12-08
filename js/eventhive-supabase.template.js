@@ -284,12 +284,17 @@ function setupAuthStateListener() {
         try {
           const profileResult = await getUserProfile(userId);
           if (profileResult.success && profileResult.profile) {
+            // IMPORTANT: Add email from session to profile (profiles table doesn't have email column)
+            const profileWithEmail = {
+              ...profileResult.profile,
+              email: email // email from session.user.email
+            };
             const profileCache = {
               timestamp: Date.now(),
-              profile: profileResult.profile
+              profile: profileWithEmail
             };
             localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
-            console.log('Profile cached after OAuth login');
+            console.log('Profile cached after OAuth login (with email)');
 
             // If profile doesn't have avatar, try to sync from session metadata
             if (!profileResult.profile.avatar_url && session?.user?.user_metadata) {

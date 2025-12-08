@@ -99,18 +99,38 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load profile data from Supabase (in background, async - doesn't block)
   // This updates the UI when done, but doesn't cause delay
   if (typeof getUserProfile === 'function') {
-    getUserProfile().then(result => {
+    getUserProfile().then(async result => {
       if (result.success && result.profile) {
         const profile = result.profile;
 
-        // Update UI with fresh data
-        applyProfileToUI(profile);
-
-        // Update cache
+        // Get email from Supabase session (profiles table doesn't have email column)
+        let userEmail = null;
         try {
+          if (typeof getSupabaseClient === 'function') {
+            const supabase = getSupabaseClient();
+            if (supabase) {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session && session.user) {
+                userEmail = session.user.email;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Error getting email from session:', e);
+        }
+
+        // Update UI with fresh data (pass email as second param)
+        applyProfileToUI(profile, userEmail);
+
+        // Update cache - include email in cached profile
+        try {
+          const profileWithEmail = {
+            ...profile,
+            email: userEmail || profile.email
+          };
           const profileCache = {
             timestamp: Date.now(),
-            profile: profile
+            profile: profileWithEmail
           };
           localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
         } catch (e) {
