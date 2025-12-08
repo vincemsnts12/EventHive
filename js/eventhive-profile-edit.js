@@ -42,14 +42,14 @@ function initPasswordToggles() {
 function previewImage(input, imgId) {
     if (input.files && input.files[0]) {
         var reader = new FileReader();
-        
+
         reader.onload = function (e) {
             const imgElement = document.getElementById(imgId);
-            if(imgElement) {
+            if (imgElement) {
                 imgElement.src = e.target.result;
             }
         }
-        
+
         reader.readAsDataURL(input.files[0]);
     }
 }
@@ -66,49 +66,11 @@ function confirmMainChanges() {
 }
 
 /* =========================================
-   4. Password Confirmation Modal Logic
-   Waits for DOM to load to ensure elements exist
+   4. Password Toggle Initialization
+   The actual save password logic is handled by
+   eventhive-profile-edit-save.js
    ========================================= */
-document.addEventListener('DOMContentLoaded', function() {
-    
+document.addEventListener('DOMContentLoaded', function () {
     // Initialize password toggles
     initPasswordToggles();
-    
-    const savePassBtn = document.getElementById('savePassBtn');
-    const modal = document.getElementById('passConfirmModal');
-    const noBtn = document.getElementById('cancelPassBtn');
-    const yesBtn = document.getElementById('confirmPassBtn');
-
-    // Only run if elements exist (prevents errors on other pages)
-    if (savePassBtn && modal && noBtn && yesBtn) {
-        
-        // OPEN Modal
-        savePassBtn.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent default form submission if inside a form tag
-            modal.style.display = 'flex';
-        });
-
-        // CLOSE Modal (No)
-        noBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            modal.style.display = 'none';
-        });
-
-        // CONFIRM Action (Yes)
-        yesBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            alert("Password updated successfully!");
-            modal.style.display = 'none';
-            
-            // Clear inputs for UX
-            document.querySelectorAll('.pass-input').forEach(input => input.value = '');
-        });
-
-        // CLOSE Modal (Click Outside)
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
-        }
-    }
 });

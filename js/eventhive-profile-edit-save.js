@@ -403,13 +403,19 @@ document.addEventListener('DOMContentLoaded', function () {
       const cachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
       const hasPassword = cachedProfile.has_password === true;
 
+      // If user doesn't have a password set, they must use "Set My Password" first
+      if (!hasPassword) {
+        alert('You haven\'t set a password yet. Please use "Set My Password" from your account email to create one first.');
+        return;
+      }
+
       // Get current password input
       const currentPass = document.querySelector('.pass-input[placeholder*="current"]');
       const currentPassValue = currentPass ? currentPass.value.trim() : '';
 
-      // If user doesn't have a password set, they must use "Set My Password" first
-      if (!hasPassword && !currentPassValue) {
-        alert('You haven\'t set a password yet. Please use "Set My Password" from your account email to create one first, then you can change it here.');
+      // Require current password for users who have one set
+      if (!currentPassValue) {
+        alert('Please enter your current password.');
         return;
       }
 
