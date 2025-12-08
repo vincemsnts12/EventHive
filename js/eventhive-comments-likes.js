@@ -28,13 +28,49 @@ function formatRelativeTime(timestamp) {
 }
 
 // Render a single comment
-function renderComment(comment) {
+function renderComment(comment, currentUserId = null) {
   const commentItem = document.createElement('div');
   commentItem.className = 'comment-item';
   commentItem.setAttribute('data-comment-id', comment.id);
   commentItem.setAttribute('data-user-id', comment.userId);
 
+  // Get current user ID if not provided (guests will have null)
+  if (!currentUserId) {
+    try {
+      currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+      if (!currentUserId) {
+        // Fallback: Try to get from auth token
+        const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+          (key.includes('supabase') && key.includes('auth-token')) || 
+          (key.startsWith('sb-') && key.includes('auth-token'))
+        );
+        if (supabaseAuthKeys.length > 0) {
+          const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+          if (authData?.access_token) {
+            const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+            currentUserId = payload.sub;
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore errors - guests will have currentUserId = null
+    }
+  }
+
   const profileUrl = `eventhive-profile.html?user=${comment.user.id}`;
+  // Only show delete button if user is authenticated AND it's their own comment
+  const isOwnComment = currentUserId && comment.userId === currentUserId;
+  
+  // Build delete button HTML if it's the user's own comment
+  const deleteButtonHtml = isOwnComment ? `
+    <button class="comment-delete-btn" data-comment-id="${comment.id}" title="Delete comment">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="10" y1="11" x2="10" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="14" y1="11" x2="14" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  ` : '';
   
   commentItem.innerHTML = `
     <a href="${profileUrl}" class="comment-avatar">
@@ -42,12 +78,36 @@ function renderComment(comment) {
     </a>
     <div class="comment-content">
       <div class="comment-header">
-        <a href="${profileUrl}" class="comment-author">${comment.user.fullName || comment.user.username}</a>
-        <span class="comment-timestamp">${formatRelativeTime(comment.createdAt)}</span>
+        <div class="comment-header-left">
+          <a href="${profileUrl}" class="comment-author">${comment.user.fullName || comment.user.username}</a>
+          <span class="comment-timestamp">${formatRelativeTime(comment.createdAt)}</span>
+        </div>
+        ${deleteButtonHtml}
       </div>
       <p class="comment-text">${escapeHtml(comment.content)}</p>
     </div>
   `;
+
+  // Add delete handler if it's the user's own comment
+  if (isOwnComment) {
+    const deleteBtn = commentItem.querySelector('.comment-delete-btn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('Are you sure you want to delete this comment?')) {
+          const eventId = getSelectedEventId();
+          if (eventId) {
+            const result = await deleteComment(comment.id);
+            if (result.success) {
+              await loadEventComments(eventId);
+            } else {
+              alert(`Error deleting comment: ${result.error}`);
+            }
+          }
+        }
+      });
+    }
+  }
 
   return commentItem;
 }
@@ -79,12 +139,37 @@ async function loadEventComments(eventId) {
   // Clear loading state
   commentsList.innerHTML = '';
 
-  // Render comments
+  // Get current user ID for rendering (guests will have null, which is fine)
+  let currentUserId = null;
+  try {
+    // Try to get user ID from localStorage (works for authenticated users)
+    currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (!currentUserId) {
+      // Fallback: Try to get from auth token
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        (key.includes('supabase') && key.includes('auth-token')) || 
+        (key.startsWith('sb-') && key.includes('auth-token'))
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        if (authData?.access_token) {
+          const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+          currentUserId = payload.sub;
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore errors - guests will have currentUserId = null, which is expected
+    console.log('No authenticated user found (guest mode)');
+  }
+
+  // Render comments (works for both authenticated users and guests)
   if (result.comments.length === 0) {
     commentsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No comments yet. Be the first to comment!</div>';
   } else {
     result.comments.forEach(comment => {
-      commentsList.appendChild(renderComment(comment));
+      // Pass currentUserId (null for guests, user ID for authenticated users)
+      commentsList.appendChild(renderComment(comment, currentUserId));
     });
   }
 

@@ -1091,9 +1091,19 @@
 .comment-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   margin-bottom: 6px;
   flex-wrap: wrap;
+}
+
+.comment-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .comment-author {
@@ -1120,6 +1130,33 @@
   line-height: 1.5;
   margin: 0;
   word-wrap: break-word;
+}
+
+/* Comment Delete Button */
+.comment-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.comment-delete-btn:hover {
+  color: #B81E20;
+  opacity: 1;
+  background-color: #fff5f5;
+}
+
+.comment-delete-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 
