@@ -333,6 +333,14 @@
   border: 1px dashed #ccc;
 }
 
+.tag-item--count {
+  background-color: #6b7280;
+  color: white;
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  min-width: auto;
+}
+
 .tag-item--tup {
   background-color: #ffffff;
   color: #B81E20;

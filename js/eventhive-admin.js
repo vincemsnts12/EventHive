@@ -258,36 +258,46 @@ function populatePublishedEventsTable() {
     
     // Get colleges array (support both old single college and new multiple colleges)
     const colleges = event.colleges || (event.college ? [event.college] : []);
-    const mainCollege = event.mainCollege || event.college || 'TUP';
+    const mainCollegeCode = event.mainCollege || event.college || colleges[0] || 'TUP';
+    const mainCollegeObj = availableColleges.find(c => c.code === mainCollegeCode);
     
-    colleges.forEach((collegeCode, index) => {
-      const college = availableColleges.find(c => c.code === collegeCode);
-      if (!college) return;
-      
+    // Show main college tag
     const collegeTag = document.createElement('span');
-      collegeTag.className = `tag-item tag-item--college ${college.color === 'tup' ? 'tag-item--tup' : ''}`;
-      collegeTag.textContent = college.name;
-      
-      // Mark main college with a visual indicator
-      if (collegeCode === mainCollege) {
-        collegeTag.style.fontWeight = 'bold';
-        collegeTag.title = 'Main College (shown on event card)';
-      }
-      
+    collegeTag.className = `tag-item tag-item--college ${mainCollegeObj?.color === 'tup' ? 'tag-item--tup' : ''}`;
+    collegeTag.textContent = mainCollegeCode;
+    collegeTag.title = mainCollegeObj?.name || mainCollegeCode;
     collegeTag.setAttribute('data-event-id', eventId);
     collegeTag.addEventListener('click', () => {
       if (rowsInEditMode.has(eventId)) {
         currentEditingTable = 'published';
-          openEditCollegeModal(eventId, event.college || mainCollege);
+        openEditCollegeModal(eventId, mainCollegeCode);
       }
     });
     collegeContainer.appendChild(collegeTag);
-    });
+    
+    // Show +N indicator if there are additional colleges
+    if (colleges.length > 1) {
+      const additionalColleges = colleges.filter(c => c !== mainCollegeCode);
+      const countTag = document.createElement('span');
+      countTag.className = 'tag-item tag-item--count';
+      countTag.textContent = `+${additionalColleges.length}`;
+      countTag.title = additionalColleges.map(code => {
+        const col = availableColleges.find(c => c.code === code);
+        return col ? col.name : code;
+      }).join(', ');
+      countTag.addEventListener('click', () => {
+        if (rowsInEditMode.has(eventId)) {
+          currentEditingTable = 'published';
+          openEditCollegeModal(eventId, mainCollegeCode);
+        }
+      });
+      collegeContainer.appendChild(countTag);
+    }
     
     row.appendChild(collegeCell);
     collegeCell.appendChild(collegeContainer);
     
-    // Organization Tags (multiple)
+    // Organization Tags (show main + indicator)
     const orgCell = document.createElement('td');
     orgCell.className = 'tags-cell';
     orgCell.setAttribute('data-label', 'Organization');
@@ -300,20 +310,33 @@ function populatePublishedEventsTable() {
       : (event.organization ? [event.organization] : []);
     
     if (orgs.length > 0) {
-      orgs.forEach((org, index) => {
-        const orgTag = document.createElement('span');
-        orgTag.className = 'tag-item tag-item--org';
-        orgTag.textContent = org;
-        orgTag.setAttribute('data-event-id', eventId);
-        orgTag.setAttribute('data-org-index', index);
-        orgTag.addEventListener('click', () => {
+      // Show first organization
+      const orgTag = document.createElement('span');
+      orgTag.className = 'tag-item tag-item--org';
+      orgTag.textContent = orgs[0];
+      orgTag.setAttribute('data-event-id', eventId);
+      orgTag.addEventListener('click', () => {
+        if (rowsInEditMode.has(eventId)) {
+          currentEditingTable = 'published';
+          openEditOrgModal(eventId, event.organization);
+        }
+      });
+      orgContainer.appendChild(orgTag);
+      
+      // Show +N indicator if there are additional organizations
+      if (orgs.length > 1) {
+        const countTag = document.createElement('span');
+        countTag.className = 'tag-item tag-item--count';
+        countTag.textContent = `+${orgs.length - 1}`;
+        countTag.title = orgs.slice(1).join(', ');
+        countTag.addEventListener('click', () => {
           if (rowsInEditMode.has(eventId)) {
             currentEditingTable = 'published';
             openEditOrgModal(eventId, event.organization);
           }
         });
-        orgContainer.appendChild(orgTag);
-      });
+        orgContainer.appendChild(countTag);
+      }
     } else {
       // Show placeholder if no organizations
       const orgTag = document.createElement('span');
@@ -709,25 +732,53 @@ function populatePendingEventsTable() {
     dateCell.appendChild(dateDisplay);
     row.appendChild(dateCell);
     
-    // College Tags
+    // College Tags (show main + indicator)
     const collegeCell = document.createElement('td');
     collegeCell.className = 'tags-cell';
     collegeCell.setAttribute('data-label', 'College');
     const collegeContainer = document.createElement('div');
     collegeContainer.className = 'tags-container';
-    const collegeTag = document.createElement('span');
-    collegeTag.className = `tag-item tag-item--college ${event.collegeColor === 'tup' ? 'tag-item--tup' : ''}`;
-    collegeTag.textContent = event.college;
-    collegeTag.setAttribute('data-event-id', eventId);
-    collegeTag.addEventListener('click', () => {
+    
+    // Get all colleges for this event
+    const pendingColleges = event.colleges && event.colleges.length > 0 
+      ? event.colleges 
+      : (event.college ? [event.college] : ['TUP']);
+    const pendingMainCollegeCode = event.mainCollege || event.college || pendingColleges[0];
+    const pendingMainCollegeObj = availableColleges.find(c => c.code === pendingMainCollegeCode);
+    
+    // Show main college tag
+    const pendingCollegeTag = document.createElement('span');
+    pendingCollegeTag.className = `tag-item tag-item--college ${pendingMainCollegeObj?.color === 'tup' ? 'tag-item--tup' : ''}`;
+    pendingCollegeTag.textContent = pendingMainCollegeCode;
+    pendingCollegeTag.title = pendingMainCollegeObj?.name || pendingMainCollegeCode;
+    pendingCollegeTag.setAttribute('data-event-id', eventId);
+    pendingCollegeTag.addEventListener('click', () => {
       currentEditingTable = 'pending';
-      openEditCollegeModal(eventId, event.college);
+      openEditCollegeModal(eventId, pendingMainCollegeCode);
     });
-    collegeContainer.appendChild(collegeTag);
+    collegeContainer.appendChild(pendingCollegeTag);
+    
+    // Show +N indicator if there are additional colleges
+    if (pendingColleges.length > 1) {
+      const additionalPendingColleges = pendingColleges.filter(c => c !== pendingMainCollegeCode);
+      const pendingCollegeCountTag = document.createElement('span');
+      pendingCollegeCountTag.className = 'tag-item tag-item--count';
+      pendingCollegeCountTag.textContent = `+${additionalPendingColleges.length}`;
+      pendingCollegeCountTag.title = additionalPendingColleges.map(code => {
+        const col = availableColleges.find(c => c.code === code);
+        return col ? col.name : code;
+      }).join(', ');
+      pendingCollegeCountTag.addEventListener('click', () => {
+        currentEditingTable = 'pending';
+        openEditCollegeModal(eventId, pendingMainCollegeCode);
+      });
+      collegeContainer.appendChild(pendingCollegeCountTag);
+    }
+    
     row.appendChild(collegeCell);
     collegeCell.appendChild(collegeContainer);
     
-    // Organization Tags (multiple)
+    // Organization Tags (show main + indicator)
     const orgCell = document.createElement('td');
     orgCell.className = 'tags-cell';
     orgCell.setAttribute('data-label', 'Organization');
@@ -740,29 +791,40 @@ function populatePendingEventsTable() {
       : (event.organization ? [event.organization] : []);
     
     if (pendingOrgs.length > 0) {
-      pendingOrgs.forEach((org, index) => {
-        const orgTag = document.createElement('span');
-        orgTag.className = 'tag-item tag-item--org';
-        orgTag.textContent = org;
-        orgTag.setAttribute('data-event-id', eventId);
-        orgTag.setAttribute('data-org-index', index);
-        orgTag.addEventListener('click', () => {
-          currentEditingTable = 'pending';
-          openEditOrgModal(eventId, event.organization);
-        });
-        orgContainer.appendChild(orgTag);
-      });
-    } else {
-      // Show placeholder if no organizations
-      const orgTag = document.createElement('span');
-      orgTag.className = 'tag-item tag-item--org tag-item--placeholder';
-      orgTag.textContent = 'Select Organization';
-      orgTag.setAttribute('data-event-id', eventId);
-      orgTag.addEventListener('click', () => {
+      // Show first organization
+      const pendingOrgTag = document.createElement('span');
+      pendingOrgTag.className = 'tag-item tag-item--org';
+      pendingOrgTag.textContent = pendingOrgs[0];
+      pendingOrgTag.setAttribute('data-event-id', eventId);
+      pendingOrgTag.addEventListener('click', () => {
         currentEditingTable = 'pending';
         openEditOrgModal(eventId, event.organization);
       });
-      orgContainer.appendChild(orgTag);
+      orgContainer.appendChild(pendingOrgTag);
+      
+      // Show +N indicator if there are additional organizations
+      if (pendingOrgs.length > 1) {
+        const pendingOrgCountTag = document.createElement('span');
+        pendingOrgCountTag.className = 'tag-item tag-item--count';
+        pendingOrgCountTag.textContent = `+${pendingOrgs.length - 1}`;
+        pendingOrgCountTag.title = pendingOrgs.slice(1).join(', ');
+        pendingOrgCountTag.addEventListener('click', () => {
+          currentEditingTable = 'pending';
+          openEditOrgModal(eventId, event.organization);
+        });
+        orgContainer.appendChild(pendingOrgCountTag);
+      }
+    } else {
+      // Show placeholder if no organizations
+      const pendingOrgTag = document.createElement('span');
+      pendingOrgTag.className = 'tag-item tag-item--org tag-item--placeholder';
+      pendingOrgTag.textContent = 'Select Organization';
+      pendingOrgTag.setAttribute('data-event-id', eventId);
+      pendingOrgTag.addEventListener('click', () => {
+        currentEditingTable = 'pending';
+        openEditOrgModal(eventId, event.organization);
+      });
+      orgContainer.appendChild(pendingOrgTag);
     }
     
     orgCell.appendChild(orgContainer);
@@ -852,34 +914,50 @@ async function approvePendingEvent(eventId) {
   const pendingEvent = pendingEventsData[eventId];
   
   // Approve in Supabase if function available
-  if (typeof createEvent === 'function' && typeof approveEvent === 'function') {
-    // First, create the event in the database using existing backend function.
-    // createEvent expects frontend-style event data; pendingEvent already holds that shape.
-    const createResult = await createEvent(pendingEvent);
-    if (!createResult.success) {
-      alert(`Error creating event: ${createResult.error}`);
-      return;
-    }
+  if (typeof approveEvent === 'function') {
+    // Check if event already exists in the database (has valid UUID)
+    if (isValidUUID(eventId)) {
+      // Event already in database - just approve it (update status)
+      console.log('Approving existing database event:', eventId);
+      const approveResult = await approveEvent(eventId);
+      if (!approveResult.success) {
+        alert(`Error approving event: ${approveResult.error}`);
+        return;
+      }
 
-    // createResult.event contains the inserted event (still pending)
-    const createdEvent = createResult.event;
-    if (!createdEvent || !createdEvent.id) {
-      alert('Error: created event missing id');
-      return;
-    }
+      // Update local data with approved event
+      if (approveResult.event) {
+        eventsData[eventId] = approveResult.event;
+        delete pendingEventsData[eventId];
+      }
+    } else if (typeof createEvent === 'function') {
+      // Event is local-only draft - create first, then approve
+      console.log('Creating and approving local draft event:', eventId);
+      const createResult = await createEvent(pendingEvent);
+      if (!createResult.success) {
+        alert(`Error creating event: ${createResult.error}`);
+        return;
+      }
 
-    // Now approve the newly created event (this will set approved_at, approved_by, and status)
-    const approveResult = await approveEvent(createdEvent.id);
-    if (!approveResult.success) {
-      alert(`Error approving event: ${approveResult.error}`);
-      return;
-    }
+      const createdEvent = createResult.event;
+      if (!createdEvent || !createdEvent.id) {
+        alert('Error: created event missing id');
+        return;
+      }
 
-    // Update local data with approved event
-    if (approveResult.event) {
-      const newEventId = approveResult.event.id;
-      eventsData[newEventId] = approveResult.event;
-      delete pendingEventsData[eventId];
+      // Now approve the newly created event
+      const approveResult = await approveEvent(createdEvent.id);
+      if (!approveResult.success) {
+        alert(`Error approving event: ${approveResult.error}`);
+        return;
+      }
+
+      // Update local data with approved event
+      if (approveResult.event) {
+        const newEventId = approveResult.event.id;
+        eventsData[newEventId] = approveResult.event;
+        delete pendingEventsData[eventId];
+      }
     }
   } else {
     // Fallback: local approval (for development)
