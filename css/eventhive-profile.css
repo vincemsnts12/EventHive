@@ -162,12 +162,21 @@
 
 /* 3. Scrollable Card Wrapper */
 .liked-scroll-wrapper {
-  /* Enables Horizontal Scrolling */
-  overflow-x: auto;
-  overflow-y: hidden;
   scroll-behavior: smooth;
   padding-bottom: 30px;
   padding-top: 30px;
+}
+
+/* Horizontal scrolling only when in horizontal layout */
+.liked-scroll-wrapper.horizontal-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* No horizontal scroll when in vertical layout (wraps naturally) */
+.liked-scroll-wrapper.vertical-scroll {
+  overflow-x: visible;
+  overflow-y: visible;
 }
 
 .liked-scroll-wrapper::-webkit-scrollbar {
@@ -188,17 +197,28 @@
   background: #B81E20;
 }
 
-/* 3x3 grid scrolling horizontally */
+/* Default: Horizontal layout (single row) for ≤6 events */
 .liked-events-list {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 375px;
-  /* column width */
-  grid-template-rows: repeat(3, auto);
   column-gap: 20px;
   row-gap: 20px;
+}
+
+/* Horizontal layout: single row, scrolls horizontally if needed */
+.liked-events-list.liked-horizontal {
+  grid-auto-flow: column;
+  grid-auto-columns: 375px;
+  grid-template-rows: none;
   width: max-content;
   /* extend horizontally */
+}
+
+/* Vertical layout: wrap to multiple rows when >6 events */
+.liked-events-list.liked-vertical {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fill, minmax(375px, 1fr));
+  grid-template-rows: none;
+  width: 100%;
 }
 
 .liked-events-list .event-card {

@@ -21,15 +21,25 @@
     return true;
   }
 
+  let isRendering = false; // Guard to prevent duplicate rendering
+  
   async function renderLiked() {
-    // Wait for events to be loaded
-    const eventsLoaded = await waitForEvents();
-    if (!eventsLoaded) {
-      listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #B81E20;">Error loading events. Please refresh the page.</div>';
+    // Prevent duplicate rendering
+    if (isRendering) {
+      console.log('renderLiked already in progress, skipping...');
       return;
     }
+    isRendering = true;
+    
+    try {
+      // Wait for events to be loaded
+      const eventsLoaded = await waitForEvents();
+      if (!eventsLoaded) {
+        listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #B81E20;">Error loading events. Please refresh the page.</div>';
+        return;
+      }
 
-    listEl.innerHTML = '';
+      listEl.innerHTML = '';
     
     // Get user's liked event IDs from Supabase
     let likedEventIds = [];
@@ -154,6 +164,27 @@
 
       listEl.appendChild(card);
     });
+    
+    // Update layout class based on number of events
+    const scrollWrapper = listEl.closest('.liked-scroll-wrapper');
+    if (eventsArr.length <= 6) {
+      listEl.classList.add('liked-horizontal');
+      listEl.classList.remove('liked-vertical');
+      if (scrollWrapper) {
+        scrollWrapper.classList.add('horizontal-scroll');
+        scrollWrapper.classList.remove('vertical-scroll');
+      }
+    } else {
+      listEl.classList.add('liked-vertical');
+      listEl.classList.remove('liked-horizontal');
+      if (scrollWrapper) {
+        scrollWrapper.classList.add('vertical-scroll');
+        scrollWrapper.classList.remove('horizontal-scroll');
+      }
+    }
+    } finally {
+      isRendering = false;
+    }
   }
 
   // Wait for DOM and Supabase to be ready
