@@ -152,7 +152,7 @@ async function loadProfileAvatar() {
       const profileCache = JSON.parse(profileCacheStr);
       if (profileCache && profileCache.profile) {
         avatarUrl = profileCache.profile.avatar_url;
-        userName = profileCache.profile.full_name || profileCache.profile.username;
+        userName = profileCache.profile.username;
         userEmail = profileCache.profile.email;
 
         if (avatarUrl) {
@@ -178,7 +178,7 @@ async function loadProfileAvatar() {
           // Check user_metadata for 'avatar_url' (Google) or 'picture' (other providers)
           const metadata = user.user_metadata || {};
           const sessionAvatar = metadata.avatar_url || metadata.picture;
-          userName = userName || metadata.full_name || metadata.name;
+          userName = userName || metadata.name;
 
           if (sessionAvatar && !avatarUrl) {
             avatarUrl = sessionAvatar;
@@ -191,7 +191,6 @@ async function loadProfileAvatar() {
                 .from('profiles')
                 .update({
                   avatar_url: sessionAvatar,
-                  full_name: userName || undefined,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', user.id)
@@ -206,7 +205,7 @@ async function loadProfileAvatar() {
                     const profileCache = JSON.parse(profileCacheStr);
                     if (profileCache && profileCache.profile) {
                       profileCache.profile.avatar_url = sessionAvatar;
-                      if (userName) profileCache.profile.full_name = userName;
+                      // username is already in profile, no need to update full_name
                       localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
                     }
                   }
@@ -233,7 +232,7 @@ async function loadProfileAvatar() {
       const result = await getUserProfile();
       if (result.success && result.profile) {
         avatarUrl = result.profile.avatar_url;
-        userName = userName || result.profile.full_name || result.profile.username;
+        userName = userName || result.profile.username;
         userEmail = userEmail || result.profile.email;
 
         if (avatarUrl) {

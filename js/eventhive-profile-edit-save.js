@@ -42,10 +42,10 @@ function confirmMainChanges() {
   // Build update object - only include fields that have changed
   const updateData = {};
 
-  // Username changed?
+  // Username changed? (username and full_name are separate entities)
   if (username !== originalProfileData.username) {
     updateData.username = username;
-    updateData.fullName = username; // Keep fullName in sync with username
+    // Note: full_name is NOT synced with username - they are separate
   }
 
   // Bio changed? (empty means "don't change" - keep existing)

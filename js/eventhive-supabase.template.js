@@ -307,7 +307,6 @@ function setupAuthStateListener() {
                     .from('profiles')
                     .update({
                       avatar_url: sessionAvatar,
-                      full_name: metadata.full_name || metadata.name || profileResult.profile.full_name,
                       updated_at: new Date().toISOString()
                     })
                     .eq('id', userId);

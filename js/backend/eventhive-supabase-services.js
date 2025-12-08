@@ -26,11 +26,11 @@ async function toggleEventLike(eventId) {
     userId = localStorage.getItem('eventhive_last_authenticated_user_id');
     if (!userId) {
       // Fallback: Try to get user ID from Supabase auth token in localStorage
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-        (key.includes('supabase') && key.includes('auth-token')) || 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
       );
-      
+
       if (supabaseAuthKeys.length > 0) {
         const authKey = supabaseAuthKeys[0];
         const authData = localStorage.getItem(authKey);
@@ -78,7 +78,7 @@ async function toggleEventLike(eventId) {
   // Get access token from localStorage
   let accessToken = null;
   try {
-    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
       key.startsWith('sb-') && key.includes('auth-token')
     );
     if (supabaseAuthKeys.length > 0) {
@@ -97,14 +97,14 @@ async function toggleEventLike(eventId) {
     // Use direct fetch API to check if user already liked this event
     console.log('toggleEventLike: Using direct fetch API...');
     console.log('toggleEventLike: Event ID:', eventId, 'User ID:', userId);
-    
+
     // First fetch: Check if like exists (with separate timeout)
     const checkController = new AbortController();
     const checkTimeout = setTimeout(() => {
       console.error('toggleEventLike: Check request timed out after 10 seconds');
       checkController.abort();
     }, 10000);
-    
+
     console.log('toggleEventLike: Starting check request...');
     const checkResponse = await fetch(
       `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}&select=id`,
@@ -118,10 +118,10 @@ async function toggleEventLike(eventId) {
         signal: checkController.signal
       }
     );
-    
+
     clearTimeout(checkTimeout);
     console.log('toggleEventLike: Check request completed, status:', checkResponse.status);
-    
+
     if (!checkResponse.ok) {
       const errorText = await checkResponse.text();
       logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${checkResponse.status}: ${errorText}` }, 'Error checking like');
@@ -140,7 +140,7 @@ async function toggleEventLike(eventId) {
         console.error('toggleEventLike: Delete request timed out after 10 seconds');
         deleteController.abort();
       }, 10000);
-      
+
       console.log('toggleEventLike: Starting delete request...');
       const deleteResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}`,
@@ -153,10 +153,10 @@ async function toggleEventLike(eventId) {
           signal: deleteController.signal
         }
       );
-      
+
       clearTimeout(deleteTimeout);
       console.log('toggleEventLike: Delete request completed, status:', deleteResponse.status);
-      
+
       if (!deleteResponse.ok) {
         const errorText = await deleteResponse.text();
         logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${deleteResponse.status}: ${errorText}` }, 'Error unliking');
@@ -174,7 +174,7 @@ async function toggleEventLike(eventId) {
         console.error('toggleEventLike: Insert request timed out after 10 seconds');
         insertController.abort();
       }, 10000);
-      
+
       console.log('toggleEventLike: Starting insert request...');
       const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/event_likes`, {
         method: 'POST',
@@ -190,10 +190,10 @@ async function toggleEventLike(eventId) {
         }),
         signal: insertController.signal
       });
-      
+
       clearTimeout(insertTimeout);
       console.log('toggleEventLike: Insert request completed, status:', insertResponse.status);
-      
+
       if (!insertResponse.ok) {
         const errorText = await insertResponse.text();
         logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${insertResponse.status}: ${errorText}` }, 'Error liking');
@@ -233,7 +233,7 @@ async function getEventLikeCount(eventId) {
     // Fallback to regular client if guest client function not available
     supabase = getSupabaseClient();
   }
-  
+
   if (!supabase) {
     return { success: false, count: 0, error: 'Supabase not initialized' };
   }
@@ -273,11 +273,11 @@ async function hasUserLikedEvent(eventId) {
     userId = localStorage.getItem('eventhive_last_authenticated_user_id');
     if (!userId) {
       // Fallback: Try to get user ID from Supabase auth token in localStorage
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-        (key.includes('supabase') && key.includes('auth-token')) || 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
       );
-      
+
       if (supabaseAuthKeys.length > 0) {
         const authKey = supabaseAuthKeys[0];
         const authData = localStorage.getItem(authKey);
@@ -325,7 +325,7 @@ async function hasUserLikedEvent(eventId) {
   // Get access token from localStorage
   let accessToken = null;
   try {
-    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
       key.startsWith('sb-') && key.includes('auth-token')
     );
     if (supabaseAuthKeys.length > 0) {
@@ -344,7 +344,7 @@ async function hasUserLikedEvent(eventId) {
     // Use direct fetch API to check if user liked this event
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 10000);
-    
+
     const response = await fetch(
       `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}&select=id`,
       {
@@ -357,9 +357,9 @@ async function hasUserLikedEvent(eventId) {
         signal: fetchController.signal
       }
     );
-    
+
     clearTimeout(fetchTimeout);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error checking user like:', response.status, errorText);
@@ -437,10 +437,10 @@ async function getEventComments(eventId) {
   try {
     // Use direct fetch API to get comments (public data, no auth needed)
     console.log('getEventComments: Using direct fetch API...');
-    
+
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     // Fetch comments
     const commentsResponse = await fetch(
       `${SUPABASE_URL}/rest/v1/comments?event_id=eq.${eventId}&order=created_at.asc&select=id,content,created_at,updated_at,user_id`,
@@ -453,9 +453,9 @@ async function getEventComments(eventId) {
         signal: fetchController.signal
       }
     );
-    
+
     clearTimeout(fetchTimeout);
-    
+
     if (!commentsResponse.ok) {
       const errorText = await commentsResponse.text();
       console.error('Error getting comments:', commentsResponse.status, errorText);
@@ -470,14 +470,14 @@ async function getEventComments(eventId) {
 
     // Get unique user IDs from comments
     const userIds = [...new Set(commentsData.map(c => c.user_id).filter(Boolean))];
-    
+
     // Fetch profiles for all users in one query
     let profilesMap = {};
     if (userIds.length > 0) {
       // PostgREST uses parentheses for 'in' operator
       const userIdsParam = userIds.map(id => `"${id}"`).join(',');
       const profilesResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/profiles?id=in.(${userIdsParam})&select=id,username,full_name,avatar_url`,
+        `${SUPABASE_URL}/rest/v1/profiles?id=in.(${userIdsParam})&select=id,username,avatar_url`,
         {
           method: 'GET',
           headers: {
@@ -487,7 +487,7 @@ async function getEventComments(eventId) {
           signal: fetchController.signal
         }
       );
-      
+
       if (profilesResponse.ok) {
         const profilesData = await profilesResponse.json();
         if (profilesData) {
@@ -512,7 +512,7 @@ async function getEventComments(eventId) {
         user: {
           id: profile?.id || comment.user_id,
           username: profile?.username || 'Unknown',
-          fullName: profile?.full_name || profile?.username || 'Unknown',
+          fullName: profile?.username || 'Unknown',
           avatarUrl: profile?.avatar_url || 'images/prof_default.svg'
         }
       };
@@ -542,11 +542,11 @@ async function createComment(eventId, content) {
     userId = localStorage.getItem('eventhive_last_authenticated_user_id');
     if (!userId) {
       // Fallback: Try to get user ID from Supabase auth token in localStorage
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-        (key.includes('supabase') && key.includes('auth-token')) || 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
       );
-      
+
       if (supabaseAuthKeys.length > 0) {
         const authKey = supabaseAuthKeys[0];
         const authData = localStorage.getItem(authKey);
@@ -616,7 +616,7 @@ async function createComment(eventId, content) {
   // Get access token from localStorage
   let accessToken = null;
   try {
-    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
       key.startsWith('sb-') && key.includes('auth-token')
     );
     if (supabaseAuthKeys.length > 0) {
@@ -634,10 +634,10 @@ async function createComment(eventId, content) {
   try {
     // Use direct fetch API to create comment
     console.log('createComment: Using direct fetch API...');
-    
+
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     const response = await fetch(`${SUPABASE_URL}/rest/v1/comments`, {
       method: 'POST',
       headers: {
@@ -653,9 +653,9 @@ async function createComment(eventId, content) {
       }),
       signal: fetchController.signal
     });
-    
+
     clearTimeout(fetchTimeout);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${response.status}: ${errorText}` }, 'Error creating comment');
@@ -670,7 +670,7 @@ async function createComment(eventId, content) {
     let profile = null;
     try {
       const profileResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,full_name,avatar_url`,
+        `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,username,avatar_url`,
         {
           method: 'GET',
           headers: {
@@ -679,7 +679,7 @@ async function createComment(eventId, content) {
           }
         }
       );
-      
+
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
         profile = Array.isArray(profileData) && profileData.length > 0 ? profileData[0] : null;
@@ -698,7 +698,7 @@ async function createComment(eventId, content) {
       user: {
         id: profile?.id || commentData.user_id,
         username: profile?.username || 'Unknown',
-        fullName: profile?.full_name || profile?.username || 'Unknown',
+        fullName: profile?.username || 'Unknown',
         avatarUrl: profile?.avatar_url || 'images/prof_default.svg'
       }
     };
@@ -728,11 +728,11 @@ async function deleteComment(commentId) {
     userId = localStorage.getItem('eventhive_last_authenticated_user_id');
     if (!userId) {
       // Fallback: Try to get user ID from Supabase auth token in localStorage
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-        (key.includes('supabase') && key.includes('auth-token')) || 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
       );
-      
+
       if (supabaseAuthKeys.length > 0) {
         const authKey = supabaseAuthKeys[0];
         const authData = localStorage.getItem(authKey);
@@ -780,7 +780,7 @@ async function deleteComment(commentId) {
   // Get access token from localStorage
   let accessToken = null;
   try {
-    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
       key.startsWith('sb-') && key.includes('auth-token')
     );
     if (supabaseAuthKeys.length > 0) {
@@ -799,10 +799,10 @@ async function deleteComment(commentId) {
     // Use direct fetch API to delete comment
     // RLS policy ensures user can only delete their own comments
     console.log('deleteComment: Using direct fetch API...');
-    
+
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     const response = await fetch(
       `${SUPABASE_URL}/rest/v1/comments?id=eq.${commentId}&user_id=eq.${userId}`,
       {
@@ -814,9 +814,9 @@ async function deleteComment(commentId) {
         signal: fetchController.signal
       }
     );
-    
+
     clearTimeout(fetchTimeout);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       logSecurityEvent('DATABASE_ERROR', { commentId, userId, error: `HTTP ${response.status}: ${errorText}` }, 'Error deleting comment');
@@ -855,7 +855,7 @@ async function getUserProfile(userId = null) {
     // Fallback to regular client if guest client function not available
     supabase = getSupabaseClient();
   }
-  
+
   if (!supabase) {
     return { success: false, error: 'Supabase not initialized' };
   }
@@ -924,13 +924,7 @@ async function updateUserProfile(profileData) {
     validatedData.username = username;
   }
 
-  if (profileData.fullName !== undefined) {
-    const fullName = validateFullName(profileData.fullName);
-    if (!fullName) {
-      return { success: false, error: 'Invalid full name format' };
-    }
-    validatedData.full_name = fullName;
-  }
+  // Note: fullName is no longer used - we only have username now
 
   if (profileData.bio !== undefined) {
     const bio = validateBio(profileData.bio);
@@ -986,11 +980,11 @@ async function getCurrentUser() {
   try {
     // Get user ID from localStorage to avoid hanging Supabase client
     const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
-    
+
     if (!userId) {
       return { success: true, user: null }; // Not logged in
     }
-    
+
     // Return minimal user object with just the ID
     // Full profile can be fetched separately if needed
     return { success: true, user: { id: userId } };
@@ -1053,7 +1047,7 @@ async function getOrganizations() {
     console.warn('Guest client not available for getOrganizations, using regular client');
     supabase = getSupabaseClient();
   }
-  
+
   if (!supabase) {
     return { success: false, organizations: [], error: 'Supabase not initialized' };
   }

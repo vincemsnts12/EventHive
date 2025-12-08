@@ -40,8 +40,8 @@ function renderComment(comment, currentUserId = null) {
       currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
       if (!currentUserId) {
         // Fallback: Try to get from auth token
-        const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-          (key.includes('supabase') && key.includes('auth-token')) || 
+        const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+          (key.includes('supabase') && key.includes('auth-token')) ||
           (key.startsWith('sb-') && key.includes('auth-token'))
         );
         if (supabaseAuthKeys.length > 0) {
@@ -60,7 +60,7 @@ function renderComment(comment, currentUserId = null) {
   const profileUrl = `eventhive-profile.html?user=${comment.user.id}`;
   // Only show delete button if user is authenticated AND it's their own comment
   const isOwnComment = currentUserId && comment.userId === currentUserId;
-  
+
   // Build delete button HTML if it's the user's own comment
   const deleteButtonHtml = isOwnComment ? `
     <button class="comment-delete-btn" data-comment-id="${comment.id}" title="Delete comment">
@@ -71,15 +71,15 @@ function renderComment(comment, currentUserId = null) {
       </svg>
     </button>
   ` : '';
-  
+
   commentItem.innerHTML = `
     <a href="${profileUrl}" class="comment-avatar">
-      <img src="${comment.user.avatarUrl || 'images/prof_default.svg'}" alt="${comment.user.fullName || comment.user.username}">
+      <img src="${comment.user.avatarUrl || 'images/prof_default.svg'}" alt="${comment.user.username}">
     </a>
     <div class="comment-content">
       <div class="comment-header">
         <div class="comment-header-left">
-          <a href="${profileUrl}" class="comment-author">${comment.user.fullName || comment.user.username}</a>
+          <a href="${profileUrl}" class="comment-author">${comment.user.username}</a>
           <span class="comment-timestamp">${formatRelativeTime(comment.createdAt)}</span>
         </div>
         ${deleteButtonHtml}
@@ -123,7 +123,7 @@ function escapeHtml(text) {
 async function loadEventComments(eventId) {
   const commentsList = document.getElementById('commentsList');
   const commentsCount = document.getElementById('commentsCount');
-  
+
   if (!commentsList) return;
 
   // Show loading state
@@ -146,8 +146,8 @@ async function loadEventComments(eventId) {
     currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
     if (!currentUserId) {
       // Fallback: Try to get from auth token
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-        (key.includes('supabase') && key.includes('auth-token')) || 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
       );
       if (supabaseAuthKeys.length > 0) {
@@ -227,7 +227,7 @@ async function updateLikeButtonState(eventId, likeButton) {
 async function handleCommentSubmit(eventId) {
   const textarea = document.getElementById('commentTextarea');
   const sendBtn = document.getElementById('commentSendBtn');
-  
+
   if (!textarea || !sendBtn) return;
 
   const content = textarea.value.trim();
@@ -247,7 +247,7 @@ async function handleCommentSubmit(eventId) {
   if (result.success) {
     // Clear textarea
     textarea.value = '';
-    
+
     // Reset character counter
     const counter = document.getElementById('charCounter');
     if (counter) {
@@ -282,8 +282,8 @@ async function handleLikeClick(eventId, likeButton) {
     console.log('handleLikeClick: User ID from localStorage:', userId);
     if (!userId) {
       // Fallback: Try to get from auth token
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-        (key.includes('supabase') && key.includes('auth-token')) || 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
       );
       if (supabaseAuthKeys.length > 0) {
@@ -400,7 +400,7 @@ async function initializeCommentsAndLikes(eventId) {
     console.log('initializeCommentsAndLikes: Setting up like button for event:', eventId);
     // Update initial state
     await updateLikeButtonState(eventId, likeButton);
-    
+
     // Setup click handler
     likeButton.addEventListener('click', (e) => {
       console.log('Like button clicked!');

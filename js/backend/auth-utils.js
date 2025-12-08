@@ -10,6 +10,10 @@ if (typeof getSafeUser === 'undefined') {
     try {
       if (typeof supabaseClient !== 'undefined' && supabaseClient) {
         supabase = supabaseClient;
+      } else if (typeof window.getSupabaseClient === 'function') {
+        supabase = window.getSupabaseClient();
+      } else if (typeof getSupabaseClient === 'function') {
+        supabase = getSupabaseClient();
       } else if (typeof initSupabase === 'function') {
         supabase = initSupabase();
       }
@@ -21,18 +25,25 @@ if (typeof getSafeUser === 'undefined') {
     if (!supabase) return null;
 
     try {
-      const res = await supabase.auth.getUser();
-      // supabase JS may return either { data: { user } } or throw
-      const user = res?.data?.user || null;
-      const error = res?.error;
-      if (error) return null;
+      // Use getSession() instead of getUser() - it's cached locally and doesn't make network request
+      // getUser() can hang because it validates token with Supabase server
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.warn('Error getting session:', error.message);
+        return null;
+      }
+
+      // Extract user from session
+      const user = data?.session?.user || null;
       return user;
     } catch (err) {
       const msg = (err && err.message) ? err.message : '';
       if (msg.includes('Auth session missing') || (err.name && err.name.includes('AuthSessionMissingError'))) {
         return null;
       }
-      throw err;
+      console.warn('Error in getSafeUser:', msg);
+      return null;
     }
   };
 }
