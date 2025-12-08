@@ -106,46 +106,63 @@ function updateEventDetails(eventId) {
   }
 
   // 4. UPDATE STATUS BADGE
-  const statusContainer = document.querySelector('.event-slider__status');
   const statusText = document.getElementById('status-text');
-  
-  if (statusContainer && event.status) {
-    statusContainer.className = 'event-slider__status'; 
-    // Derive statusColor from status
-    const statusColor = getStatusColor(event.status);
-    statusContainer.classList.add(statusColor);
-  }
-
+  const statusPill = document.querySelector('.event-status-pill');
+  const statusDot = document.getElementById('status-dot');
+  const statusColor = getStatusColor(event.status);
   if (statusText) {
-    statusText.textContent = event.status;
+    statusText.textContent = (event.status || '').toUpperCase();
+  }
+  if (statusPill && statusColor) {
+    statusPill.classList.remove('upcoming','ongoing','concluded');
+    statusPill.classList.add(statusColor);
+  }
+  if (statusDot && statusColor) {
+    const dotColor = statusColor === 'ongoing' ? '#d97706' : statusColor === 'concluded' ? '#dc2626' : '#0b7d3b';
+    statusDot.style.backgroundColor = dotColor;
   }
 
-  // 5. UPDATE COLLEGE TAG (use main college for display)
+  // 5. UPDATE COLLEGE TAGS (+N)
   const collegeTag = document.getElementById('college-tag');
+  const collegeTagCount = document.getElementById('college-tag-count');
+  const collegesArr = event.colleges || (event.college ? [event.college] : []);
+  const mainCollege = event.mainCollege || event.college || collegesArr[0] || 'TUP';
+  const extraColleges = collegesArr.filter(code => code !== mainCollege);
   if (collegeTag) {
-    const mainCollege = event.mainCollege || event.college || 'TUP';
-    const collegeNameMap = {
-      'COS': 'College of Science',
-      'COE': 'College of Engineering',
-      'CLA': 'College of Liberal Arts',
-      'CIE': 'College of Industrial Education',
-      'CIT': 'College of Industrial Technology',
-      'CAFA': 'College of Architecture and Fine Arts',
-      'TUP': 'TUP System-wide'
-    };
-    collegeTag.textContent = collegeNameMap[mainCollege] || mainCollege;
+    collegeTag.textContent = mainCollege;
     collegeTag.className = 'event-slider__tag event-slider__tag--college';
-    // Use event.collegeColor if available, otherwise derive from main college
     const collegeColor = event.collegeColor || (typeof getCollegeColorClass === 'function' ? getCollegeColorClass(mainCollege) : 'tup');
     if (collegeColor) {
       collegeTag.classList.add(collegeColor);
     }
   }
+  if (collegeTagCount) {
+    if (extraColleges.length > 0) {
+      collegeTagCount.style.display = 'inline-flex';
+      collegeTagCount.textContent = `+${extraColleges.length}`;
+      collegeTagCount.title = extraColleges.join(', ');
+    } else {
+      collegeTagCount.style.display = 'none';
+    }
+  }
 
-  // 6. UPDATE ORGANIZATION TAG
+  // 6. UPDATE ORGANIZATION TAGS (+N)
   const orgTag = document.getElementById('org-tag');
+  const orgTagCount = document.getElementById('org-tag-count');
+  const orgsArr = (event.organizations && event.organizations.length > 0) ? event.organizations : (event.organization ? [event.organization] : []);
+  const mainOrg = orgsArr[0] || '';
+  const extraOrgs = orgsArr.slice(1);
   if (orgTag) {
-    orgTag.textContent = event.organization;
+    orgTag.textContent = mainOrg || 'Organization';
+  }
+  if (orgTagCount) {
+    if (extraOrgs.length > 0) {
+      orgTagCount.style.display = 'inline-flex';
+      orgTagCount.textContent = `+${extraOrgs.length}`;
+      orgTagCount.title = extraOrgs.join(', ');
+    } else {
+      orgTagCount.style.display = 'none';
+    }
   }
 
   // 7. Setup Image Carousel Dots

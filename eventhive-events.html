@@ -150,79 +150,58 @@
     
     <div class="event-slider__content">
 
-      <!-- Title with icon -->
-      <div class="event-slider__title-wrapper">
-        <svg class="event-slider__title-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 4C16.134 4 13 7.134 13 11C13 13.387 14.213 15.482 16.063 16.719L14 26L20 23L26 26L23.937 16.719C25.787 15.482 27 13.387 27 11C27 7.134 23.866 4 20 4ZM20 7C22.245 7 24 8.755 24 11C24 13.245 22.245 15 20 15C17.755 15 16 13.245 16 11C16 8.755 17.755 7 20 7Z" fill="black"/>
-          <circle cx="20" cy="11" r="2" fill="black"/>
-        </svg>
+      <!-- Header: Title left, Status right -->
+      <div class="event-hero__header">
         <h2 class="event-slider__title" id="event-title">EduTech Summit: Shaping the Future of Learning</h2>
-      </div>
-      
-      <!-- Description with icon -->
-      <div class="event-slider__description-wrapper">
-        <svg class="event-slider__description-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 4C11.163 4 4 11.163 4 20C4 28.837 11.163 36 20 36C28.837 36 36 28.837 36 20C36 11.163 28.837 4 20 4ZM20 7C27.18 7 33 12.82 33 20C33 27.18 27.18 33 20 33C12.82 33 7 27.18 7 20C7 12.82 12.82 7 20 7ZM19 11V14H21V11H19ZM19 17V29H21V17H19Z" fill="black"/>
-        </svg>
-        <p class="event-slider__description" id="event-description">Event in the College of Science to promote knowledge and participation through interactive workshops, keynote speakers, and networking opportunities for students and faculty.</p>
-      </div>
-
-      <!-- Spacer to push location and status to bottom -->
-      <div style="flex-grow: 1;"></div>
-
-      <!-- Location -->
-      <div class="event-slider__footer">
-        <svg class="event-slider__footer-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L3 9V20C3 20.5304 3.21071 21.0391 3.58579 21.4142C3.96086 21.7893 4.46957 22 5 22H19C19.5304 22 20.0391 21.7893 20.4142 21.4142C20.7893 21.0391 21 20.5304 21 20V9L12 2Z" fill="#666"/>
-          <path d="M9 22V12H15V22" fill="#FFFBF0"/>
-        </svg>
-        <span id="event-location">College of Industrial Education – TUPTeachers on Grounds</span>
-      </div>
-
-      <!-- Date -->
-      <div class="event-slider__date">
-        <svg class="event-slider__footer-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M19 4H18V2H16V4H8V2H6V4H5C3.89 4 3 4.9 3 6V20C3 21.1 3.89 22 5 22H19C20.1 22 21 21.1 21 20V6C21 4.9 20.1 4 19 4ZM19 20H5V9H19V20ZM9 13H7V11H9V13ZM13 13H11V11H13V13ZM17 13H15V11H17V13ZM9 17H7V15H9V17ZM13 17H11V15H13V17ZM17 17H15V15H17V17Z" fill="#666"/>
-        </svg>
-        <span id="event-date">November 7, 2025 (Friday) | 12:00 NN - 4:00 PM</span>
-      </div>
-
-      <!-- Tags Section -->
-      <div class="event-slider__tags">
-        <!-- Row 1: College + Organization -->
-        <div class="event-slider__tags-row">
-          <div class="event-slider__tag event-slider__tag--college" id="college-tag">
-            COS
-          </div>
-          <div class="event-slider__tag event-slider__tag--org" id="org-tag">
-            AWS Learning Club - TUP Manila
-          </div>
-        </div>
-
-        <!-- Row 2: Status Only -->
-        <div class="event-slider__tags-row">
-          <div class="event-slider__status">
-            <span class="status-label">Status:</span>
-            <div class="status-indicator">
-              <span class="status-dot" id="status-dot"></span>
-              <span class="status-text" id="status-text">Upcoming</span>
-            </div>
-          </div>
+        <div class="event-status-pill">
+          <span class="status-dot" id="status-dot"></span>
+          <span class="status-text" id="status-text">UPCOMING</span>
         </div>
       </div>
 
-    </div>
-
-    <!-- Image container on the right -->
-    <div class="event-slider__image-container">
-      <img id="event-image" src="" alt="Event poster">
-      <button class="event-slider__arrow event-slider__arrow--prev" id="prevEventBtn">&#10094;</button>
-      <button class="event-slider__arrow event-slider__arrow--next" id="nextEventBtn">&#10095;</button>
-      <div class="event-slider__dots" id="eventDotsContainer">
-        <div class="event-slider__dot event-slider__dot--active" data-index="0"></div>
-        <div class="event-slider__dot" data-index="1"></div>
-        <div class="event-slider__dot" data-index="2"></div>
+      <!-- Image container -->
+      <div class="event-hero__image-container">
+        <img id="event-image" src="" alt="Event poster">
+        <button class="event-slider__arrow event-slider__arrow--prev" id="prevEventBtn">&#10094;</button>
+        <button class="event-slider__arrow event-slider__arrow--next" id="nextEventBtn">&#10095;</button>
+        <div class="event-slider__dots" id="eventDotsContainer"></div>
       </div>
+
+      <!-- Description card -->
+      <div class="event-description-card">
+        <p class="event-slider__description" id="event-description">
+          Event in the College of Science to promote knowledge and participation through interactive workshops,
+          keynote speakers, and networking opportunities for students and faculty.
+        </p>
+      </div>
+
+      <!-- Meta row -->
+      <div class="event-meta-row">
+        <div class="event-meta-row__left">
+          <div class="event-slider__footer">
+            <svg class="event-slider__footer-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L3 9V20C3 20.5304 3.21071 21.0391 3.58579 21.4142C3.96086 21.7893 4.46957 22 5 22H19C19.5304 22 20.0391 21.7893 20.4142 21.4142C20.7893 21.0391 21 20.5304 21 20V9L12 2Z" fill="#666"/>
+              <path d="M9 22V12H15V22" fill="#FFFBF0"/>
+            </svg>
+            <span id="event-location">College of Industrial Education – TUPTeachers on Grounds</span>
+          </div>
+
+          <div class="event-slider__date">
+            <svg class="event-slider__footer-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 4H18V2H16V4H8V2H6V4H5C3.89 4 3 4.9 3 6V20C3 21.1 3.89 22 5 22H19C20.1 22 21 21.1 21 20V6C21 4.9 20.1 4 19 4ZM19 20H5V9H19V20ZM9 13H7V11H9V13ZM13 13H11V11H13V13ZM17 13H15V11H17V13ZM9 17H7V15H9V17ZM13 17H11V15H13V17ZM17 17H15V15H17V17Z" fill="#666"/>
+            </svg>
+            <span id="event-date">November 7, 2025 (Friday) | 12:00 NN - 4:00 PM</span>
+          </div>
+        </div>
+
+        <div class="event-meta-row__right">
+          <div class="event-slider__tag event-slider__tag--college" id="college-tag">COS</div>
+          <div class="event-slider__tag event-slider__tag--count" id="college-tag-count" style="display:none;">+1</div>
+          <div class="event-slider__tag event-slider__tag--org" id="org-tag">Organization</div>
+          <div class="event-slider__tag event-slider__tag--count" id="org-tag-count" style="display:none;">+1</div>
+        </div>
+      </div>
+
     </div>
 
   </div>
