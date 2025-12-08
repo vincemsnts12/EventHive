@@ -11,15 +11,48 @@ const availableColleges = [
   { code: 'TUP', name: 'TUP System-wide', color: 'tup' }
 ];
 
-// Available organizations (will be expanded from database)
-let availableOrganizations = [
-  'AWS Learning Club - TUP Manila',
-  'Google Developer Groups on Campus TUP Manila',
-  'TUP USG Manila',
-  'TUP CAFA Student Council',
-  'TUP Arts Society',
-  'TUP Entrepreneurship Club'
-];
+// Available organizations (loaded from database)
+let availableOrganizations = [];
+// Cache organization objects (id -> {id, name, description})
+let organizationsCache = {};
+
+/**
+ * Load organizations from the database
+ * Called on page load and after adding new organizations
+ */
+async function loadOrganizationsFromDatabase() {
+  if (typeof getOrganizations !== 'function') {
+    console.warn('getOrganizations function not available, using fallback');
+    // Fallback organizations
+    availableOrganizations = [
+      'AWS Learning Club - TUP Manila',
+      'Google Developer Groups on Campus TUP Manila',
+      'TUP USG Manila',
+      'TUP CAFA Student Council',
+      'TUP Arts Society',
+      'TUP Entrepreneurship Club'
+    ];
+    return;
+  }
+
+  try {
+    const result = await getOrganizations();
+    if (result.success && result.organizations) {
+      // Extract names for backward compatibility with existing code
+      availableOrganizations = result.organizations.map(org => org.name);
+      // Cache full organization objects
+      organizationsCache = {};
+      result.organizations.forEach(org => {
+        organizationsCache[org.id] = org;
+      });
+      console.log(`Loaded ${availableOrganizations.length} organizations from database`);
+    } else {
+      console.warn('Failed to load organizations:', result.error);
+    }
+  } catch (error) {
+    console.error('Error loading organizations:', error);
+  }
+}
 
 // ===== PENDING EVENTS DATA =====
 // Pending events are loaded from Supabase database
@@ -2059,23 +2092,70 @@ async function saveImagesEdit() {
   }
 }
 
-function addNewOrganization() {
+async function addNewOrganization() {
   const input = document.getElementById('newOrgInput');
   const newOrg = input.value.trim();
-  if (newOrg && !availableOrganizations.includes(newOrg)) {
+  
+  if (!newOrg) {
+    alert('Please enter an organization name');
+    return;
+  }
+  
+  if (availableOrganizations.includes(newOrg)) {
+    alert('This organization already exists');
+    input.value = '';
+    return;
+  }
+
+  // Show loading state
+  const addBtn = document.getElementById('addNewOrgBtn');
+  const originalBtnText = addBtn.textContent;
+  addBtn.textContent = 'Adding...';
+  addBtn.disabled = true;
+
+  try {
+    // Save to database if function available
+    if (typeof createOrganization === 'function') {
+      const result = await createOrganization(newOrg);
+      
+      if (!result.success) {
+        alert(`Error adding organization: ${result.error}`);
+        return;
+      }
+      
+      // Add to cache
+      if (result.organization) {
+        organizationsCache[result.organization.id] = result.organization;
+      }
+      
+      console.log('Organization created successfully:', newOrg);
+    }
+    
+    // Add to local array
     availableOrganizations.push(newOrg);
     input.value = '';
-    // Reopen modal to show new org
+    
+    // Reopen modal to show new org (and auto-select it)
     const eventId = currentEditingEventId;
-    const currentOrg = eventsData[eventId]?.organization || '';
-    openEditOrgModal(eventId, currentOrg);
-    // TODO: Save new org to database
+    openEditOrgModal(eventId, newOrg);
+    
+  } catch (error) {
+    console.error('Error adding organization:', error);
+    alert(`Error adding organization: ${error.message}`);
+  } finally {
+    // Restore button state
+    addBtn.textContent = originalBtnText;
+    addBtn.disabled = false;
   }
 }
 
 // ===== EVENT LISTENERS =====
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+  // Load organizations from database first
+  await loadOrganizationsFromDatabase();
+  
+  // Then populate tables
   populatePublishedEventsTable();
   populatePendingEventsTable();
   

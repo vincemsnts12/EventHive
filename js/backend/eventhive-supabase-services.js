@@ -605,4 +605,195 @@ async function checkIfUserIsAdmin() {
   }
 }
 
+// ===== ORGANIZATIONS SERVICES =====
+
+/**
+ * Get all organizations from the database
+ * @returns {Promise<{success: boolean, organizations: Array, error?: string}>}
+ */
+async function getOrganizations() {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, organizations: [], error: 'Supabase not initialized' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error getting organizations:', error);
+      return { success: false, organizations: [], error: error.message };
+    }
+
+    return { success: true, organizations: data || [] };
+  } catch (error) {
+    console.error('Unexpected error getting organizations:', error);
+    return { success: false, organizations: [], error: error.message };
+  }
+}
+
+/**
+ * Create a new organization
+ * @param {string} name - Organization name
+ * @param {string} description - Optional description
+ * @returns {Promise<{success: boolean, organization?: Object, error?: string}>}
+ */
+async function createOrganization(name, description = '') {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase not initialized' };
+  }
+
+  // Input validation
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return { success: false, error: 'Organization name is required' };
+  }
+
+  const trimmedName = name.trim();
+  if (trimmedName.length > 255) {
+    return { success: false, error: 'Organization name is too long (max 255 characters)' };
+  }
+
+  // Check if user is admin
+  const adminCheck = await checkIfUserIsAdmin();
+  if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', {}, 'Non-admin attempted to create organization');
+    return { success: false, error: 'Only admins can create organizations' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .insert({
+        name: trimmedName,
+        description: description?.trim() || null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      // Check for unique constraint violation
+      if (error.code === '23505' || error.message.includes('duplicate')) {
+        return { success: false, error: 'An organization with this name already exists' };
+      }
+      console.error('Error creating organization:', error);
+      return { success: false, error: error.message };
+    }
+
+    logSecurityEvent('ORGANIZATION_CREATED', { name: trimmedName }, 'Organization created successfully');
+    return { success: true, organization: data };
+  } catch (error) {
+    console.error('Unexpected error creating organization:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update an organization
+ * @param {string} orgId - Organization ID
+ * @param {Object} updates - Fields to update (name, description)
+ * @returns {Promise<{success: boolean, organization?: Object, error?: string}>}
+ */
+async function updateOrganization(orgId, updates) {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase not initialized' };
+  }
+
+  // Input validation
+  if (!orgId || typeof orgId !== 'string') {
+    return { success: false, error: 'Invalid organization ID' };
+  }
+
+  // Check if user is admin
+  const adminCheck = await checkIfUserIsAdmin();
+  if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', { orgId }, 'Non-admin attempted to update organization');
+    return { success: false, error: 'Only admins can update organizations' };
+  }
+
+  try {
+    const updateData = {};
+    if (updates.name !== undefined) {
+      const trimmedName = updates.name.trim();
+      if (trimmedName.length === 0) {
+        return { success: false, error: 'Organization name cannot be empty' };
+      }
+      if (trimmedName.length > 255) {
+        return { success: false, error: 'Organization name is too long (max 255 characters)' };
+      }
+      updateData.name = trimmedName;
+    }
+    if (updates.description !== undefined) {
+      updateData.description = updates.description?.trim() || null;
+    }
+
+    const { data, error } = await supabase
+      .from('organizations')
+      .update(updateData)
+      .eq('id', orgId)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505' || error.message.includes('duplicate')) {
+        return { success: false, error: 'An organization with this name already exists' };
+      }
+      console.error('Error updating organization:', error);
+      return { success: false, error: error.message };
+    }
+
+    logSecurityEvent('ORGANIZATION_UPDATED', { orgId }, 'Organization updated successfully');
+    return { success: true, organization: data };
+  } catch (error) {
+    console.error('Unexpected error updating organization:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete an organization
+ * @param {string} orgId - Organization ID
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function deleteOrganization(orgId) {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase not initialized' };
+  }
+
+  // Input validation
+  if (!orgId || typeof orgId !== 'string') {
+    return { success: false, error: 'Invalid organization ID' };
+  }
+
+  // Check if user is admin
+  const adminCheck = await checkIfUserIsAdmin();
+  if (!adminCheck.success || !adminCheck.isAdmin) {
+    logSecurityEvent('SUSPICIOUS_ACTIVITY', { orgId }, 'Non-admin attempted to delete organization');
+    return { success: false, error: 'Only admins can delete organizations' };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('organizations')
+      .delete()
+      .eq('id', orgId);
+
+    if (error) {
+      console.error('Error deleting organization:', error);
+      return { success: false, error: error.message };
+    }
+
+    logSecurityEvent('ORGANIZATION_DELETED', { orgId }, 'Organization deleted successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error deleting organization:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 
