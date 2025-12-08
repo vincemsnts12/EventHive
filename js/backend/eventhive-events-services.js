@@ -287,7 +287,8 @@ async function getEvents(options = {}) {
  * @returns {Promise<{success: boolean, event?: Object, error?: string}>}
  */
 async function getEventById(eventId) {
-  const supabase = getSupabaseClient();
+  // Use guest client for reading events (public data, avoids authenticated client hang)
+  const supabase = getGuestSupabaseClient();
   if (!supabase) {
     return { success: false, error: 'Supabase not initialized' };
   }
@@ -356,7 +357,8 @@ async function getPendingEvents() {
  * @returns {Promise<{success: boolean, events: Array, error?: string}>}
  */
 async function getPublishedEvents() {
-  const supabase = getSupabaseClient();
+  // Use guest client for reading events (public data, avoids authenticated client hang)
+  const supabase = getGuestSupabaseClient();
   if (!supabase) {
     return { success: false, events: [], error: 'Supabase not initialized' };
   }
@@ -1234,10 +1236,12 @@ async function updateEvent(eventId, eventData) {
       }
     }
 
-    logSecurityEvent('EVENT_UPDATED', { userId: user.id, eventId }, 'Event updated successfully');
+    logSecurityEvent('EVENT_UPDATED', { userId: user?.id, eventId }, 'Event updated successfully');
 
-    // Get full event with images and likes
-    return getEventById(eventId);
+    // Return the already-fetched event (avoids calling getEventById which uses authenticated client)
+    // Process through eventFromDatabase to get proper frontend format
+    const processedEvent = eventFromDatabase(updatedEvent, [], 0, 0);
+    return { success: true, event: processedEvent };
   } catch (error) {
     logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error updating event');
     console.error('Unexpected error updating event:', error);
@@ -1392,9 +1396,9 @@ async function approveEvent(eventId) {
     return { success: false, error: 'Invalid event ID format' };
   }
 
-  // Check if user is admin
-  const adminCheck = await checkIfUserIsAdmin();
-  if (!adminCheck.success || !adminCheck.isAdmin) {
+  // Check if user is admin from cache (avoids hanging authenticated client)
+  let { isAdmin, cacheValid } = checkAdminFromCache();
+  if (!cacheValid || !isAdmin) {
     logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to approve event');
     return { success: false, error: 'Only admins can approve events' };
   }
@@ -1578,11 +1582,6 @@ async function getEventImages(eventId) {
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
-
   // Input validation
   if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
     return { success: false, error: 'Invalid event ID' };
@@ -1592,23 +1591,53 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
     return { success: false, error: 'Invalid image URLs array' };
   }
 
-  // Check if user is admin
-  const adminCheck = await checkIfUserIsAdmin();
-  if (!adminCheck.success || !adminCheck.isAdmin) {
+  // Check if user is admin from cache (avoids hanging)
+  let { isAdmin, cacheValid } = checkAdminFromCache();
+  if (!cacheValid || !isAdmin) {
     logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to manage images');
     return { success: false, error: 'Only admins can manage images' };
   }
 
+  // Use direct fetch API to bypass Supabase client
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+  
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+  
+  // Get access token from localStorage
+  let accessToken = null;
   try {
-    // Delete all existing images (but don't fail if none exist)
-    const { error: deleteError } = await supabase
-      .from('event_images')
-      .delete()
-      .eq('event_id', eventId);
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('saveEventImages: Error getting access token:', e);
+  }
+  
+  if (!accessToken) {
+    return { success: false, error: 'Authentication token not found. Please log in again.' };
+  }
+
+  try {
+    // Delete all existing images using direct fetch
+    console.log('saveEventImages: Deleting existing images...');
+    const deleteResponse = await fetch(`${SUPABASE_URL}/rest/v1/event_images?event_id=eq.${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
 
     // Ignore delete errors as there might not be any existing images
-    if (deleteError) {
-      console.warn('Note: No existing images to delete (this is normal for new events)', deleteError.message);
+    if (!deleteResponse.ok) {
+      console.warn('saveEventImages: No existing images to delete (this is normal for new events)');
     }
 
     // Insert new images
@@ -1619,22 +1648,31 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
         display_order: index === thumbnailIndex ? 0 : index + 1 // Thumbnail = 0, others = 1, 2, 3...
       }));
 
-      // Insert all images in one batch (without .select() to avoid JSON coercion error)
-      const { error: insertError } = await supabase
-        .from('event_images')
-        .insert(imageRows);
+      console.log('saveEventImages: Inserting', imageRows.length, 'images...');
+      const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/event_images`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(imageRows)
+      });
 
-      if (insertError) {
-        logSecurityEvent('DATABASE_ERROR', { eventId, error: insertError.message }, 'Error inserting images');
-        console.error('Error inserting images:', insertError);
-        return { success: false, error: insertError.message };
+      if (!insertResponse.ok) {
+        const errorText = await insertResponse.text();
+        logSecurityEvent('DATABASE_ERROR', { eventId, error: errorText }, 'Error inserting images');
+        console.error('saveEventImages: Error inserting images:', errorText);
+        return { success: false, error: errorText };
       }
     }
 
+    console.log('saveEventImages: Images saved successfully');
     return { success: true };
   } catch (error) {
     logSecurityEvent('UNEXPECTED_ERROR', { eventId, error: error.message }, 'Unexpected error saving event images');
-    console.error('Unexpected error saving event images:', error);
+    console.error('saveEventImages: Unexpected error:', error);
     return { success: false, error: error.message };
   }
 }
