@@ -5,26 +5,43 @@
    Strict hover areas so overlay doesn't spill
    ========================================= */
 .upload-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.6);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    cursor: pointer;
-    z-index: 10;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  cursor: pointer;
+  z-index: 10;
 }
 
-.upload-overlay svg { pointer-events: none; }
+.upload-overlay svg {
+  pointer-events: none;
+}
 
 /* Strict Wrap Logic */
-.cover-photo { position: relative; overflow: hidden; }
-.cover-photo:hover .cover-overlay { opacity: 0.7; }
+.cover-photo {
+  position: relative;
+  overflow: hidden;
+}
 
-.profile-picture { position: relative; overflow: hidden; }
-.profile-picture:hover .profile-overlay { opacity: 1; }
+.cover-photo:hover .cover-overlay {
+  opacity: 0.7;
+}
+
+.profile-picture {
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-picture:hover .profile-overlay {
+  opacity: 1;
+}
 
 
 /* =========================================
@@ -34,183 +51,206 @@
 
 /* Wrapper to position the small pencil icon */
 .input-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
 }
 
 /* Edit Icon (Pencil) styling */
 .edit-icon-indicator {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #B81E20;
-    font-size: 0.8rem;
-    pointer-events: none;
-    opacity: 0.5;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #B81E20;
+  font-size: 0.8rem;
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 .input-mimic-h2 {
-    width: 100%;
-    border-radius: 10px;
-    border: 1px solid rgba(128, 128, 128, 0.5);
-    
-    font-size: 1rem; 
-    color: black;
- 
-    padding: 7px;
-    margin-bottom: 5px; 
-    transition: border-bottom 0.3s ease;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+
+  font-size: 1rem;
+  color: black;
+
+  padding: 7px;
+  margin-bottom: 5px;
+  transition: border-bottom 0.3s ease;
 
 }
 
 .input-mimic-p {
-    width: 100%;
-    border: 1px solid rgba(128, 128, 128, 0.5);
-    border-radius: 10px;
-    
-    font-size: 1rem;
-    color: black; 
-    opacity: 0.8;  
-    
-    padding: 7px;
+  width: 100%;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 10px;
+
+  font-size: 1rem;
+  color: black;
+  opacity: 0.8;
+
+  padding: 7px;
 
 }
 
 .textarea-mimic-p {
-    width: 100%;
-    border: 1px solid rgba(128, 128, 128, 0.5);
-    border-radius: 10px;
-    font-family: 'DM Sans', sans-serif;
-    
-    /* MATCHING ORIGINAL TYPOGRAPHY */
-    font-size: 1.1rem;
-    color: black;
-    line-height: 1.7;
-    
-    padding: 10px; 
-    margin: -10px; 
-    resize: none;  
-    height: auto;
-    min-height: 150px; 
-    
-    transition: all 0.2s;
+  width: 100%;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+
+  /* MATCHING ORIGINAL TYPOGRAPHY */
+  font-size: 1.1rem;
+  color: black;
+  line-height: 1.7;
+
+  padding: 10px;
+  margin: -10px;
+  resize: none;
+  height: auto;
+  min-height: 150px;
+
+  transition: all 0.2s;
 }
 
-.textarea-mimic-p:focus, .input-mimic-h2:focus, .input-mimic-p:focus {
-    outline: none;
+.textarea-mimic-p:focus,
+.input-mimic-h2:focus,
+.input-mimic-p:focus {
+  outline: none;
 }
 
 
 /* Button overrides */
 .confirm-btn {
-    background-color: #c92a2a;
-    color: white !important;
-    text-align: center;
-    border: 2px solid transparent;
-    cursor: pointer;
+  background-color: #c92a2a;
+  color: white !important;
+  text-align: center;
+  border: 2px solid transparent;
+  cursor: pointer;
 }
+
 .confirm-btn:hover {
-    background-color: white;
-    color: #B81E20 !important;
-    border-color: #B81E20;
+  background-color: white;
+  color: #B81E20 !important;
+  border-color: #B81E20;
 }
 
 
 .liked-header {
-    display: flex;
-    align-items: center;      /* Center vertically */
-    justify-content: center;  /* Center horizontally (ETO ANG SAGOT) */
-    gap: 10px;
-    margin-bottom: 50px;
+  display: flex;
+  align-items: center;
+  /* Center vertically */
+  justify-content: center;
+  /* Center horizontally (ETO ANG SAGOT) */
+  gap: 10px;
+  margin-bottom: 50px;
 }
 
 /* =========================================
    3. PASSWORD SECTION (New Design)
    ========================================= */
 .password-container {
-    display: flex;
-    flex-direction: column;
-    padding-bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 40px;
 }
 
 .password-form-wrapper {
-    width: 100%;
-    max-width: 700px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.form-group { display: flex; flex-direction: column; }
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
 
 .form-group label {
-    font-weight: 700;
-    margin-bottom: 10px;
-    font-size: 1.2rem;
-    color: #333;
+  font-weight: 700;
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+  color: #333;
 }
 
 .pass-input {
-    padding: 20px 15px;
-    padding-right: 45px;
-    border: 1px solid #ccc;
-    border-radius: 12px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 1rem;
-    background: rgba(255, 255, 255, 0.9);
-    margin-bottom: 5px;
-    width: 100%;
+  padding: 20px 15px;
+  padding-right: 45px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  margin-bottom: 5px;
+  width: 100%;
 }
 
 .pass-input:focus {
-    outline: none;
+  outline: none;
 }
 
 .password-form-wrapper .password-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
 }
 
 .password-form-wrapper .password-toggle {
-    position: absolute;
-    right: 15px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  color: #666;
 }
 
-.password-form-wrapper .password-toggle .icon { width: 20px; height: 20px; display:inline-block; }
-.password-form-wrapper .password-toggle .icon-hide { display: none; }
+.password-form-wrapper .password-toggle:hover {
+  color: #B81E20;
+}
+
+.password-form-wrapper .password-toggle .icon {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+}
+
+.password-form-wrapper .password-toggle .icon-hide {
+  display: none;
+}
 
 
 .save-pass-btn {
-    background-color: #c92a2a;
-    color: white !important;
-    font-size: 1.1rem;
-    font-weight: 650;
-    padding: 15px 35px;
-    border: 2px solid transparent;
-    border-radius: 50px;
-    cursor: pointer;
-    align-self: center;
-    margin-top: 10px;
-    transition: transform 0.2s;
+  background-color: #c92a2a;
+  color: white !important;
+  font-size: 1.1rem;
+  font-weight: 650;
+  padding: 15px 35px;
+  border: 2px solid transparent;
+  border-radius: 50px;
+  cursor: pointer;
+  align-self: center;
+  margin-top: 10px;
+  transition: transform 0.2s;
 }
 
 .save-pass-btn:hover {
-    background-color: white;
-    color: #B81E20 !important;
-    border-color: #B81E20;
+  background-color: white;
+  color: #B81E20 !important;
+  border-color: #B81E20;
 }
 
 
@@ -218,34 +258,87 @@
    4. MODAL POPUP
    ========================================= */
 .modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6);
-    z-index: 2000;
-    display: none;
-    justify-content: center; align-items: center;
-    backdrop-filter: blur(4px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(4px);
 }
 
 .modal-box {
-    background: white; padding: 30px 40px; border-radius: 16px;
-    width: 90%; max-width: 420px; text-align: center;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-    animation: fadeIn 0.3s ease-out;
+  background: white;
+  padding: 30px 40px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: fadeIn 0.3s ease-out;
 }
 
-.modal-header h3 { margin: 0 0 15px 0; color: #B81E20; font-size: 1.6rem; font-weight: 800; }
-.modal-body p { font-size: 1.1rem; color: #555; margin-bottom: 30px; }
-.modal-actions { display: flex; justify-content: center; gap: 20px; }
+.modal-header h3 {
+  margin: 0 0 15px 0;
+  color: #B81E20;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
 
-.modal-btn { padding: 12px 30px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; font-size: 1rem; transition: 0.2s; }
-.no-btn { background: #f0f0f0; color: #333; }
-.no-btn:hover { background: #e0e0e0; }
-.yes-btn { background: #B81E20; color: white; }
-.yes-btn:hover { background: #96181a; }
+.modal-body p {
+  font-size: 1.1rem;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.modal-btn {
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-size: 1rem;
+  transition: 0.2s;
+}
+
+.no-btn {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.no-btn:hover {
+  background: #e0e0e0;
+}
+
+.yes-btn {
+  background: #B81E20;
+  color: white;
+}
+
+.yes-btn:hover {
+  background: #96181a;
+}
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ===== MOBILE RESPONSIVENESS ===== */
