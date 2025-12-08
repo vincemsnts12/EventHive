@@ -218,9 +218,25 @@ async function handleLikeClick(eventId, likeButton) {
   likeButton.style.pointerEvents = 'auto';
 }
 
+// Track if comments/likes are already initialized to prevent duplicates
+let commentsLikesInitialized = false;
+let currentInitializedEventId = null;
+
 // Initialize comments and likes for an event
 async function initializeCommentsAndLikes(eventId) {
   if (!eventId) return;
+
+  // Prevent duplicate initialization for the same event
+  if (commentsLikesInitialized && currentInitializedEventId === eventId) {
+    console.log('Comments and likes already initialized for event:', eventId);
+    return;
+  }
+
+  // Reset if different event
+  if (currentInitializedEventId !== eventId) {
+    commentsLikesInitialized = false;
+    currentInitializedEventId = eventId;
+  }
 
   // Load comments
   await loadEventComments(eventId);
@@ -240,26 +256,28 @@ async function initializeCommentsAndLikes(eventId) {
     }
   }
 
-  // Setup comment submit button
+  // Setup comment submit button (only if not already set up)
   const sendBtn = document.getElementById('commentSendBtn');
-  if (sendBtn) {
+  if (sendBtn && !sendBtn.hasAttribute('data-comment-listener-attached')) {
     sendBtn.addEventListener('click', () => handleCommentSubmit(eventId));
+    sendBtn.setAttribute('data-comment-listener-attached', 'true');
   }
 
   // Setup Enter key to submit comment (Shift+Enter for new line)
   const textarea = document.getElementById('commentTextarea');
-  if (textarea) {
+  if (textarea && !textarea.hasAttribute('data-comment-listener-attached')) {
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleCommentSubmit(eventId);
       }
     });
+    textarea.setAttribute('data-comment-listener-attached', 'true');
   }
 
   // Setup like button (if exists on this page)
   const likeButton = document.querySelector('.heart-btn, .like-btn');
-  if (likeButton) {
+  if (likeButton && !likeButton.hasAttribute('data-like-listener-attached')) {
     // Update initial state
     await updateLikeButtonState(eventId, likeButton);
     
@@ -268,6 +286,11 @@ async function initializeCommentsAndLikes(eventId) {
       e.stopPropagation();
       handleLikeClick(eventId, likeButton);
     });
+    likeButton.setAttribute('data-like-listener-attached', 'true');
   }
+
+  // Mark as initialized
+  commentsLikesInitialized = true;
+  currentInitializedEventId = eventId;
 }
 

@@ -200,10 +200,8 @@ function updateEventDetails(eventId) {
   // 7. Setup Image Carousel Dots
   setupImageCarousel(event);
   
-  // 8. Reload comments and likes for this event (if Supabase is available)
-  if (typeof initializeCommentsAndLikes === 'function') {
-    initializeCommentsAndLikes(eventId);
-  }
+  // Note: Comments and likes initialization is handled by eventhive-events-init.js
+  // to avoid duplicate initialization
 }
 
 // ===== IMAGE CAROUSEL FOR SINGLE EVENT =====
