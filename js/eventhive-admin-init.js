@@ -26,25 +26,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   let hasAdminAccess = false;
   
-  // Wait a moment for auth state to stabilize
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  if (typeof checkIfUserIsAdmin === 'function') {
-    try {
-      const adminCheck = await checkIfUserIsAdmin();
-      console.log('Admin check result:', adminCheck);
+  // First, check localStorage cache (fastest, set on login)
+  try {
+    const cached = localStorage.getItem('eventhive_auth_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const now = Date.now();
+      const AUTH_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
       
-      if (adminCheck.success && adminCheck.isAdmin === true) {
-        hasAdminAccess = true;
-        console.log('Admin access granted');
-      } else {
-        console.log('Admin access denied - user is not admin or not logged in');
+      if (parsed.state && (now - parsed.timestamp) < AUTH_CACHE_DURATION) {
+        if (parsed.state.isAdmin === true) {
+          hasAdminAccess = true;
+          console.log('Admin access granted (from cache)');
+        } else {
+          console.log('Admin access denied (from cache) - not admin');
+        }
       }
-    } catch (error) {
-      console.error('Error checking admin status:', error);
     }
-  } else {
-    console.error('checkIfUserIsAdmin function not available');
+  } catch (e) {
+    console.warn('Error reading auth cache:', e);
+  }
+  
+  // If not in cache or cache expired, check via API with timeout
+  if (!hasAdminAccess) {
+    // Wait for auth state to stabilize (OAuth callback might be processing)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    if (typeof checkIfUserIsAdmin === 'function') {
+      try {
+        // Add timeout protection (3 seconds max)
+        const adminCheckPromise = checkIfUserIsAdmin();
+        const timeoutPromise = new Promise((resolve) => 
+          setTimeout(() => resolve({ success: false, isAdmin: false, error: 'Timeout' }), 3000)
+        );
+        
+        const adminCheck = await Promise.race([adminCheckPromise, timeoutPromise]);
+        console.log('Admin check result:', adminCheck);
+        
+        if (adminCheck.success && adminCheck.isAdmin === true) {
+          hasAdminAccess = true;
+          console.log('Admin access granted (from API)');
+        } else {
+          console.log('Admin access denied - user is not admin or not logged in');
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    } else {
+      console.error('checkIfUserIsAdmin function not available');
+    }
   }
   
   // Redirect if not admin
