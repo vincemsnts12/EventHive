@@ -1256,21 +1256,26 @@ async function saveTitleEdit() {
   } else if (currentEditingTable === 'pending') {
     // For pending events: if we have a valid DB id, attempt to persist edits immediately.
     if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      console.log('saveTitleEdit: Calling updateEvent for pending event...');
       const result = await updateEvent(event.id, event);
+      console.log('saveTitleEdit: updateEvent returned:', result?.success, result?.error);
       if (!result.success) {
         // Persist failed (likely RLS) - keep local change and inform the user
         console.warn('Failed to persist pending edit:', result.error);
         // Optionally show a non-blocking notice
-          alert(`Draft saved locally. Sync failed: ${result.error}`);
+        alert(`Draft saved locally. Sync failed: ${result.error}`);
       } else if (result.event) {
+        console.log('saveTitleEdit: Updating local event with result...');
         Object.assign(event, result.event);
       }
     }
   }
   
+  console.log('saveTitleEdit: About to close modal and refresh table...');
   // Save table type BEFORE closing modal (closeModal clears it)
   const tableToRefresh = currentEditingTable;
   closeModal('editTitleModal');
+  console.log('saveTitleEdit: Modal closed, refreshing table:', tableToRefresh);
   
   // Refresh table
   if (tableToRefresh === 'published') {
