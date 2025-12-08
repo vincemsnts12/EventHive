@@ -476,9 +476,8 @@
 .event-slider__date {
   position: relative;
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0;
+  align-items: flex-start;
+  gap: 4px;
   padding-left: 0;
   font-size: 1rem;
   color: #777;
@@ -493,7 +492,16 @@
 .event-slider__date svg {
   vertical-align: middle;
   flex-shrink: 0;
-  margin-right: 4px;
+  margin-top: 2px;
+}
+
+.event-date-time-wrapper {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 #event-date {
@@ -509,18 +517,13 @@
   min-width: 0;
 }
 
-/* Force wrapping when space is tight - time needs at least 180px */
-@media (max-width: 640px) {
-  #event-time {
-    flex-basis: 100%;
-    margin-top: 4px;
-    padding-left: 28px;
-  }
-}
-
 /* When container is narrow, time wraps to new line */
 @media (max-width: 576px) {
   .event-slider__date {
+    align-items: flex-start;
+  }
+  
+  .event-date-time-wrapper {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
@@ -528,9 +531,8 @@
   
   #event-time {
     display: block;
-    padding-left: 28px;
     margin-top: 0;
-    width: 100%;
+    padding-left: 0;
   }
 }
 
