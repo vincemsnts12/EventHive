@@ -105,7 +105,7 @@ async function getEvents(options = {}) {
     // Select all necessary columns (same for everyone)
     let query = supabaseClient
       .from('events')
-      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, organization_id, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
+      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, colleges, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
     
     // Apply filters first
     if (options.status) {
