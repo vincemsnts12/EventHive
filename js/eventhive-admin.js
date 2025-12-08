@@ -419,13 +419,14 @@ function formatTodayDate() {
 }
 
 // ===== COUNT UNEDITED EVENTS =====
-// Counts events that still have default values (not yet edited)
+// Counts events that still have ALL default values (completely untouched)
 function countUneditedEvents() {
   let count = 0;
   for (const eventId in pendingEventsData) {
     const event = pendingEventsData[eventId];
-    // Check if event has default values (unedited)
-    if (event.title === 'Add Title' || event.description === 'Add Description') {
+    // Check if event has ALL default values (completely unedited)
+    // Only count as unedited if BOTH title AND description are still defaults
+    if (event.title === 'Add Title' && event.description === 'Add Description') {
       count++;
     }
   }
@@ -978,11 +979,9 @@ function updateActionButtons(eventId, tableType, isEditMode) {
 // ===== MODAL FUNCTIONS =====
 
 function openEditTitleModal(eventId, currentTitle) {
-  console.log('openEditTitleModal called - eventId:', eventId, 'title:', currentTitle);
   currentEditingEventId = eventId;
   currentEditingField = 'title';
   if (!currentEditingTable) currentEditingTable = 'published';
-  console.log('openEditTitleModal set - eventId:', currentEditingEventId, 'table:', currentEditingTable);
   document.getElementById('editTitleInput').value = currentTitle;
   
   const featureCheckbox = document.getElementById('featureEventCheckbox');
@@ -1189,7 +1188,6 @@ function openEditDateModal(eventId, event) {
 }
 
 function closeModal(modalId) {
-  console.log('closeModal called for:', modalId, '- clearing eventId:', currentEditingEventId);
   document.getElementById(modalId).classList.remove('active');
   currentEditingEventId = null;
   currentEditingField = null;
@@ -1216,9 +1214,8 @@ function openViewLocationModal(location) {
 // ===== SAVE FUNCTIONS =====
 
 async function saveTitleEdit() {
-  console.log('saveTitleEdit called - eventId:', currentEditingEventId, 'table:', currentEditingTable);
   if (!currentEditingEventId || !currentEditingTable) {
-    console.error('saveTitleEdit: Missing eventId or table!', { currentEditingEventId, currentEditingTable });
+    console.error('saveTitleEdit: Missing eventId or table - modal context lost');
     alert('Error: Event context lost. Please close and reopen the modal.');
     return;
   }
@@ -2177,22 +2174,9 @@ async function addNewOrganization() {
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('=== eventhive-admin.js DOMContentLoaded START ===');
   
-  // DEBUG: Log all clicks on the page to diagnose unresponsive buttons
-  document.addEventListener('click', (e) => {
-    console.log('Click detected on:', e.target.tagName, e.target.className, e.target.id || '(no id)');
-    console.log('Target element:', e.target);
-    console.log('Pointer events:', getComputedStyle(e.target).pointerEvents);
-    console.log('Cursor:', getComputedStyle(e.target).cursor);
-    
-    // Check if any modal is active
-    const activeModals = document.querySelectorAll('.admin-modal-overlay.active');
-    console.log('Active modals:', activeModals.length, Array.from(activeModals).map(m => m.id));
-  }, true); // Use capture phase to catch all clicks
-  
   // Load organizations from database first
-  console.log('Loading organizations from database...');
   await loadOrganizationsFromDatabase();
-  console.log('Organizations loaded, continuing setup...');
+  console.log('Organizations loaded, setting up event listeners...');
   
   // Then populate tables
   populatePublishedEventsTable();
@@ -2215,37 +2199,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   document.getElementById('closeViewDateBtn')?.addEventListener('click', () => closeModal('viewDateModal'));
   
   // Title Modal
-  const closeTitleBtn = document.getElementById('closeTitleModal');
-  const cancelTitleBtn = document.getElementById('cancelTitleEdit');
-  const saveTitleBtn = document.getElementById('saveTitleEdit');
-  
-  console.log('Title modal buttons found:', { 
-    close: !!closeTitleBtn, 
-    cancel: !!cancelTitleBtn, 
-    save: !!saveTitleBtn 
-  });
-  
-  if (closeTitleBtn) {
-    closeTitleBtn.addEventListener('click', () => {
-      console.log('Close title button clicked!');
-      closeModal('editTitleModal');
-    });
-  }
-  if (cancelTitleBtn) {
-    cancelTitleBtn.addEventListener('click', () => {
-      console.log('Cancel title button clicked!');
-      closeModal('editTitleModal');
-    });
-  }
-  if (saveTitleBtn) {
-    saveTitleBtn.addEventListener('click', () => {
-      console.log('Save title button clicked - calling saveTitleEdit!');
-      saveTitleEdit();
-    });
-    console.log('Save title event listener attached successfully');
-  } else {
-    console.error('Save title button NOT FOUND - event listener NOT attached!');
-  }
+  document.getElementById('closeTitleModal')?.addEventListener('click', () => closeModal('editTitleModal'));
+  document.getElementById('cancelTitleEdit')?.addEventListener('click', () => closeModal('editTitleModal'));
+  document.getElementById('saveTitleEdit')?.addEventListener('click', () => saveTitleEdit());
   
   // Description Modal
   document.getElementById('closeDescModal')?.addEventListener('click', () => closeModal('editDescModal'));
