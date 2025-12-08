@@ -175,14 +175,49 @@ async function loadProfileAvatar() {
           const user = data.session.user;
           userEmail = userEmail || user.email;
 
-          // Check user_metadata for 'picture' (Google OAuth) or 'avatar_url'
+          // Check user_metadata for 'avatar_url' (Google) or 'picture' (other providers)
           const metadata = user.user_metadata || {};
-          const sessionAvatar = metadata.picture || metadata.avatar_url;
+          const sessionAvatar = metadata.avatar_url || metadata.picture;
           userName = userName || metadata.full_name || metadata.name;
 
           if (sessionAvatar && !avatarUrl) {
             avatarUrl = sessionAvatar;
             updateProfileIconAvatar(avatarUrl);
+
+            // AUTO-SYNC: Update profile in database if it has NULL avatar
+            // This fixes existing users who signed up before the trigger was added
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .update({
+                  avatar_url: sessionAvatar,
+                  full_name: userName || undefined,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', user.id)
+                .is('avatar_url', null); // Only update if avatar_url is NULL
+
+              if (!error) {
+                console.log('Profile avatar synced from session to database');
+                // Update local cache too
+                try {
+                  const profileCacheStr = localStorage.getItem('eventhive_profile_cache');
+                  if (profileCacheStr) {
+                    const profileCache = JSON.parse(profileCacheStr);
+                    if (profileCache && profileCache.profile) {
+                      profileCache.profile.avatar_url = sessionAvatar;
+                      if (userName) profileCache.profile.full_name = userName;
+                      localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+                    }
+                  }
+                } catch (cacheErr) {
+                  console.warn('Error updating profile cache:', cacheErr);
+                }
+              }
+            } catch (syncErr) {
+              console.warn('Error syncing avatar to database:', syncErr);
+            }
+
             return;
           }
         }
