@@ -16,48 +16,71 @@ function getSupabaseClient() {
 // `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
 
 /**
- * Upload an image file to Supabase Storage
+ * Check admin status from cache (avoids hanging authenticated client)
+ */
+function checkAdminFromCacheStorage() {
+  try {
+    const cachedAdmin = localStorage.getItem('eventhive_is_admin');
+    const cacheTime = localStorage.getItem('eventhive_admin_cache_time');
+    
+    if (cachedAdmin !== null && cacheTime) {
+      const cacheAge = Date.now() - parseInt(cacheTime);
+      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+      
+      if (cacheAge < CACHE_DURATION) {
+        return { isAdmin: cachedAdmin === 'true', cacheValid: true };
+      }
+    }
+    return { isAdmin: false, cacheValid: false };
+  } catch (e) {
+    return { isAdmin: false, cacheValid: false };
+  }
+}
+
+/**
+ * Upload an image file to Supabase Storage using direct fetch API
  * @param {File} file - Image file to upload
  * @param {string} eventId - Event ID (for folder organization)
  * @returns {Promise<{success: boolean, url?: string, error?: string}>}
  */
 async function uploadEventImage(file, eventId) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
-
+  console.log('uploadEventImage: Starting upload for event:', eventId);
+  
   // Input validation
   if (!file || !(file instanceof File)) {
-    logSecurityEvent('INVALID_INPUT', { eventId }, 'Invalid file object in uploadEventImage');
+    console.error('uploadEventImage: Invalid file object');
     return { success: false, error: 'Invalid file' };
   }
 
   if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
-    logSecurityEvent('INVALID_INPUT', {}, 'Invalid eventId in uploadEventImage');
+    console.error('uploadEventImage: Invalid eventId');
     return { success: false, error: 'Invalid event ID' };
   }
 
-  // Check if user is admin
-  const adminCheck = await checkIfUserIsAdmin();
-  if (!adminCheck.success || !adminCheck.isAdmin) {
-    logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to upload image');
+  // Check if user is admin from cache (avoids hanging)
+  const { isAdmin, cacheValid } = checkAdminFromCacheStorage();
+  console.log('uploadEventImage: Admin check from cache:', { isAdmin, cacheValid });
+  
+  if (!isAdmin) {
+    console.error('uploadEventImage: User is not admin');
     return { success: false, error: 'Only admins can upload images' };
   }
 
-  const user = await getSafeUser();
+  // Get user ID from localStorage
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  console.log('uploadEventImage: User ID from localStorage:', userId);
 
   // Validate file type
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
   if (!validTypes.includes(file.type)) {
-    logSecurityEvent('INVALID_INPUT', { userId: user.id, eventId, fileType: file.type }, 'Invalid file type attempted');
+    console.error('uploadEventImage: Invalid file type:', file.type);
     return { success: false, error: 'Invalid file type. Only JPG and PNG files are allowed.' };
   }
 
   // Validate file size (max 5MB)
   const maxSize = 5 * 1024 * 1024; // 5MB
   if (file.size > maxSize) {
-    logSecurityEvent('INVALID_INPUT', { userId: user.id, eventId, fileSize: file.size }, 'File size exceeds limit');
+    console.error('uploadEventImage: File too large:', file.size);
     return { success: false, error: 'File size exceeds 5MB limit.' };
   }
 
@@ -65,7 +88,7 @@ async function uploadEventImage(file, eventId) {
     // Generate unique filename
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 15);
-    const fileExt = file.name.split('.').pop();
+    const fileExt = file.name.split('.').pop().toLowerCase();
     
     // Sanitize file extension
     if (!/^[a-zA-Z0-9]+$/.test(fileExt)) {
@@ -73,35 +96,77 @@ async function uploadEventImage(file, eventId) {
     }
     
     const fileName = `${eventId}/${timestamp}-${randomStr}.${fileExt}`;
+    console.log('uploadEventImage: Generated filename:', fileName);
 
-    // Upload file to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(EVENT_IMAGES_BUCKET)
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-
-    if (error) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: error.message }, 'Error uploading image');
-      console.error('Error uploading image:', error);
-      return { success: false, error: error.message };
+    // Get Supabase config
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+    
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error('uploadEventImage: Supabase config not available');
+      return { success: false, error: 'Supabase configuration not available' };
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from(EVENT_IMAGES_BUCKET)
-      .getPublicUrl(fileName);
-
-    if (!urlData?.publicUrl) {
-      return { success: false, error: 'Failed to get public URL' };
+    // Get access token from localStorage
+    let accessToken = null;
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      }
+    } catch (e) {
+      console.error('uploadEventImage: Error getting access token:', e);
     }
 
-    logSecurityEvent('EVENT_UPDATED', { userId: user.id, eventId, fileName }, 'Image uploaded successfully');
-    return { success: true, url: urlData.publicUrl };
+    if (!accessToken) {
+      console.error('uploadEventImage: No access token found');
+      return { success: false, error: 'Authentication token not found. Please log in again.' };
+    }
+
+    console.log('uploadEventImage: Access token obtained, uploading file...');
+
+    // Upload file using direct fetch API
+    const uploadController = new AbortController();
+    const uploadTimeout = setTimeout(() => uploadController.abort(), 30000); // 30s timeout for uploads
+
+    const uploadResponse = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/${EVENT_IMAGES_BUCKET}/${fileName}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': file.type,
+          'x-upsert': 'false'
+        },
+        body: file,
+        signal: uploadController.signal
+      }
+    );
+
+    clearTimeout(uploadTimeout);
+    console.log('uploadEventImage: Upload response status:', uploadResponse.status);
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('uploadEventImage: Upload failed:', uploadResponse.status, errorText);
+      return { success: false, error: `Upload failed: ${errorText}` };
+    }
+
+    // Construct public URL
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${EVENT_IMAGES_BUCKET}/${fileName}`;
+    console.log('uploadEventImage: Upload successful, public URL:', publicUrl);
+
+    return { success: true, url: publicUrl };
   } catch (error) {
-    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error uploading image');
-    console.error('Unexpected error uploading image:', error);
+    if (error.name === 'AbortError') {
+      console.error('uploadEventImage: Upload timed out');
+      return { success: false, error: 'Upload timed out. Please try again.' };
+    }
+    console.error('uploadEventImage: Unexpected error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -146,37 +211,32 @@ async function uploadEventImages(files, eventId) {
 }
 
 /**
- * Delete an image from Supabase Storage
+ * Delete an image from Supabase Storage using direct fetch API
  * @param {string} imageUrl - Full URL of the image to delete
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function deleteEventImage(imageUrl) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
+  console.log('deleteEventImage: Starting delete for URL:', imageUrl);
 
   // Input validation
   if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim().length === 0) {
-    logSecurityEvent('INVALID_INPUT', {}, 'Invalid imageUrl in deleteEventImage');
+    console.error('deleteEventImage: Invalid imageUrl');
     return { success: false, error: 'Invalid image URL' };
   }
 
-  // Check if user is admin
-  const adminCheck = await checkIfUserIsAdmin();
-  if (!adminCheck.success || !adminCheck.isAdmin) {
-    logSecurityEvent('SUSPICIOUS_ACTIVITY', {}, 'Non-admin attempted to delete image');
+  // Check if user is admin from cache (avoids hanging)
+  const { isAdmin } = checkAdminFromCacheStorage();
+  if (!isAdmin) {
+    console.error('deleteEventImage: User is not admin');
     return { success: false, error: 'Only admins can delete images' };
   }
-
-  const user = await getSafeUser();
 
   try {
     // Extract file path from URL
     // URL format: https://[project].supabase.co/storage/v1/object/public/event-images/[path]
     const urlParts = imageUrl.split('/event-images/');
     if (urlParts.length !== 2) {
-      logSecurityEvent('INVALID_INPUT', { userId: user.id, imageUrl }, 'Invalid image URL format');
+      console.error('deleteEventImage: Invalid image URL format');
       return { success: false, error: 'Invalid image URL format' };
     }
 
@@ -184,26 +244,71 @@ async function deleteEventImage(imageUrl) {
     
     // Validate file path (prevent directory traversal)
     if (filePath.includes('..') || filePath.includes('//')) {
-      logSecurityEvent('SUSPICIOUS_ACTIVITY', { userId: user.id, filePath }, 'Suspicious file path detected');
+      console.error('deleteEventImage: Suspicious file path detected');
       return { success: false, error: 'Invalid file path' };
     }
 
-    // Delete file from storage
-    const { error } = await supabase.storage
-      .from(EVENT_IMAGES_BUCKET)
-      .remove([filePath]);
+    console.log('deleteEventImage: File path:', filePath);
 
-    if (error) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, filePath, error: error.message }, 'Error deleting image');
-      console.error('Error deleting image:', error);
-      return { success: false, error: error.message };
+    // Get Supabase config
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+    
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return { success: false, error: 'Supabase configuration not available' };
     }
 
-    logSecurityEvent('EVENT_UPDATED', { userId: user.id, filePath }, 'Image deleted successfully');
+    // Get access token from localStorage
+    let accessToken = null;
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      }
+    } catch (e) {
+      console.error('deleteEventImage: Error getting access token:', e);
+    }
+
+    if (!accessToken) {
+      return { success: false, error: 'Authentication token not found. Please log in again.' };
+    }
+
+    // Delete file using direct fetch API
+    const deleteController = new AbortController();
+    const deleteTimeout = setTimeout(() => deleteController.abort(), 15000);
+
+    const deleteResponse = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/${EVENT_IMAGES_BUCKET}/${filePath}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': SUPABASE_ANON_KEY
+        },
+        signal: deleteController.signal
+      }
+    );
+
+    clearTimeout(deleteTimeout);
+    console.log('deleteEventImage: Delete response status:', deleteResponse.status);
+
+    if (!deleteResponse.ok && deleteResponse.status !== 404) {
+      const errorText = await deleteResponse.text();
+      console.error('deleteEventImage: Delete failed:', deleteResponse.status, errorText);
+      return { success: false, error: `Delete failed: ${errorText}` };
+    }
+
+    console.log('deleteEventImage: Delete successful');
     return { success: true };
   } catch (error) {
-    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, error: error.message }, 'Unexpected error deleting image');
-    console.error('Unexpected error deleting image:', error);
+    if (error.name === 'AbortError') {
+      console.error('deleteEventImage: Delete timed out');
+      return { success: false, error: 'Delete timed out. Please try again.' };
+    }
+    console.error('deleteEventImage: Unexpected error:', error);
     return { success: false, error: error.message };
   }
 }
