@@ -82,6 +82,34 @@ async function saveProfileToSupabase(profileData) {
       confirmBtn.disabled = true;
     }
 
+    // Check if username is being changed and if new username is taken
+    if (profileData.username && profileData.username !== originalProfileData.username) {
+      if (typeof getSupabaseClient === 'function') {
+        const supabase = getSupabaseClient();
+        if (supabase && typeof getCurrentUser === 'function') {
+          const userResult = await getCurrentUser();
+          if (userResult.success && userResult.user) {
+            // Check if username is taken by someone else
+            const { data: existingUser, error: checkError } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('username', profileData.username)
+              .neq('id', userResult.user.id) // Exclude current user
+              .single();
+
+            if (existingUser) {
+              alert('Username Unavailable\n\nThe username "' + profileData.username + '" is already taken.\n\nPlease choose a different username.');
+              if (confirmBtn) {
+                confirmBtn.textContent = 'Confirm Changes';
+                confirmBtn.disabled = false;
+              }
+              return;
+            }
+          }
+        }
+      }
+    }
+
     const result = await updateUserProfile(profileData);
 
     if (result.success) {
@@ -130,15 +158,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           usernameInput.placeholder = profile.username || profile.full_name || 'Username';
         }
 
-        // Populate email field (get from auth user)
-        const emailInput = document.querySelector('.user-details-edit .input-mimic-p');
-        if (emailInput && typeof getCurrentUser === 'function') {
+        // Display email (read-only - email cannot be changed)
+        const emailDisplay = document.querySelector('.email-display');
+        if (emailDisplay && typeof getCurrentUser === 'function') {
           const userResult = await getCurrentUser();
           if (userResult.success && userResult.user) {
-            emailInput.value = userResult.user.email || '';
-            emailInput.placeholder = userResult.user.email || 'Email';
-            emailInput.disabled = true; // Email cannot be changed
-            emailInput.title = 'Email cannot be changed';
+            emailDisplay.textContent = userResult.user.email || 'No email';
+          } else {
+            emailDisplay.textContent = profile.email || 'No email';
           }
         }
 

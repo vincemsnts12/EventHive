@@ -415,8 +415,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Validate username format
-      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-        alert('Invalid Username Format\n\nUsername can only contain:\n• Letters (a-z, A-Z)\n• Numbers (0-9)\n• Underscores (_)\n• Hyphens (-)');
+      if (!/^[a-zA-Z0-9_.-]+$/.test(username)) {
+        alert('Invalid Username Format\n\nUsername can only contain:\n• Letters (a-z, A-Z)\n• Numbers (0-9)\n• Underscores (_)\n• Hyphens (-)\n• Dots (.)');
         return;
       }
 
@@ -461,6 +461,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (existingUser) {
               alert('Username Unavailable\n\nThe username "' + username + '" is already registered.\n\nPlease choose a different username.');
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign Up';
+              }
+              return;
+            }
+
+            // Check if email is already registered
+            const { data: existingEmail, error: emailCheckError } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('email', email)
+              .single();
+
+            if (existingEmail) {
+              alert('Email Already Registered\n\nThe email "' + email + '" is already associated with an account.\n\nPlease log in instead or use a different email.');
               if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Sign Up';

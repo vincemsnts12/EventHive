@@ -12,8 +12,9 @@ function validateUsername(username) {
   if (!username || typeof username !== 'string') return false;
 
   const trimmed = username.trim();
-  // Username: 3-30 characters, alphanumeric and underscores only
-  if (!/^[a-zA-Z0-9_]{3,30}$/.test(trimmed)) {
+  // Username: 3-30 characters, alphanumeric, underscores, hyphens, and dots
+  // Dots allowed to support email-style usernames from OAuth (e.g., axel.magallanes)
+  if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(trimmed)) {
     return false;
   }
 
