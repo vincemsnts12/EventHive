@@ -123,17 +123,59 @@ if (typeof eventsData !== 'undefined' && Object.keys(eventsData).length > 0) {
   };
 }
 
-// Render Top Events Today (top 3 by likes)
+// Render Top Events Today (top 3 by likes, filtered to today's events)
 function renderTopEvents() {
   if (!topEventsContainer) return;
   topEventsContainer.innerHTML = '';
-  const topThree = eventsArray()
+  
+  // Get today's date range (12:00 AM to 11:59 PM) in local timezone
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0); // 12:00 AM local time
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999); // 11:59 PM local time
+  
+  // Filter events that fall within today (start_date or end_date is within today, or event spans today)
+  const todayEvents = eventsArray().filter(ev => {
+    if (!ev.startDate || !ev.endDate) return false;
+    
+    // Convert to Date objects (handles both Date objects and ISO strings)
+    const startDate = new Date(ev.startDate);
+    const endDate = new Date(ev.endDate);
+    
+    // Normalize dates to local time (ignore time components for date comparison)
+    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+    const todayDateOnly = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate());
+    
+    // Event is within today if:
+    // 1. Event starts today (startDate is today)
+    // 2. Event ends today (endDate is today)
+    // 3. Event spans today (starts before or on today AND ends after or on today)
+    return (startDateOnly.getTime() === todayDateOnly.getTime()) ||
+           (endDateOnly.getTime() === todayDateOnly.getTime()) ||
+           (startDateOnly <= todayDateOnly && endDateOnly >= todayDateOnly);
+  });
+  
+  // Sort by likes (descending) and take top 3
+  const topThree = todayEvents
     .sort((a, b) => (b.likes || 0) - (a.likes || 0))
     .slice(0, 3);
   
-  topThree.forEach(ev => {
+  // Create 3 card slots (will hide empty ones)
+  for (let i = 0; i < 3; i++) {
+    const ev = topThree[i];
+    if (!ev) {
+      // Create empty placeholder card that will be hidden
+      const emptyCard = document.createElement('div');
+      emptyCard.className = 'event-card';
+      emptyCard.style.display = 'none';
+      topEventsContainer.appendChild(emptyCard);
+      continue;
+    }
+    
+    const rank = i + 1; // 1, 2, or 3
     const card = document.createElement('div');
     card.className = 'event-card';
+    card.setAttribute('data-rank', rank);
     // Use main college for event card
     const mainCollege = ev.mainCollege || ev.college || 'TUP';
     card.setAttribute('data-category', mainCollege || '');
@@ -141,6 +183,24 @@ function renderTopEvents() {
       localStorage.setItem('selectedEventId', ev.id);
       window.location.href = 'eventhive-events.html';
     });
+    
+    // Add rank number (large overlapping number)
+    const rankNumber = document.createElement('div');
+    rankNumber.className = 'event-rank-number';
+    rankNumber.textContent = rank;
+    card.appendChild(rankNumber);
+    
+    // Add top like count display (display-only, at the top)
+    const topLikeCount = document.createElement('div');
+    topLikeCount.className = 'event-top-like-count';
+    const likeCountValue = ev.likes || 0;
+    topLikeCount.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 20 18" fill="#B81E20" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/>
+      </svg>
+      <span class="top-like-count-value">${likeCountValue}</span>
+    `;
+    card.appendChild(topLikeCount);
     
     const imageWrap = document.createElement('div');
     imageWrap.className = 'event-image';
@@ -238,6 +298,16 @@ function renderTopEvents() {
         // Check if handleLikeClick function is available
         if (typeof handleLikeClick === 'function') {
           await handleLikeClick(ev.id, likeBtn);
+          // Update top like count after handleLikeClick
+          if (typeof getEventLikeCount === 'function') {
+            const countResult = await getEventLikeCount(ev.id);
+            if (countResult.success) {
+              const topLikeCountValue = card.querySelector('.top-like-count-value');
+              if (topLikeCountValue) {
+                topLikeCountValue.textContent = countResult.count;
+              }
+            }
+          }
         } else if (typeof toggleEventLike === 'function') {
           // Fallback: Use toggleEventLike directly with timeout wrapper
           const timeoutPromise = new Promise((_, reject) => {
@@ -259,7 +329,12 @@ function renderTopEvents() {
             if (typeof getEventLikeCount === 'function') {
               const countResult = await getEventLikeCount(ev.id);
               if (countResult.success) {
-                // Find and update like count display if it exists
+                // Update top like count display
+                const topLikeCountValue = card.querySelector('.top-like-count-value');
+                if (topLikeCountValue) {
+                  topLikeCountValue.textContent = countResult.count;
+                }
+                // Also update like count in footer if it exists
                 const likeCountElement = card.querySelector('.likes-count');
                 if (likeCountElement) {
                   likeCountElement.textContent = countResult.count;
@@ -315,7 +390,7 @@ function renderTopEvents() {
     card.appendChild(imageWrap);
     
     topEventsContainer.appendChild(card);
-  });
+  }
 }
 
 renderTopEvents();

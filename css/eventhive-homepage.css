@@ -187,6 +187,85 @@
 }
 
 
+/* ===== TOP EVENTS TODAY - RANK NUMBERS AND LIKE COUNTS ===== */
+.event-card {
+  position: relative; /* For absolute positioning of rank number */
+}
+
+/* Large rank number (1, 2, 3) overlapping the card */
+.event-rank-number {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 180px;
+  font-weight: 900;
+  color: rgba(184, 30, 32, 0.15); /* Semi-transparent red */
+  line-height: 1;
+  z-index: 1;
+  pointer-events: none; /* Allow clicks to pass through */
+  font-family: "DM Sans", sans-serif;
+  user-select: none;
+  /* Position based on rank */
+}
+
+/* Position rank numbers to overlap cards */
+.event-card[data-rank="1"] .event-rank-number {
+  left: -20px;
+  top: -30px;
+}
+
+.event-card[data-rank="2"] .event-rank-number {
+  left: 50%;
+  transform: translateX(-50%);
+  top: -30px;
+}
+
+.event-card[data-rank="3"] .event-rank-number {
+  right: -20px;
+  left: auto;
+  top: -30px;
+}
+
+/* Top like count display (at the top of card, display-only) */
+.event-top-like-count {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 6px 12px;
+  border-radius: 20px;
+  z-index: 3;
+  pointer-events: none; /* Display-only, not clickable */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.event-top-like-count svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.event-top-like-count .top-like-count-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #B81E20;
+  line-height: 1;
+}
+
+/* Ensure image and footer are above rank number */
+.event-image {
+  position: relative;
+  z-index: 2;
+}
+
+.event-footer {
+  position: relative;
+  z-index: 3;
+}
+
 /* RESPONSIVENESS FOR MOBILE*/
 @media (max-width: 576px) {
 
@@ -226,6 +305,41 @@
   .dot {
     width: 8px;
     height: 8px;
+  }
+
+  /* Mobile: Smaller rank numbers and adjust positioning */
+  .event-rank-number {
+    font-size: 120px;
+  }
+
+  .event-card[data-rank="1"] .event-rank-number {
+    left: -10px;
+    top: -20px;
+  }
+
+  .event-card[data-rank="2"] .event-rank-number {
+    top: -20px;
+  }
+
+  .event-card[data-rank="3"] .event-rank-number {
+    right: -10px;
+    top: -20px;
+  }
+
+  .event-top-like-count {
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    gap: 5px;
+  }
+
+  .event-top-like-count svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .event-top-like-count .top-like-count-value {
+    font-size: 12px;
   }
 }
 
