@@ -2355,10 +2355,12 @@ async function saveImagesEdit() {
 
       if (event) {
         // Update event with new images and thumbnail index
+        // Include saveImages flag to explicitly save images
         const updatedEvent = {
           ...event,
           images: [...currentEditingImages],
-          thumbnailIndex: currentThumbnailIndex
+          thumbnailIndex: currentThumbnailIndex,
+          saveImages: true  // Flag to tell updateEvent to save images
         };
 
         const result = await updateEvent(currentEditingEventId, updatedEvent);

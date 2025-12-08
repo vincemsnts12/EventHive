@@ -1249,8 +1249,10 @@ async function updateEvent(eventId, eventData) {
     
     console.log('updateEvent: Event updated successfully:', updatedEvent.id);
 
-    // Update images if provided (images should already be uploaded URLs)
-    if (eventData.images !== undefined) {
+    // Only update images if explicitly requested with saveImages flag
+    // This prevents accidental image deletion when editing other fields
+    if (eventData.saveImages === true && eventData.images !== undefined) {
+      console.log('updateEvent: saveImages flag is true, saving images...');
       const thumbnailIdx = eventData.thumbnailIndex !== undefined ? eventData.thumbnailIndex : 0;
       const imagesResult = await saveEventImages(eventId, eventData.images, thumbnailIdx);
       if (!imagesResult.success) {
