@@ -19,7 +19,7 @@ function getCachedAuthState() {
       const parsed = JSON.parse(cached);
       const now = Date.now();
       const timeSinceLogin = now - parsed.timestamp;
-      
+
       // Return cache if it's less than 5 minutes old (timer starts from login)
       if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
         return parsed.state;
@@ -37,7 +37,7 @@ function getDropdownState() {
   if (cached === null) {
     return 'guest'; // Default state if no cache
   }
-  
+
   if (cached.isLoggedIn && cached.isAdmin) {
     return 'admin'; // Logged in + Admin
   } else if (cached.isLoggedIn) {
@@ -47,19 +47,104 @@ function getDropdownState() {
   }
 }
 
+// ===== PROFILE ICON AVATAR FUNCTIONS =====
+// Default SVG for profile icon (used when logged out)
+const DEFAULT_PROFILE_SVG = `<svg width="27" height="27" viewBox="0 0 27 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M2.46209 26.5849C2.46209 26.5849 0.254517 26.5849 0.254517 24.4151C0.254517 22.2453 2.46209 15.7359 13.5 15.7359C24.5378 15.7359 26.7454 22.2453 26.7454 24.4151C26.7454 26.5849 24.5378 26.5849 24.5378 26.5849H2.46209ZM13.5 13.566C15.2564 13.566 16.9409 12.8802 18.1829 11.6595C19.4249 10.4387 20.1227 8.78302 20.1227 7.05661C20.1227 5.3302 19.4249 3.6745 18.1829 2.45375C16.9409 1.23299 15.2564 0.54718 13.5 0.54718C11.7435 0.54718 10.059 1.23299 8.817 2.45375C7.57499 3.6745 6.87724 5.3302 6.87724 7.05661C6.87724 8.78302 7.57499 10.4387 8.817 11.6595C10.059 12.8802 11.7435 13.566 13.5 13.566Z"/>
+</svg>`;
+
+// Update profile icon with user avatar
+function updateProfileIconAvatar(avatarUrl) {
+  const profileIcon = document.getElementById('profile-icon');
+  if (!profileIcon) return;
+
+  const imgUrl = avatarUrl || 'images/prof_default.svg';
+
+  // Check if already an img element
+  let img = profileIcon.querySelector('img');
+  if (!img) {
+    // Replace SVG with img
+    profileIcon.innerHTML = '';
+    img = document.createElement('img');
+    img.className = 'profile-icon-avatar';
+    img.alt = 'Profile';
+    profileIcon.appendChild(img);
+    profileIcon.classList.add('has-avatar');
+  }
+  img.src = imgUrl;
+
+  // Handle image load error - fallback to default
+  img.onerror = function () {
+    this.src = 'images/prof_default.svg';
+  };
+}
+
+// Reset profile icon to default SVG (for logged out state)
+function resetProfileIconToDefault() {
+  const profileIcon = document.getElementById('profile-icon');
+  if (!profileIcon) return;
+
+  profileIcon.innerHTML = DEFAULT_PROFILE_SVG;
+  profileIcon.classList.remove('has-avatar');
+}
+
+// Load avatar from profile cache or fetch from Supabase
+async function loadProfileAvatar() {
+  // First check if logged in
+  const authCache = getCachedAuthState();
+  if (!authCache || !authCache.isLoggedIn) {
+    resetProfileIconToDefault();
+    return;
+  }
+
+  // Try to get avatar from profile cache
+  try {
+    const profileCacheStr = localStorage.getItem('eventhive_profile_cache');
+    if (profileCacheStr) {
+      const profileCache = JSON.parse(profileCacheStr);
+      if (profileCache && profileCache.profile && profileCache.profile.avatar_url) {
+        updateProfileIconAvatar(profileCache.profile.avatar_url);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading profile cache for avatar:', e);
+  }
+
+  // Fallback: fetch profile from Supabase
+  if (typeof getUserProfile === 'function') {
+    try {
+      const result = await getUserProfile();
+      if (result.success && result.profile) {
+        updateProfileIconAvatar(result.profile.avatar_url);
+      } else {
+        // No avatar, use default
+        updateProfileIconAvatar(null);
+      }
+    } catch (e) {
+      console.warn('Error fetching profile for avatar:', e);
+      updateProfileIconAvatar(null);
+    }
+  } else {
+    // getUserProfile not available, use default
+    updateProfileIconAvatar(null);
+  }
+}
+
+
 // Apply dropdown state by replacing content entirely
 function applyDropdownState(state) {
   if (!dropdownMenu) return;
-  
+
   // Hide all states
   const guestState = document.getElementById('dropdownState-guest');
   const userState = document.getElementById('dropdownState-user');
   const adminState = document.getElementById('dropdownState-admin');
-  
+
   if (guestState) guestState.style.display = 'none';
   if (userState) userState.style.display = 'none';
   if (adminState) adminState.style.display = 'none';
-  
+
   // Show only the correct state
   switch (state) {
     case 'guest':
@@ -81,10 +166,10 @@ function applyDropdownState(state) {
     const state = getDropdownState();
     applyDropdownState(state);
   }
-  
+
   // Try immediately (if DOM is ready)
   applyStateNow();
-  
+
   // Try when DOM is interactive (earlier than DOMContentLoaded)
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', applyStateNow, { once: true });
@@ -92,25 +177,25 @@ function applyDropdownState(state) {
     // DOM already loaded, apply immediately
     applyStateNow();
   }
-  
+
   // Also try on next frame (catches elements added dynamically)
   requestAnimationFrame(applyStateNow);
-  
+
   // Also try after a tiny delay (catches late-loading elements)
   setTimeout(applyStateNow, 0);
-  
+
   // Use MutationObserver to catch elements as soon as they're added to DOM
   const observer = new MutationObserver(() => {
     applyStateNow();
   });
-  
+
   // Observe the document body for changes
   if (document.body) {
     observer.observe(document.body, {
       childList: true,
       subtree: true
     });
-    
+
     // Stop observing after 2 seconds (elements should be loaded by then)
     setTimeout(() => {
       observer.disconnect();
@@ -127,10 +212,17 @@ function saveCachedAuthState(isLoggedIn, isAdmin) {
       state: { isLoggedIn, isAdmin }
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-    
+
     // Immediately apply the new state
     const newState = isLoggedIn && isAdmin ? 'admin' : (isLoggedIn ? 'user' : 'guest');
     applyDropdownState(newState);
+
+    // Load profile avatar if logged in
+    if (isLoggedIn) {
+      loadProfileAvatar();
+    } else {
+      resetProfileIconToDefault();
+    }
   } catch (e) {
     console.error('Error saving auth cache:', e);
   }
@@ -149,29 +241,29 @@ async function updateDropdownAuthState(forceCheck = false) {
       return; // Exit immediately - NO async checks during 5-minute window
     }
   }
-  
+
   // Only perform auth check if:
   // 1. Force check is requested (login/logout/auth change/5-minute refresh)
   // 2. Cache doesn't exist or is expired (> 5 minutes)
-  
+
   // Perform actual auth check (only when forced or cache expired)
   let isLoggedIn = false;
   let isAdmin = false;
-  
+
   if (typeof getCurrentUser === 'function') {
     const userResult = await getCurrentUser();
     isLoggedIn = userResult.success && userResult.user !== null;
-    
+
     // Check if user is admin
     if (isLoggedIn && typeof checkIfUserIsAdmin === 'function') {
       const adminResult = await checkIfUserIsAdmin();
       isAdmin = adminResult.success && adminResult.isAdmin === true;
     }
   }
-  
+
   // Save to cache with current timestamp (resets 5-minute timer)
   saveCachedAuthState(isLoggedIn, isAdmin);
-  
+
   // State is already applied in saveCachedAuthState
 }
 
@@ -206,10 +298,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // This is the state from initial login check - use it absolutely
     const state = cached.isLoggedIn && cached.isAdmin ? 'admin' : (cached.isLoggedIn ? 'user' : 'guest');
     applyDropdownState(state);
+
+    // Load profile avatar if logged in
+    if (cached.isLoggedIn) {
+      loadProfileAvatar();
+    }
     // DO NOT call updateDropdownAuthState - cache is absolute for 5 minutes
   } else {
     // No cache - default to guest state
     applyDropdownState('guest');
+    resetProfileIconToDefault();
     // Only check auth if no cache exists
     updateDropdownAuthState(false).catch(err => {
       console.error('Error updating auth state:', err);
@@ -238,7 +336,7 @@ let authCheckInterval = setInterval(() => {
     if (cached) {
       const parsed = JSON.parse(cached);
       const timeSinceLogin = Date.now() - parsed.timestamp;
-      
+
       if (timeSinceLogin >= AUTH_CHECK_INTERVAL) {
         // 5 minutes have passed since login - refresh cache in background
         updateDropdownAuthState(true);
@@ -263,6 +361,8 @@ function clearAllCaches() {
   }
   // Apply guest state after clearing cache
   applyDropdownState('guest');
+  // Reset profile icon to default SVG
+  resetProfileIconToDefault();
 }
 
 // Desktop Logout Button Handler
@@ -270,12 +370,12 @@ const logoutBtn = document.getElementById('navLogoutBtn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    
+
     // Close dropdown immediately
     if (dropdownMenu) {
       dropdownMenu.classList.remove('show');
     }
-    
+
     // Sign out using Supabase immediately
     if (typeof getSupabaseClient === 'function') {
       const supabase = getSupabaseClient();
@@ -283,20 +383,20 @@ if (logoutBtn) {
         await supabase.auth.signOut();
       }
     }
-    
+
     // Clear ALL localStorage items
     try {
       localStorage.clear();
     } catch (e) {
       console.error('Error clearing localStorage:', e);
     }
-    
+
     // Clear all caches (for backward compatibility)
     clearAllCaches();
-    
+
     // Show success message
     alert('Log out successful');
-    
+
     // State is already applied in clearAllCaches
   });
 }
