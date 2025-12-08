@@ -26,7 +26,7 @@ function initSupabase() {
 
   if (typeof supabase !== 'undefined') {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    try { 
+    try {
       window.__EH_SUPABASE_CLIENT = supabaseClient;
       // Expose URL and key for creating guest clients
       window.__EH_SUPABASE_URL = SUPABASE_URL;
@@ -82,7 +82,7 @@ async function signInWithGoogle() {
     if (error) {
       console.error('Google OAuth error:', error.code, error.message);
       let userMessage = 'Error signing in with Google.';
-      
+
       // Provide friendly error messages based on error code
       if (error.message.includes('redirect')) {
         userMessage = 'OAuth configuration issue: redirect URI mismatch. Contact support.';
@@ -93,11 +93,11 @@ async function signInWithGoogle() {
       } else {
         userMessage = 'Error: ' + error.message;
       }
-      
+
       alert(userMessage);
       return;
     }
-    
+
     console.log('Google OAuth initiated, waiting for callback...');
   } catch (err) {
     console.error('Unexpected error during Google sign-in:', err);
@@ -113,7 +113,7 @@ function setupAuthStateListener() {
     console.log('Auth state listener already initialized, skipping duplicate setup');
     return;
   }
-  
+
   if (!supabaseClient) {
     supabaseClient = initSupabase();
     if (!supabaseClient) return;
@@ -125,16 +125,16 @@ function setupAuthStateListener() {
     if (event === 'SIGNED_IN' && session?.user?.email) {
       const userId = session?.user?.id;
       const email = session.user.email;
-      
+
       // Prevent duplicate processing if SIGNED_IN fires multiple times for the same user
       if (processedUserIds.has(userId)) {
         console.log('SIGNED_IN event already processed for this user, skipping');
         return;
       }
       processedUserIds.add(userId);
-      
+
       console.log('SIGNED_IN event detected for email:', email);
-      
+
       // Enforce email domain restriction - MUST verify before any user-facing changes
       if (!isAllowedEmailDomain(email)) {
         console.warn('Non-TUP email attempted sign-in:', email, '- signing out immediately');
@@ -149,9 +149,9 @@ function setupAuthStateListener() {
         processedUserIds.delete(userId); // Remove from processed set on error
         return;
       }
-      
+
       console.log('User successfully authenticated with TUP email:', email);
-      
+
       // Check if email is verified (required for all users)
       if (!session.user.email_confirmed_at) {
         console.warn('User email not verified:', email);
@@ -166,23 +166,23 @@ function setupAuthStateListener() {
         processedUserIds.delete(userId); // Remove from processed set
         return;
       }
-      
+
       // Only show message if user changed (not just a token refresh)
       const isNewUserLogin = lastAuthenticatedUserId !== userId;
-      
+
       // Check if this is an OAuth login by checking URL or processing flag
-      const isOAuthLogin = isProcessingOAuthCallback || 
-                          window.location.hash.includes('access_token') || 
-                          window.location.search.includes('code=');
-      
+      const isOAuthLogin = isProcessingOAuthCallback ||
+        window.location.hash.includes('access_token') ||
+        window.location.search.includes('code=');
+
       let isFirstTimeSignup = false;
-      
+
       // For OAuth logins, check profile creation time directly
       // For email/password logins, check localStorage flags
       if (isOAuthLogin) {
         // Wait a bit for profile to be created (if it's a new signup)
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         // Check profile creation time directly
         try {
           const { data: profile, error: profileError } = await supabaseClient
@@ -190,12 +190,12 @@ function setupAuthStateListener() {
             .select('created_at')
             .eq('id', userId)
             .single();
-          
+
           if (!profileError && profile) {
             const profileCreatedAt = new Date(profile.created_at);
             const now = new Date();
             const secondsSinceCreation = (now - profileCreatedAt) / 1000;
-            
+
             // If profile was created within last 30 seconds, it's likely a new signup
             if (secondsSinceCreation < 30) {
               isFirstTimeSignup = true;
@@ -209,13 +209,13 @@ function setupAuthStateListener() {
         // For email/password logins, check localStorage flags
         const signupFlag = localStorage.getItem('eventhive_just_signed_up');
         const signupEmailFlag = localStorage.getItem('eventhive_just_signed_up_email');
-        
-        isFirstTimeSignup = (signupFlag && signupFlag === userId) || 
-                           (signupEmailFlag && signupEmailFlag === email);
+
+        isFirstTimeSignup = (signupFlag && signupFlag === userId) ||
+          (signupEmailFlag && signupEmailFlag === email);
       }
-      
+
       console.log('First-time signup check:', { isFirstTimeSignup, isNewUserLogin, isOAuthLogin });
-      
+
       if (isFirstTimeSignup && isNewUserLogin) {
         // This is a first-time signup - show welcome message
         lastAuthenticatedUserId = userId;
@@ -243,7 +243,7 @@ function setupAuthStateListener() {
         lastAuthenticatedUserId = userId;
         localStorage.setItem('eventhive_last_authenticated_user_id', userId);
       }
-      
+
       // Immediately cache auth and admin status on login (5-minute timer starts here)
       // This ensures create/update/delete operations can use cached status without database checks
       if (typeof updateDropdownAuthState === 'function') {
@@ -252,13 +252,57 @@ function setupAuthStateListener() {
           console.error('Error updating auth cache on login:', err);
         });
       }
-      
+
+      // Cache profile data for OAuth logins (same as email/password login does)
+      // This ensures avatar and profile info persist across page reloads
+      if (isOAuthLogin && typeof getUserProfile === 'function') {
+        try {
+          const profileResult = await getUserProfile(userId);
+          if (profileResult.success && profileResult.profile) {
+            const profileCache = {
+              timestamp: Date.now(),
+              profile: profileResult.profile
+            };
+            localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+            console.log('Profile cached after OAuth login');
+
+            // If profile doesn't have avatar, try to sync from session metadata
+            if (!profileResult.profile.avatar_url && session?.user?.user_metadata) {
+              const metadata = session.user.user_metadata;
+              const sessionAvatar = metadata.avatar_url || metadata.picture;
+              if (sessionAvatar) {
+                // Update profile in database with avatar from session
+                try {
+                  await supabaseClient
+                    .from('profiles')
+                    .update({
+                      avatar_url: sessionAvatar,
+                      full_name: metadata.full_name || metadata.name || profileResult.profile.full_name,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', userId);
+
+                  // Update local cache too
+                  profileCache.profile.avatar_url = sessionAvatar;
+                  localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+                  console.log('Avatar synced from OAuth session to profile');
+                } catch (syncErr) {
+                  console.warn('Error syncing avatar from OAuth:', syncErr);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Error caching profile after OAuth login:', err);
+        }
+      }
+
       // TODO: Update UI to reflect logged-in state (e.g., show username in dropdown, enable dashboard link)
     } else if (event === 'SIGNED_OUT') {
       console.log('User signed out');
       lastAuthenticatedUserId = null; // Reset so alert shows again on next sign-in
       processedUserIds.clear(); // Clear processed users set for next sign-in
-      
+
       // Clear ALL localStorage items (already cleared by logout handlers, but ensure it's done)
       // Note: The logout button handlers already clear localStorage and show the message,
       // so we just ensure cleanup here without showing duplicate messages
@@ -267,7 +311,7 @@ function setupAuthStateListener() {
       } catch (e) {
         console.error('Error clearing localStorage on sign out:', e);
       }
-      
+
       // TODO: Update UI to reflect logged-out state
     } else if (event === 'TOKEN_REFRESHED') {
       console.log('Session token refreshed');
@@ -305,11 +349,11 @@ async function handleOAuthCallback() {
         userMsg = 'Authentication was denied. Please allow access to continue.';
       }
       // Check if error is related to database/email domain restriction
-      if (safeDescription && (safeDescription.toLowerCase().includes('database error') || 
-          safeDescription.toLowerCase().includes('database error saving new user') ||
-          safeDescription.toLowerCase().includes('tup university') ||
-          safeDescription.toLowerCase().includes('email domain') ||
-          safeDescription.toLowerCase().includes('use the email provided'))) {
+      if (safeDescription && (safeDescription.toLowerCase().includes('database error') ||
+        safeDescription.toLowerCase().includes('database error saving new user') ||
+        safeDescription.toLowerCase().includes('tup university') ||
+        safeDescription.toLowerCase().includes('email domain') ||
+        safeDescription.toLowerCase().includes('use the email provided'))) {
         userMsg = 'Use the email provided by the TUP University';
       } else if (safeDescription) {
         userMsg += '\n\nDetails: ' + safeDescription;
@@ -318,7 +362,7 @@ async function handleOAuthCallback() {
       try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) { /* ignore */ }
       return;
     }
-    
+
     // Use Supabase v2 helper to parse the URL and obtain the session
     // This is more reliable than manually parsing the hash/query string
     if (typeof supabaseClient.auth.getSessionFromUrl === 'function') {
@@ -328,12 +372,12 @@ async function handleOAuthCallback() {
         const errorMsg = (error.message || '').toLowerCase();
         const errorDetails = (error.details || error.message || '').toLowerCase();
         const fullErrorText = errorMsg + ' ' + errorDetails;
-        
-        if (fullErrorText.includes('database error') || 
-            fullErrorText.includes('database error saving') ||
-            fullErrorText.includes('saving new user') ||
-            fullErrorText.includes('tup university') ||
-            fullErrorText.includes('use the email provided')) {
+
+        if (fullErrorText.includes('database error') ||
+          fullErrorText.includes('database error saving') ||
+          fullErrorText.includes('saving new user') ||
+          fullErrorText.includes('tup university') ||
+          fullErrorText.includes('use the email provided')) {
           alert('Use the email provided by the TUP University');
         }
         return; // Silent fail - may not be an OAuth callback
@@ -344,7 +388,7 @@ async function handleOAuthCallback() {
         const email = session.user.email;
         const userId = session.user.id;
         console.log('OAuth callback: user email detected -', email);
-        
+
         // Enforce email domain restriction
         if (!isAllowedEmailDomain(email)) {
           console.warn('Rejecting non-TUP email from OAuth:', email);
@@ -359,7 +403,7 @@ async function handleOAuthCallback() {
           window.history.replaceState({}, document.title, window.location.pathname);
           return;
         }
-        
+
         // Check if this is a first-time signup via Google OAuth
         // by checking if the profile was just created (within last 10 seconds)
         try {
@@ -368,12 +412,12 @@ async function handleOAuthCallback() {
             .select('created_at')
             .eq('id', userId)
             .single();
-          
+
           if (!profileError && profile) {
             const profileCreatedAt = new Date(profile.created_at);
             const now = new Date();
             const secondsSinceCreation = (now - profileCreatedAt) / 1000;
-            
+
             // If profile was created within last 10 seconds, it's likely a new signup
             if (secondsSinceCreation < 10) {
               localStorage.setItem('eventhive_just_signed_up', userId);
@@ -384,7 +428,7 @@ async function handleOAuthCallback() {
           console.warn('Could not check if user is new via OAuth:', err);
           // Continue anyway - not critical
         }
-        
+
         console.log('OAuth callback validated for TUP user:', email);
         // Clean up URL after successful OAuth
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -442,12 +486,12 @@ async function handleOAuthCallback() {
                     .select('created_at')
                     .eq('id', userId)
                     .single();
-                  
+
                   if (!profileError && profile) {
                     const profileCreatedAt = new Date(profile.created_at);
                     const now = new Date();
                     const secondsSinceCreation = (now - profileCreatedAt) / 1000;
-                    
+
                     // If profile was created within last 10 seconds, it's likely a new signup
                     if (secondsSinceCreation < 10) {
                       localStorage.setItem('eventhive_just_signed_up', userId);
@@ -491,12 +535,12 @@ async function handleOAuthCallback() {
                   .select('created_at')
                   .eq('id', userId)
                   .single();
-                
+
                 if (!profileError && profile) {
                   const profileCreatedAt = new Date(profile.created_at);
                   const now = new Date();
                   const secondsSinceCreation = (now - profileCreatedAt) / 1000;
-                  
+
                   // If profile was created within last 10 seconds, it's likely a new signup
                   if (secondsSinceCreation < 10) {
                     localStorage.setItem('eventhive_just_signed_up', userId);
@@ -526,7 +570,7 @@ async function handleOAuthCallback() {
   if (window.location.search) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
   }
-  
+
   // Delay flag clear to ensure SIGNED_IN event fires while flag is still true
   setTimeout(() => {
     isProcessingOAuthCallback = false;
@@ -545,33 +589,33 @@ async function handleEmailVerificationCallback() {
     // Check if URL contains email verification tokens
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const searchParams = new URLSearchParams(window.location.search);
-    
+
     const type = hashParams.get('type') || searchParams.get('type');
     const token = hashParams.get('token') || searchParams.get('token');
     const tokenHash = hashParams.get('token_hash') || searchParams.get('token_hash');
-    
+
     // Supabase email verification uses 'type=email' and 'token' or 'token_hash'
     if (type === 'email' && (token || tokenHash)) {
       console.log('Processing email verification callback...');
-      
+
       // Supabase v2: Use getSessionFromUrl if available, otherwise use verifyOtp
       if (supabaseClient.auth && typeof supabaseClient.auth.getSessionFromUrl === 'function') {
         // getSessionFromUrl automatically handles email verification tokens
         const { data, error } = await supabaseClient.auth.getSessionFromUrl();
-        
+
         if (error) {
           console.error('Email verification error:', error);
           alert('Email verification failed. Please try again or request a new verification email.');
           window.history.replaceState({}, document.title, window.location.pathname);
           return;
         }
-        
+
         if (data?.session?.user) {
           console.log('Email verified successfully via getSessionFromUrl:', data.session.user.email);
           // User is automatically logged in - SIGNED_IN event will fire
           // Set flag for welcome message if this is first-time signup
           const userId = data.session.user.id;
-          
+
           // Check if this is a first-time signup
           try {
             const { data: profile, error: profileError } = await supabaseClient
@@ -579,12 +623,12 @@ async function handleEmailVerificationCallback() {
               .select('created_at')
               .eq('id', userId)
               .single();
-            
+
             if (!profileError && profile) {
               const profileCreatedAt = new Date(profile.created_at);
               const now = new Date();
               const secondsSinceCreation = (now - profileCreatedAt) / 1000;
-              
+
               // If profile was created within last 5 minutes, it's likely a new signup
               if (secondsSinceCreation < 300) {
                 localStorage.setItem('eventhive_just_signed_up', userId);
@@ -594,15 +638,15 @@ async function handleEmailVerificationCallback() {
           } catch (err) {
             console.warn('Could not check if user is new:', err);
           }
-          
+
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname);
-          
+
           // Redirect to homepage if not already there
-          if (window.location.pathname !== '/eventhive-homepage.html' && 
-              !window.location.pathname.endsWith('eventhive-homepage.html') &&
-              window.location.pathname !== '/' &&
-              !window.location.pathname.endsWith('index.html')) {
+          if (window.location.pathname !== '/eventhive-homepage.html' &&
+            !window.location.pathname.endsWith('eventhive-homepage.html') &&
+            window.location.pathname !== '/' &&
+            !window.location.pathname.endsWith('index.html')) {
             window.location.href = 'eventhive-homepage.html';
           }
         }
@@ -612,20 +656,20 @@ async function handleEmailVerificationCallback() {
           token_hash: tokenHash || token,
           type: 'email'
         });
-        
+
         if (error) {
           console.error('Email verification error:', error);
           alert('Email verification failed. Please try again or request a new verification email.');
           window.history.replaceState({}, document.title, window.location.pathname);
           return;
         }
-        
+
         if (data?.user) {
           console.log('Email verified successfully via verifyOtp:', data.user.email);
           // User is now verified and logged in automatically
           // The SIGNED_IN event will be fired by Supabase
           const userId = data.user.id;
-          
+
           // Check if this is a first-time signup
           try {
             const { data: profile, error: profileError } = await supabaseClient
@@ -633,12 +677,12 @@ async function handleEmailVerificationCallback() {
               .select('created_at')
               .eq('id', userId)
               .single();
-            
+
             if (!profileError && profile) {
               const profileCreatedAt = new Date(profile.created_at);
               const now = new Date();
               const secondsSinceCreation = (now - profileCreatedAt) / 1000;
-              
+
               if (secondsSinceCreation < 300) {
                 localStorage.setItem('eventhive_just_signed_up', userId);
                 console.log('New user verified via email, welcome message will be shown');
@@ -647,15 +691,15 @@ async function handleEmailVerificationCallback() {
           } catch (err) {
             console.warn('Could not check if user is new:', err);
           }
-          
+
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname);
-          
+
           // Redirect to homepage if not already there
-          if (window.location.pathname !== '/eventhive-homepage.html' && 
-              !window.location.pathname.endsWith('eventhive-homepage.html') &&
-              window.location.pathname !== '/' &&
-              !window.location.pathname.endsWith('index.html')) {
+          if (window.location.pathname !== '/eventhive-homepage.html' &&
+            !window.location.pathname.endsWith('eventhive-homepage.html') &&
+            window.location.pathname !== '/' &&
+            !window.location.pathname.endsWith('index.html')) {
             window.location.href = 'eventhive-homepage.html';
           }
         }
