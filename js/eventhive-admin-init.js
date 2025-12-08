@@ -19,6 +19,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('initSupabase function not found - Supabase may not be loaded');
   }
   
+  // ===== ACCESS CONTROL: Admin-only page =====
+  // Check if user is logged in AND is an admin
+  // Redirect to homepage if not authorized
+  console.log('Checking admin access...');
+  
+  let hasAdminAccess = false;
+  
+  // Wait a moment for auth state to stabilize
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  if (typeof checkIfUserIsAdmin === 'function') {
+    try {
+      const adminCheck = await checkIfUserIsAdmin();
+      console.log('Admin check result:', adminCheck);
+      
+      if (adminCheck.success && adminCheck.isAdmin === true) {
+        hasAdminAccess = true;
+        console.log('Admin access granted');
+      } else {
+        console.log('Admin access denied - user is not admin or not logged in');
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  } else {
+    console.error('checkIfUserIsAdmin function not available');
+  }
+  
+  // Redirect if not admin
+  if (!hasAdminAccess) {
+    alert('You do not have admin authorities!');
+    window.location.href = 'eventhive-homepage.html';
+    return; // Stop execution
+  }
+  
   // Wait for Supabase to fully initialize and establish connection
   // For authenticated users, database queries can timeout due to RLS, so we just check if client exists
   // Don't test with a query - that will timeout for authenticated users too
