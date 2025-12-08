@@ -2167,6 +2167,18 @@ async function addNewOrganization() {
 // ===== EVENT LISTENERS =====
 
 document.addEventListener('DOMContentLoaded', async function() {
+  // DEBUG: Log all clicks on the page to diagnose unresponsive buttons
+  document.addEventListener('click', (e) => {
+    console.log('Click detected on:', e.target.tagName, e.target.className, e.target.id || '(no id)');
+    console.log('Target element:', e.target);
+    console.log('Pointer events:', getComputedStyle(e.target).pointerEvents);
+    console.log('Cursor:', getComputedStyle(e.target).cursor);
+    
+    // Check if any modal is active
+    const activeModals = document.querySelectorAll('.admin-modal-overlay.active');
+    console.log('Active modals:', activeModals.length, Array.from(activeModals).map(m => m.id));
+  }, true); // Use capture phase to catch all clicks
+  
   // Load organizations from database first
   await loadOrganizationsFromDatabase();
   
