@@ -215,6 +215,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 errorMessage.toLowerCase().includes('confirm your email') ||
                 errorCode === 400) {
                 alert('Please verify before logging in. A verification has been sent to your TUP Email.');
+              } else if (errorMessage.toLowerCase().includes('invalid login credentials') ||
+                errorMessage.toLowerCase().includes('invalid password') ||
+                errorMessage.toLowerCase().includes('invalid credentials')) {
+                // Check if this might be a Google OAuth user by looking up their profile
+                const loginEmailCheck = loginEmail || email;
+                let isGoogleUser = false;
+
+                try {
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('email', loginEmailCheck)
+                    .single();
+
+                  // If profile exists but login failed, might be Google OAuth user
+                  if (profile) {
+                    // Show helpful message for potential Google OAuth users
+                    alert('Invalid Credentials\n\nIf you signed up with Google, please:\n• Use "Continue with Google" to log in, OR\n• Check your TUP email for the default password sent during first-time Google sign-in.\n\nYou can also configure a new password from the Edit Profile page after logging in.');
+                    isGoogleUser = true;
+                  }
+                } catch (e) {
+                  // Profile lookup failed - just show normal error
+                }
+
+                if (!isGoogleUser) {
+                  alert('Login failed: Invalid email or password.');
+                }
               } else {
                 alert('Login failed: ' + errorMessage);
               }

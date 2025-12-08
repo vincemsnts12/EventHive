@@ -86,15 +86,26 @@ async function saveProfileToSupabase(profileData) {
     if (profileData.username && profileData.username !== originalProfileData.username) {
       if (typeof getSupabaseClient === 'function') {
         const supabase = getSupabaseClient();
-        if (supabase && typeof getCurrentUser === 'function') {
-          const userResult = await getCurrentUser();
-          if (userResult.success && userResult.user) {
+        if (supabase) {
+          // Use localStorage cached user ID instead of getCurrentUser() to avoid auth hanging
+          let currentUserId = null;
+          try {
+            const authCacheStr = localStorage.getItem('eventhive_auth_cache');
+            if (authCacheStr) {
+              const authCache = JSON.parse(authCacheStr);
+              currentUserId = authCache.userId;
+            }
+          } catch (e) {
+            console.warn('Error reading auth cache:', e);
+          }
+
+          if (currentUserId) {
             // Check if username is taken by someone else
             const { data: existingUser, error: checkError } = await supabase
               .from('profiles')
               .select('id')
               .eq('username', profileData.username)
-              .neq('id', userResult.user.id) // Exclude current user
+              .neq('id', currentUserId) // Exclude current user
               .single();
 
             if (existingUser) {
