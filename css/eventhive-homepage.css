@@ -193,8 +193,6 @@
   position: relative; /* For absolute positioning of rank numbers */
   overflow: visible; /* Allow content outside cards to be visible */
   padding-top: 50px; /* Add space at top for like counts */
-  padding-left: 180px; /* Add space on left for rank numbers */
-  padding-right: 80px; /* Add space on right for rank 3 */
   gap: 150px !important; /* Increased gap between cards */
 }
 
