@@ -188,13 +188,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Display email (read-only - email cannot be changed)
+        // Use profile.email directly or fallback to localStorage cache
         const emailDisplay = document.querySelector('.email-display');
-        if (emailDisplay && typeof getCurrentUser === 'function') {
-          const userResult = await getCurrentUser();
-          if (userResult.success && userResult.user) {
-            emailDisplay.textContent = userResult.user.email || 'No email';
+        if (emailDisplay) {
+          // Try profile email first
+          if (profile.email) {
+            emailDisplay.textContent = profile.email;
           } else {
-            emailDisplay.textContent = profile.email || 'No email';
+            // Fallback to localStorage auth/profile cache
+            try {
+              const profileCacheStr = localStorage.getItem('eventhive_profile_cache');
+              if (profileCacheStr) {
+                const cache = JSON.parse(profileCacheStr);
+                if (cache.profile && cache.profile.email) {
+                  emailDisplay.textContent = cache.profile.email;
+                } else {
+                  emailDisplay.textContent = 'No email';
+                }
+              } else {
+                emailDisplay.textContent = 'No email';
+              }
+            } catch (e) {
+              emailDisplay.textContent = 'No email';
+            }
           }
         }
 
@@ -248,9 +264,14 @@ document.addEventListener('DOMContentLoaded', function () {
       const newPass = document.querySelector('.pass-input[placeholder*="new password"]');
       const confirmPass = document.querySelector('.pass-input[placeholder*="Confirm"]');
 
-      // Validate passwords
-      if (!currentPass || !newPass || !confirmPass) {
-        alert('Please fill in all password fields.');
+      // Validate that new password fields exist and are filled
+      if (!newPass || !confirmPass) {
+        alert('Please fill in the new password fields.');
+        return;
+      }
+
+      if (!newPass.value || !confirmPass.value) {
+        alert('Please enter your new password and confirm it.');
         return;
       }
 
@@ -282,24 +303,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const currentPass = document.querySelector('.pass-input[placeholder*="current"]');
       const newPass = document.querySelector('.pass-input[placeholder*="new password"]');
+      const confirmPass = document.querySelector('.pass-input[placeholder*="Confirm"]');
 
       if (typeof getSupabaseClient === 'function') {
         const supabase = getSupabaseClient();
         if (supabase) {
           try {
+            const currentPassValue = currentPass ? currentPass.value.trim() : '';
+
+            // If user provided current password, we should verify it first
+            // For OAuth users (no password set), current password can be empty
+            if (currentPassValue) {
+              // User has existing password - get their email and verify current password
+              const { data: sessionData } = await supabase.auth.getSession();
+              const userEmail = sessionData?.session?.user?.email;
+
+              if (userEmail) {
+                // Try to sign in with current password to verify it
+                const { error: verifyError } = await supabase.auth.signInWithPassword({
+                  email: userEmail,
+                  password: currentPassValue
+                });
+
+                if (verifyError) {
+                  alert('Current password is incorrect. Please try again.');
+                  return;
+                }
+              }
+            }
+
             // Update password using Supabase Auth
+            // This works for both OAuth users (setting password for first time)
+            // and regular users (changing password)
             const { error } = await supabase.auth.updateUser({
               password: newPass.value
             });
 
             if (error) {
-              alert('Failed to update password: ' + error.message);
+              // Check if it's a reauthentication error
+              if (error.message.includes('reauthentication') || error.message.includes('reauth')) {
+                alert('For security, please use "Forgot Password" to reset your password, or re-login and try again.');
+              } else {
+                alert('Failed to update password: ' + error.message);
+              }
             } else {
               alert('Password updated successfully!');
               // Clear password fields
-              currentPass.value = '';
-              newPass.value = '';
-              document.querySelector('.pass-input[placeholder*="Confirm"]').value = '';
+              if (currentPass) currentPass.value = '';
+              if (newPass) newPass.value = '';
+              if (confirmPass) confirmPass.value = '';
             }
           } catch (error) {
             console.error('Error updating password:', error);
@@ -319,5 +371,3 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
-
-
