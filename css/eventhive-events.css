@@ -462,9 +462,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding-left: 40px;
-  margin-bottom: 0.75rem;
-  margin-top: auto; 
+  gap: 10px;
+  padding-left: 0;
+  margin: 0;
   min-height: 28px;
   font-size: 1rem;
   color: #777;
@@ -489,6 +489,7 @@
 
 .event-slider__date svg {
   vertical-align: middle;
+  margin-right: 4px;
 }
 
 /* Tags Container */
@@ -606,14 +607,15 @@
 
 /* Footer & Date Icons - vertically centered with text */
 .event-slider__footer-icon {
-  position: absolute;
+  position: relative;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  transform: none;
   width: 24px !important;
   height: 24px !important;
   min-width: 24px;
   object-fit: contain;
+  margin-right: 4px;
 }
 
 /* Text Styles */
