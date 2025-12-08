@@ -612,12 +612,25 @@ async function checkIfUserIsAdmin() {
  * @returns {Promise<{success: boolean, organizations: Array, error?: string}>}
  */
 async function getOrganizations() {
-  const supabase = getSupabaseClient();
+  // Use guest client for reading organizations (public data, no auth needed)
+  // This avoids the stale authenticated client issue
+  let supabase;
+  if (typeof window !== 'undefined' && typeof window.getGuestSupabaseClient === 'function') {
+    supabase = window.getGuestSupabaseClient();
+  } else if (typeof getGuestSupabaseClient === 'function') {
+    supabase = getGuestSupabaseClient();
+  } else {
+    // Fallback to regular client if guest client not available
+    console.warn('Guest client not available for getOrganizations, using regular client');
+    supabase = getSupabaseClient();
+  }
+  
   if (!supabase) {
     return { success: false, organizations: [], error: 'Supabase not initialized' };
   }
 
   try {
+    console.log('Fetching organizations...');
     const { data, error } = await supabase
       .from('organizations')
       .select('*')
@@ -628,6 +641,7 @@ async function getOrganizations() {
       return { success: false, organizations: [], error: error.message };
     }
 
+    console.log(`Fetched ${data?.length || 0} organizations`);
     return { success: true, organizations: data || [] };
   } catch (error) {
     console.error('Unexpected error getting organizations:', error);
