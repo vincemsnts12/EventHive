@@ -3,10 +3,18 @@
 
 // Function to apply profile data to UI
 function applyProfileToUI(profile, userEmail = null) {
-  // Update username
+  // Update username - show username only (not full_name)
+  // If no username, derive from email (e.g., axel.magallanes from axel.magallanes@tup.edu.ph)
   const usernameElement = document.querySelector('.username');
   if (usernameElement) {
-    usernameElement.textContent = profile.username || profile.full_name || 'User';
+    let displayName = profile.username;
+    if (!displayName && profile.email) {
+      // Derive username from email
+      displayName = profile.email.split('@')[0];
+    } else if (!displayName && userEmail) {
+      displayName = userEmail.split('@')[0];
+    }
+    usernameElement.textContent = displayName || 'User';
   }
 
   // Update email - try profile.email first, then parameter, then fetch from auth
@@ -41,7 +49,7 @@ function applyProfileToUI(profile, userEmail = null) {
   const profilePicElement = document.querySelector('.profile-picture img');
   if (profilePicElement) {
     profilePicElement.src = profile.avatar_url || 'images/prof_default.svg';
-    profilePicElement.alt = profile.username || profile.full_name || 'Profile Picture';
+    profilePicElement.alt = profile.username || 'Profile Picture';
   }
 
   // Update cover photo

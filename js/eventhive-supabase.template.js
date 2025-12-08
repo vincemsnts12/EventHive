@@ -227,7 +227,7 @@ function setupAuthStateListener() {
           try {
             // Trigger password reset email so user can set their password
             const { error: resetError } = await supabaseClient.auth.resetPasswordForEmail(email, {
-              redirectTo: window.location.origin + '/eventhive-profile-edit.html'
+              redirectTo: window.location.origin + '/eventhive-set-password.html'
             });
 
             if (resetError) {

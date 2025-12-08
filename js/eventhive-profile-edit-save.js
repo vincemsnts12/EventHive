@@ -180,11 +180,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (result.success && result.profile) {
         const profile = result.profile;
 
-        // Populate username field
+        // Populate username field - use username only (not full_name)
+        // If no username, derive from email (e.g., axel.magallanes from axel.magallanes@tup.edu.ph)
         const usernameInput = document.querySelector('.user-details-edit .input-mimic-h2');
         if (usernameInput) {
-          usernameInput.value = profile.username || profile.full_name || '';
-          usernameInput.placeholder = profile.username || profile.full_name || 'Username';
+          let usernameValue = profile.username;
+          if (!usernameValue && profile.email) {
+            // Derive username from email
+            usernameValue = profile.email.split('@')[0];
+          }
+          usernameInput.value = usernameValue || '';
+          usernameInput.placeholder = usernameValue || 'Username';
         }
 
         // Display email (read-only - email cannot be changed)
@@ -233,8 +239,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           coverPhotoElement.src = profile.cover_photo_url;
         }
 
-        // Store original values for change detection
-        originalProfileData.username = profile.username || profile.full_name || '';
+        // Store original values for change detection - username only (not full_name)
+        let originalUsername = profile.username;
+        if (!originalUsername && profile.email) {
+          originalUsername = profile.email.split('@')[0];
+        }
+        originalProfileData.username = originalUsername || '';
         originalProfileData.bio = profile.bio || '';
 
         console.log('Profile data loaded into edit form');
