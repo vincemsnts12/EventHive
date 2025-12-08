@@ -189,57 +189,70 @@
 
 /* ===== TOP EVENTS TODAY - RANK NUMBERS AND LIKE COUNTS ===== */
 /* Only apply to cards in the top events section */
-#topEventsContainer .event-card {
-  position: relative; /* For absolute positioning of rank number */
+#topEventsContainer {
+  position: relative; /* For absolute positioning of rank numbers */
 }
 
-/* Large rank number (1, 2, 3) overlapping the card */
+#topEventsContainer .event-card {
+  position: relative; /* For absolute positioning of like count */
+}
+
+/* Large rank number (1, 2, 3) OUTSIDE the card */
 #topEventsContainer .event-rank-number {
   position: absolute;
-  top: 0;
-  left: 0;
   font-size: 180px;
   font-weight: 900;
   color: rgba(184, 30, 32, 0.15); /* Semi-transparent red */
   line-height: 1;
-  z-index: 1;
+  z-index: 0;
   pointer-events: none; /* Allow clicks to pass through */
   font-family: "DM Sans", sans-serif;
   user-select: none;
 }
 
-/* Position rank numbers to overlap cards */
+/* Position rank numbers OUTSIDE cards - positioned relative to the container */
+#topEventsContainer .event-card[data-rank="1"] {
+  position: relative;
+}
+
 #topEventsContainer .event-card[data-rank="1"] .event-rank-number {
-  left: -20px;
-  top: -30px;
+  left: -80px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#topEventsContainer .event-card[data-rank="2"] {
+  position: relative;
 }
 
 #topEventsContainer .event-card[data-rank="2"] .event-rank-number {
   left: 50%;
-  transform: translateX(-50%);
-  top: -30px;
+  transform: translateX(-50%) translateY(-50%);
+  top: -60px;
+}
+
+#topEventsContainer .event-card[data-rank="3"] {
+  position: relative;
 }
 
 #topEventsContainer .event-card[data-rank="3"] .event-rank-number {
-  right: -20px;
+  right: -80px;
   left: auto;
-  top: -30px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-/* Top like count display (at the top of card, display-only) */
+/* Top like count display (OUTSIDE the card, at the top, display-only) */
 #topEventsContainer .event-top-like-count {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: -35px;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 6px 12px;
-  border-radius: 20px;
   z-index: 10;
   pointer-events: none; /* Display-only, not clickable */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  /* No background, no padding, no border-radius - just number and heart */
 }
 
 #topEventsContainer .event-top-like-count svg {
@@ -253,6 +266,7 @@
   font-weight: 700;
   color: #B81E20;
   line-height: 1;
+  order: -1; /* Number comes before heart icon */
 }
 
 /* RESPONSIVENESS FOR MOBILE*/
@@ -302,23 +316,19 @@
   }
 
   #topEventsContainer .event-card[data-rank="1"] .event-rank-number {
-    left: -10px;
-    top: -20px;
+    left: -50px;
   }
 
   #topEventsContainer .event-card[data-rank="2"] .event-rank-number {
-    top: -20px;
+    top: -40px;
   }
 
   #topEventsContainer .event-card[data-rank="3"] .event-rank-number {
-    right: -10px;
-    top: -20px;
+    right: -50px;
   }
 
   #topEventsContainer .event-top-like-count {
-    top: 10px;
-    right: 10px;
-    padding: 5px 10px;
+    top: -30px;
     gap: 5px;
   }
 
