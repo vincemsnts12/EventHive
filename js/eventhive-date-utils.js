@@ -273,6 +273,19 @@ function eventToDatabase(event) {
   }
   // If colleges is not set at all, don't include it (for inserts where column may not exist)
   
+  // Store multiple organizations as JSONB array (ordered by selection)
+  if (event.organizations && Array.isArray(event.organizations)) {
+    if (event.organizations.length > 0) {
+      dbEvent.organizations = event.organizations;
+      // Also set organization_name to first one for backward compatibility
+      dbEvent.organization_name = event.organizations[0];
+    }
+  } else if (event.organization) {
+    // If only single organization exists, wrap it in array
+    dbEvent.organizations = [event.organization];
+  }
+  // If organizations is not set at all, don't include it (for inserts where column may not exist)
+  
   // Only include id if it's provided (for updates), otherwise let database generate it
   if (event.id) {
     dbEvent.id = event.id;
@@ -324,6 +337,28 @@ function eventFromDatabase(dbEvent, images = [], likesCount = 0, thumbnailIndex 
     colleges = [dbEvent.college_code];
   }
   
+  // Parse organizations from JSONB or use single organization_name
+  let organizations = [];
+  
+  if (dbEvent.organizations) {
+    try {
+      // Supabase returns JSONB as array/object, but handle string case for safety
+      if (Array.isArray(dbEvent.organizations)) {
+        organizations = dbEvent.organizations;
+      } else if (typeof dbEvent.organizations === 'string') {
+        organizations = JSON.parse(dbEvent.organizations);
+      } else {
+        organizations = [];
+      }
+    } catch (e) {
+      console.warn('Failed to parse organizations JSONB:', e);
+      organizations = dbEvent.organization_name ? [dbEvent.organization_name] : [];
+    }
+  } else if (dbEvent.organization_name) {
+    // Fallback to single organization_name for backward compatibility
+    organizations = [dbEvent.organization_name];
+  }
+  
   return {
     id: dbEvent.id,
     title: dbEvent.title,
@@ -338,7 +373,8 @@ function eventFromDatabase(dbEvent, images = [], likesCount = 0, thumbnailIndex 
     colleges: colleges, // Array of all colleges
     mainCollege: mainCollege, // Main college for event card display
     collegeColor: getCollegeColorClass(mainCollege),
-    organization: dbEvent.organization_name, // Only use organization_name, not organization_id
+    organization: organizations[0] || dbEvent.organization_name || '', // First org for backward compatibility
+    organizations: organizations, // Array of all organizations (ordered by selection)
     images: images,
     thumbnailIndex: finalThumbnailIndex, // Add thumbnailIndex to frontend object
     universityLogo: dbEvent.university_logo_url,

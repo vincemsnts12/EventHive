@@ -287,23 +287,48 @@ function populatePublishedEventsTable() {
     row.appendChild(collegeCell);
     collegeCell.appendChild(collegeContainer);
     
-    // Organization Tags
+    // Organization Tags (multiple)
     const orgCell = document.createElement('td');
     orgCell.className = 'tags-cell';
     orgCell.setAttribute('data-label', 'Organization');
     const orgContainer = document.createElement('div');
     orgContainer.className = 'tags-container';
-    const orgTag = document.createElement('span');
-    orgTag.className = 'tag-item tag-item--org';
-    orgTag.textContent = event.organization;
-    orgTag.setAttribute('data-event-id', eventId);
-    orgTag.addEventListener('click', () => {
-      if (rowsInEditMode.has(eventId)) {
-        currentEditingTable = 'published';
-        openEditOrgModal(eventId, event.organization);
-      }
-    });
-    orgContainer.appendChild(orgTag);
+    
+    // Get organizations array (support both new array and old single field)
+    const orgs = event.organizations && event.organizations.length > 0 
+      ? event.organizations 
+      : (event.organization ? [event.organization] : []);
+    
+    if (orgs.length > 0) {
+      orgs.forEach((org, index) => {
+        const orgTag = document.createElement('span');
+        orgTag.className = 'tag-item tag-item--org';
+        orgTag.textContent = org;
+        orgTag.setAttribute('data-event-id', eventId);
+        orgTag.setAttribute('data-org-index', index);
+        orgTag.addEventListener('click', () => {
+          if (rowsInEditMode.has(eventId)) {
+            currentEditingTable = 'published';
+            openEditOrgModal(eventId, event.organization);
+          }
+        });
+        orgContainer.appendChild(orgTag);
+      });
+    } else {
+      // Show placeholder if no organizations
+      const orgTag = document.createElement('span');
+      orgTag.className = 'tag-item tag-item--org tag-item--placeholder';
+      orgTag.textContent = 'Select Organization';
+      orgTag.setAttribute('data-event-id', eventId);
+      orgTag.addEventListener('click', () => {
+        if (rowsInEditMode.has(eventId)) {
+          currentEditingTable = 'published';
+          openEditOrgModal(eventId, event.organization);
+        }
+      });
+      orgContainer.appendChild(orgTag);
+    }
+    
     orgCell.appendChild(orgContainer);
     row.appendChild(orgCell);
     
@@ -702,21 +727,44 @@ function populatePendingEventsTable() {
     row.appendChild(collegeCell);
     collegeCell.appendChild(collegeContainer);
     
-    // Organization Tags
+    // Organization Tags (multiple)
     const orgCell = document.createElement('td');
     orgCell.className = 'tags-cell';
     orgCell.setAttribute('data-label', 'Organization');
     const orgContainer = document.createElement('div');
     orgContainer.className = 'tags-container';
-    const orgTag = document.createElement('span');
-    orgTag.className = 'tag-item tag-item--org';
-    orgTag.textContent = event.organization;
-    orgTag.setAttribute('data-event-id', eventId);
-    orgTag.addEventListener('click', () => {
-      currentEditingTable = 'pending';
-      openEditOrgModal(eventId, event.organization);
-    });
-    orgContainer.appendChild(orgTag);
+    
+    // Get organizations array (support both new array and old single field)
+    const pendingOrgs = event.organizations && event.organizations.length > 0 
+      ? event.organizations 
+      : (event.organization ? [event.organization] : []);
+    
+    if (pendingOrgs.length > 0) {
+      pendingOrgs.forEach((org, index) => {
+        const orgTag = document.createElement('span');
+        orgTag.className = 'tag-item tag-item--org';
+        orgTag.textContent = org;
+        orgTag.setAttribute('data-event-id', eventId);
+        orgTag.setAttribute('data-org-index', index);
+        orgTag.addEventListener('click', () => {
+          currentEditingTable = 'pending';
+          openEditOrgModal(eventId, event.organization);
+        });
+        orgContainer.appendChild(orgTag);
+      });
+    } else {
+      // Show placeholder if no organizations
+      const orgTag = document.createElement('span');
+      orgTag.className = 'tag-item tag-item--org tag-item--placeholder';
+      orgTag.textContent = 'Select Organization';
+      orgTag.setAttribute('data-event-id', eventId);
+      orgTag.addEventListener('click', () => {
+        currentEditingTable = 'pending';
+        openEditOrgModal(eventId, event.organization);
+      });
+      orgContainer.appendChild(orgTag);
+    }
+    
     orgCell.appendChild(orgContainer);
     row.appendChild(orgCell);
     
@@ -1138,34 +1186,146 @@ function openEditCollegeModal(eventId, currentCollege) {
   document.getElementById('editCollegeModal').classList.add('active');
 }
 
+// Track selected organizations in order
+let selectedOrganizationsOrder = [];
+
 function openEditOrgModal(eventId, currentOrg) {
   currentEditingEventId = eventId;
   currentEditingField = 'organization';
   if (!currentEditingTable) currentEditingTable = 'published';
   
+  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+  const event = source[eventId];
+  
+  // Get current organizations (support both old single org and new array)
+  const currentOrgs = event.organizations || (event.organization ? [event.organization] : []);
+  selectedOrganizationsOrder = [...currentOrgs]; // Initialize with current order
+  
   const selector = document.getElementById('orgTagSelector');
   selector.innerHTML = '';
   
-  availableOrganizations.forEach(org => {
+  // Add search input
+  const searchContainer = document.createElement('div');
+  searchContainer.style.marginBottom = '15px';
+  
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.id = 'orgSearchInput';
+  searchInput.placeholder = 'Search organizations...';
+  searchInput.style.width = '100%';
+  searchInput.style.padding = '10px';
+  searchInput.style.border = '2px solid #e0e0e0';
+  searchInput.style.borderRadius = '8px';
+  searchInput.style.fontSize = '1rem';
+  searchInput.style.boxSizing = 'border-box';
+  
+  searchContainer.appendChild(searchInput);
+  selector.appendChild(searchContainer);
+  
+  // Container for checkboxes
+  const checkboxesContainer = document.createElement('div');
+  checkboxesContainer.id = 'orgCheckboxesContainer';
+  checkboxesContainer.style.maxHeight = '300px';
+  checkboxesContainer.style.overflowY = 'auto';
+  selector.appendChild(checkboxesContainer);
+  
+  // Function to render organization checkboxes
+  function renderOrgCheckboxes(searchTerm = '') {
+    checkboxesContainer.innerHTML = '';
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Separate checked and unchecked orgs
+    const checkedOrgs = selectedOrganizationsOrder.filter(org => 
+      availableOrganizations.includes(org)
+    );
+    const uncheckedOrgs = availableOrganizations.filter(org => 
+      !selectedOrganizationsOrder.includes(org)
+    );
+    
+    // Render checked orgs first (always visible, not filtered)
+    checkedOrgs.forEach((org, index) => {
+      const item = createOrgCheckboxItem(org, true, index + 1);
+      checkboxesContainer.appendChild(item);
+    });
+    
+    // Add separator if there are checked orgs
+    if (checkedOrgs.length > 0 && uncheckedOrgs.length > 0) {
+      const separator = document.createElement('div');
+      separator.style.borderTop = '1px solid #e0e0e0';
+      separator.style.margin = '10px 0';
+      checkboxesContainer.appendChild(separator);
+    }
+    
+    // Render unchecked orgs (filtered by search)
+    uncheckedOrgs.forEach(org => {
+      // Filter by search term
+      if (searchTerm && !org.toLowerCase().includes(searchLower)) {
+        return;
+      }
+      const item = createOrgCheckboxItem(org, false);
+      checkboxesContainer.appendChild(item);
+    });
+  }
+  
+  // Function to create a checkbox item
+  function createOrgCheckboxItem(org, isChecked, orderNumber = null) {
     const item = document.createElement('div');
     item.className = 'tag-checkbox-item';
+    item.style.marginBottom = '8px';
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
     
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.id = `org-${org.replace(/\s+/g, '-')}`;
     checkbox.value = org;
-    checkbox.checked = currentOrg === org;
+    checkbox.checked = isChecked;
+    checkbox.style.marginRight = '8px';
+    
+    // When checkbox changes, update order and re-render
+    checkbox.addEventListener('change', function() {
+      if (this.checked) {
+        // Add to end of selected list
+        if (!selectedOrganizationsOrder.includes(org)) {
+          selectedOrganizationsOrder.push(org);
+        }
+      } else {
+        // Remove from selected list
+        selectedOrganizationsOrder = selectedOrganizationsOrder.filter(o => o !== org);
+      }
+      renderOrgCheckboxes(searchInput.value);
+    });
     
     const label = document.createElement('label');
     label.setAttribute('for', `org-${org.replace(/\s+/g, '-')}`);
-    label.textContent = org;
+    label.style.cursor = 'pointer';
+    label.style.flex = '1';
+    
+    // Show order number for checked items
+    if (isChecked && orderNumber) {
+      label.innerHTML = `<span style="background: #B81E20; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px;">${orderNumber}</span>${org}`;
+    } else {
+      label.textContent = org;
+    }
     
     item.appendChild(checkbox);
     item.appendChild(label);
-    selector.appendChild(item);
+    
+    return item;
+  }
+  
+  // Initial render
+  renderOrgCheckboxes();
+  
+  // Search functionality
+  searchInput.addEventListener('input', function() {
+    renderOrgCheckboxes(this.value);
   });
   
   document.getElementById('editOrgModal').classList.add('active');
+  
+  // Focus search input
+  setTimeout(() => searchInput.focus(), 100);
 }
 
 function openViewDateModal(dateString) {
@@ -1547,15 +1707,11 @@ async function saveCollegeEdit() {
 
 async function saveOrgEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
-  const checked = document.querySelectorAll('#orgTagSelector input[type="checkbox"]:checked');
   
-  if (checked.length === 0) {
+  if (selectedOrganizationsOrder.length === 0) {
     alert('Please select at least one organization');
     return;
   }
-  
-  // For now, take first selected (can be expanded for multiple)
-  const selectedOrg = checked[0].value;
   
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[currentEditingEventId];
@@ -1569,14 +1725,16 @@ async function saveOrgEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-  // Update local data
-  event.organization = selectedOrg;
+  // Update local data with all selected organizations (in order)
+  event.organizations = [...selectedOrganizationsOrder];
+  // Keep organization (singular) for backward compatibility - use first selected
+  event.organization = selectedOrganizationsOrder[0];
   
   // Save to Supabase if function available
   if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
     const result = await updateEvent(currentEditingEventId, event);
     if (!result.success) {
-      alert(`Error saving organization: ${result.error}`);
+      alert(`Error saving organizations: ${result.error}`);
       return;
     }
     if (result.event) Object.assign(event, result.event);
@@ -1585,8 +1743,8 @@ async function saveOrgEdit() {
     if (isValidUUID(event.id) && typeof updateEvent === 'function') {
       const result = await updateEvent(event.id, event);
       if (!result.success) {
-        console.warn('Failed to persist pending organization edit:', result.error);
-          alert(`Draft saved locally. Sync failed: ${result.error}`);
+        console.warn('Failed to persist pending organizations edit:', result.error);
+        alert(`Draft saved locally. Sync failed: ${result.error}`);
       } else if (result.event) {
         Object.assign(event, result.event);
       }

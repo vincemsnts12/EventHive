@@ -326,6 +326,13 @@
   color: #1a1a1a;
 }
 
+.tag-item--placeholder {
+  background-color: #e5e5e5;
+  color: #888;
+  font-style: italic;
+  border: 1px dashed #ccc;
+}
+
 .tag-item--tup {
   background-color: #ffffff;
   color: #B81E20;

@@ -105,7 +105,7 @@ async function getEvents(options = {}) {
     // Select all necessary columns (same for everyone)
     let query = supabaseClient
       .from('events')
-      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, colleges, organization_name, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
+      .select('id, title, description, location, start_date, end_date, start_time, end_time, status, is_featured, college_code, colleges, organization_name, organizations, university_logo_url, created_by, created_at, updated_at, approved_at, approved_by');
     
     // Apply filters first
     if (options.status) {
@@ -210,6 +210,7 @@ async function getEvents(options = {}) {
             mainCollege: dbEvent.college_code || 'TUP',
             collegeColor: 'tup',
             organization: dbEvent.organization_name || '',
+            organizations: Array.isArray(dbEvent.organizations) ? dbEvent.organizations : (dbEvent.organization_name ? [dbEvent.organization_name] : []),
             images: images,
             thumbnailIndex: 0,
             universityLogo: dbEvent.university_logo_url || 'images/tup.png',
@@ -243,6 +244,7 @@ async function getEvents(options = {}) {
             mainCollege: dbEvent.college_code || 'TUP',
             collegeColor: 'tup',
             organization: dbEvent.organization_name || '',
+            organizations: dbEvent.organization_name ? [dbEvent.organization_name] : [],
             images: [],
             thumbnailIndex: 0,
             universityLogo: 'images/tup.png',
@@ -445,6 +447,7 @@ async function getPublishedEvents() {
             mainCollege: dbEvent.college_code || 'TUP',
             collegeColor: 'tup',
             organization: dbEvent.organization_name || '',
+            organizations: Array.isArray(dbEvent.organizations) ? dbEvent.organizations : (dbEvent.organization_name ? [dbEvent.organization_name] : []),
             images: images,
             thumbnailIndex: 0,
             universityLogo: dbEvent.university_logo_url || 'images/tup.png',
@@ -477,6 +480,7 @@ async function getPublishedEvents() {
             mainCollege: dbEvent.college_code || 'TUP',
             collegeColor: 'tup',
             organization: dbEvent.organization_name || '',
+            organizations: dbEvent.organization_name ? [dbEvent.organization_name] : [],
             images: [],
             thumbnailIndex: 0,
             universityLogo: 'images/tup.png',
@@ -795,6 +799,7 @@ async function createEvent(eventData) {
       college_code: dbEvent.college_code || null,
       colleges: dbEvent.colleges || null,
       organization_name: dbEvent.organization_name || null,
+      organizations: dbEvent.organizations || null,
       university_logo_url: dbEvent.university_logo_url || null,
       created_by: user.id
     };
@@ -1048,6 +1053,23 @@ async function updateEvent(eventId, eventData) {
       } catch (e) {
         console.error('Failed to parse colleges, removing it:', e);
         delete dbEvent.colleges;
+      }
+    }
+    
+    // Ensure organizations is a proper JSON array (not stringified)
+    if (dbEvent.organizations && !Array.isArray(dbEvent.organizations)) {
+      console.warn('organizations is not an array, converting:', dbEvent.organizations);
+      try {
+        // Try to parse if it's a string
+        if (typeof dbEvent.organizations === 'string') {
+          dbEvent.organizations = JSON.parse(dbEvent.organizations);
+        } else {
+          // If it's not an array and not a string, remove it
+          delete dbEvent.organizations;
+        }
+      } catch (e) {
+        console.error('Failed to parse organizations, removing it:', e);
+        delete dbEvent.organizations;
       }
     }
     
