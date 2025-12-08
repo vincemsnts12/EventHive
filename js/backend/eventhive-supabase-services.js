@@ -837,29 +837,12 @@ async function deleteComment(commentId) {
   }
 }
 
-// ===== PROFILES SERVICES =====
-
 /**
  * Get user profile by ID
  * @param {string} userId - User ID (optional, defaults to current user)
  * @returns {Promise<{success: boolean, profile?: Object, error?: string}>}
  */
 async function getUserProfile(userId = null) {
-  // Use guest client for reading profiles (public data, RLS allows SELECT for all)
-  let supabase;
-  if (typeof window !== 'undefined' && typeof window.getGuestSupabaseClient === 'function') {
-    supabase = window.getGuestSupabaseClient();
-  } else if (typeof getGuestSupabaseClient === 'function') {
-    supabase = getGuestSupabaseClient();
-  } else {
-    // Fallback to regular client if guest client function not available
-    supabase = getSupabaseClient();
-  }
-
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
-
   // If no userId provided, get current user from localStorage
   if (!userId) {
     userId = localStorage.getItem('eventhive_last_authenticated_user_id');
@@ -873,20 +856,56 @@ async function getUserProfile(userId = null) {
     return { success: false, error: 'Invalid user ID' };
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
-      console.error('Error getting profile:', error);
-      return { success: false, error: error.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+
+  try {
+    // Use direct fetch API (no Supabase client - prevents hanging)
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => {
+      console.error('getUserProfile: Request timed out after 10 seconds');
+      fetchController.abort();
+    }, 10000);
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=*`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      }
+    );
+
+    clearTimeout(fetchTimeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error getting profile:', response.status, errorText);
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
     }
 
-    return { success: true, profile: data };
+    const data = await response.json();
+
+    // Return single profile (or null if not found)
+    const profile = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+    if (!profile) {
+      return { success: false, error: 'Profile not found' };
+    }
+
+    return { success: true, profile };
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('getUserProfile: Request timed out');
+      return { success: false, error: 'Request timed out after 10 seconds' };
+    }
     console.error('Unexpected error getting profile:', error);
     return { success: false, error: error.message };
   }
@@ -898,19 +917,15 @@ async function getUserProfile(userId = null) {
  * @returns {Promise<{success: boolean, profile?: Object, error?: string}>}
  */
 async function updateUserProfile(profileData) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
-
-  const user = await getSafeUser();
-  if (!user) {
+  // Get user ID from localStorage (faster than getSafeUser which can hang)
+  let userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!userId) {
     return { success: false, error: 'User not authenticated' };
   }
 
   // Input validation
   if (!profileData || typeof profileData !== 'object') {
-    logSecurityEvent('INVALID_INPUT', { userId: user.id }, 'Invalid profileData in updateUserProfile');
+    logSecurityEvent('INVALID_INPUT', { userId }, 'Invalid profileData in updateUserProfile');
     return { success: false, error: 'Invalid profile data' };
   }
 
@@ -949,24 +964,77 @@ async function updateUserProfile(profileData) {
 
   validatedData.updated_at = new Date().toISOString();
 
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(validatedData)
-      .eq('id', user.id)
-      .select()
-      .single();
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
-      logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: error.message }, 'Error updating profile');
-      console.error('Error updating profile:', error);
-      return { success: false, error: error.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+
+  // Get access token from localStorage
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication token not found. Please log in again.' };
+  }
+
+  try {
+    // Use direct fetch API (prevents hanging)
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => {
+      console.error('updateUserProfile: Request timed out after 15 seconds');
+      fetchController.abort();
+    }, 15000);
+
+    console.log('updateUserProfile: Sending update via fetch API...', validatedData);
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(validatedData),
+        signal: fetchController.signal
+      }
+    );
+
+    clearTimeout(fetchTimeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logSecurityEvent('DATABASE_ERROR', { userId, error: `HTTP ${response.status}: ${errorText}` }, 'Error updating profile');
+      console.error('Error updating profile:', response.status, errorText);
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
     }
 
-    logSecurityEvent('PROFILE_UPDATED', { userId: user.id }, 'Profile updated successfully');
-    return { success: true, profile: data };
+    const data = await response.json();
+    const profile = Array.isArray(data) && data.length > 0 ? data[0] : data;
+
+    logSecurityEvent('PROFILE_UPDATED', { userId }, 'Profile updated successfully');
+    console.log('updateUserProfile: Profile updated successfully');
+    return { success: true, profile };
   } catch (error) {
-    logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, error: error.message }, 'Unexpected error updating profile');
+    if (error.name === 'AbortError') {
+      logSecurityEvent('DATABASE_ERROR', { userId, error: 'Update timed out' }, 'Error updating profile');
+      return { success: false, error: 'Profile update timed out after 15 seconds' };
+    }
+    logSecurityEvent('UNEXPECTED_ERROR', { userId, error: error.message }, 'Unexpected error updating profile');
     console.error('Unexpected error updating profile:', error);
     return { success: false, error: error.message };
   }
