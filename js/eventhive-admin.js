@@ -978,9 +978,11 @@ function updateActionButtons(eventId, tableType, isEditMode) {
 // ===== MODAL FUNCTIONS =====
 
 function openEditTitleModal(eventId, currentTitle) {
+  console.log('openEditTitleModal called - eventId:', eventId, 'title:', currentTitle);
   currentEditingEventId = eventId;
   currentEditingField = 'title';
   if (!currentEditingTable) currentEditingTable = 'published';
+  console.log('openEditTitleModal set - eventId:', currentEditingEventId, 'table:', currentEditingTable);
   document.getElementById('editTitleInput').value = currentTitle;
   
   const featureCheckbox = document.getElementById('featureEventCheckbox');
@@ -1187,6 +1189,7 @@ function openEditDateModal(eventId, event) {
 }
 
 function closeModal(modalId) {
+  console.log('closeModal called for:', modalId, '- clearing eventId:', currentEditingEventId);
   document.getElementById(modalId).classList.remove('active');
   currentEditingEventId = null;
   currentEditingField = null;
@@ -1213,7 +1216,12 @@ function openViewLocationModal(location) {
 // ===== SAVE FUNCTIONS =====
 
 async function saveTitleEdit() {
-  if (!currentEditingEventId || !currentEditingTable) return;
+  console.log('saveTitleEdit called - eventId:', currentEditingEventId, 'table:', currentEditingTable);
+  if (!currentEditingEventId || !currentEditingTable) {
+    console.error('saveTitleEdit: Missing eventId or table!', { currentEditingEventId, currentEditingTable });
+    alert('Error: Event context lost. Please close and reopen the modal.');
+    return;
+  }
   const newTitle = document.getElementById('editTitleInput').value.trim();
   const featureCheckbox = document.getElementById('featureEventCheckbox');
   const isFeatured = featureCheckbox ? featureCheckbox.checked : false;
