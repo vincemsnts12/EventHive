@@ -16,25 +16,36 @@ function getSupabaseClient() {
 // `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
 
 /**
- * Check admin status from cache (avoids hanging authenticated client)
+ * Check admin status from cache (same as eventhive-events-services.js)
  */
 function checkAdminFromCacheStorage() {
+  const adminCheckStart = Date.now();
+  let isAdmin = false;
+  let cacheValid = false;
+  
   try {
-    const cachedAdmin = localStorage.getItem('eventhive_is_admin');
-    const cacheTime = localStorage.getItem('eventhive_admin_cache_time');
-    
-    if (cachedAdmin !== null && cacheTime) {
-      const cacheAge = Date.now() - parseInt(cacheTime);
-      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const cached = localStorage.getItem('eventhive_auth_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const now = Date.now();
+      const timeSinceLogin = now - parsed.timestamp;
+      const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
       
-      if (cacheAge < CACHE_DURATION) {
-        return { isAdmin: cachedAdmin === 'true', cacheValid: true };
+      // Use cache if it's less than 5 minutes old
+      if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
+        if (parsed.state) {
+          isAdmin = parsed.state.isAdmin === true;
+          cacheValid = true;
+          const adminCheckDuration = Date.now() - adminCheckStart;
+          console.log(`uploadEventImage: Admin check from cache completed in ${adminCheckDuration}ms:`, { isAdmin, cacheValid });
+        }
       }
     }
-    return { isAdmin: false, cacheValid: false };
   } catch (e) {
-    return { isAdmin: false, cacheValid: false };
+    console.error('uploadEventImage: Error reading auth cache:', e);
   }
+  
+  return { isAdmin, cacheValid };
 }
 
 /**
