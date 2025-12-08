@@ -743,54 +743,86 @@ async function createEvent(eventData) {
     console.log('User ID for INSERT:', user.id);
     console.log('Created_by field:', dbEvent.created_by);
 
-    // Use database function to bypass RLS (faster than policy evaluation)
-    // The function checks admin status once, then inserts directly
+    // Try direct INSERT first (uses simple RLS policy: auth.role() = 'authenticated')
+    // This is more reliable than RPC functions which can have timeout issues
     const insertStartTime = Date.now();
     let eventId = null;
     let insertError = null;
     
-    console.log('Calling create_event_as_admin function (bypasses RLS)...');
+    console.log('Attempting direct INSERT with RLS policy...');
     
-    // Call the database function instead of direct INSERT
-    const insertPromise = supabase.rpc('create_event_as_admin', {
-      p_title: dbEvent.title,
-      p_description: dbEvent.description,
-      p_location: dbEvent.location,
-      p_start_date: dbEvent.start_date,
-      p_end_date: dbEvent.end_date,
-      p_status: dbEvent.status || 'Pending',
-      p_is_featured: dbEvent.is_featured || false,
-      p_college_code: dbEvent.college_code || null,
-      p_colleges: dbEvent.colleges || null,
-      p_organization_name: dbEvent.organization_name || null,
-      p_university_logo_url: dbEvent.university_logo_url || null
-    });
+    // Direct INSERT approach - simpler and more reliable
+    const directInsertPromise = supabase
+      .from('events')
+      .insert({
+        title: dbEvent.title,
+        description: dbEvent.description,
+        location: dbEvent.location,
+        start_date: dbEvent.start_date,
+        end_date: dbEvent.end_date,
+        status: dbEvent.status || 'Pending',
+        is_featured: dbEvent.is_featured || false,
+        college_code: dbEvent.college_code || null,
+        colleges: dbEvent.colleges || null,
+        organization_name: dbEvent.organization_name || null,
+        university_logo_url: dbEvent.university_logo_url || null,
+        created_by: user.id
+      })
+      .select('id')
+      .single();
     
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database insert timed out after 10 seconds')), 10000)
+      setTimeout(() => reject(new Error('Database insert timed out after 15 seconds')), 15000)
     );
     
     try {
-      const result = await Promise.race([insertPromise, timeoutPromise]);
+      const result = await Promise.race([directInsertPromise, timeoutPromise]);
       const insertDuration = Date.now() - insertStartTime;
-      console.log(`create_event_as_admin completed in ${insertDuration}ms`);
+      console.log(`Direct INSERT completed in ${insertDuration}ms`);
       
       if (result.error) {
-        console.error('Function call error:', result.error);
+        console.error('Direct INSERT error:', result.error);
         insertError = result.error;
       } else if (result.data) {
-        // Function returns the event ID
-        eventId = result.data;
-        console.log('Event created successfully, ID:', eventId);
+        eventId = result.data.id;
+        console.log('Event created successfully via direct INSERT, ID:', eventId);
       }
     } catch (error) {
       const insertDuration = Date.now() - insertStartTime;
-      console.error(`create_event_as_admin failed after ${insertDuration}ms:`, error);
-      insertError = { message: error.message || 'Database insert failed' };
+      console.error(`Direct INSERT failed after ${insertDuration}ms:`, error);
+      
+      // If direct INSERT times out, try RPC as fallback
+      console.log('Trying RPC fallback...');
+      try {
+        const rpcResult = await supabase.rpc('create_event_as_admin', {
+          p_title: dbEvent.title,
+          p_description: dbEvent.description,
+          p_location: dbEvent.location,
+          p_start_date: dbEvent.start_date,
+          p_end_date: dbEvent.end_date,
+          p_status: dbEvent.status || 'Pending',
+          p_is_featured: dbEvent.is_featured || false,
+          p_college_code: dbEvent.college_code || null,
+          p_colleges: dbEvent.colleges || null,
+          p_organization_name: dbEvent.organization_name || null,
+          p_university_logo_url: dbEvent.university_logo_url || null
+        });
+        
+        if (rpcResult.error) {
+          console.error('RPC fallback error:', rpcResult.error);
+          insertError = rpcResult.error;
+        } else if (rpcResult.data) {
+          eventId = rpcResult.data;
+          console.log('Event created via RPC fallback, ID:', eventId);
+        }
+      } catch (rpcError) {
+        console.error('RPC fallback also failed:', rpcError);
+        insertError = { message: error.message || 'Database insert failed (both methods)' };
+      }
     }
     
-    // If function call failed, return error
-    if (insertError) {
+    // If both methods failed, return error
+    if (insertError && !eventId) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError.message }, 'Error creating event');
       console.error('Error creating event:', insertError);
       return { success: false, error: insertError.message || 'Failed to create event' };
