@@ -271,9 +271,29 @@ async function handleCommentSubmit(eventId) {
 async function handleLikeClick(eventId, likeButton) {
   if (!likeButton) return;
 
-  // Check if user is authenticated
-  const { success, user } = await getCurrentUser();
-  if (!success || !user) {
+  // Check if user is authenticated (using localStorage for consistency)
+  let userId = null;
+  try {
+    userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (!userId) {
+      // Fallback: Try to get from auth token
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        (key.includes('supabase') && key.includes('auth-token')) || 
+        (key.startsWith('sb-') && key.includes('auth-token'))
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        if (authData?.access_token) {
+          const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+          userId = payload.sub;
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore errors
+  }
+
+  if (!userId) {
     alert('Please log in to like events.');
     return;
   }

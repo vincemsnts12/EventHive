@@ -20,71 +20,171 @@ function getSupabaseClient() {
  * @returns {Promise<{success: boolean, liked: boolean, error?: string}>}
  */
 async function toggleEventLike(eventId) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
+  // Get user ID from localStorage (check if logged in)
+  let userId = null;
+  try {
+    userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (!userId) {
+      // Fallback: Try to get user ID from Supabase auth token in localStorage
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        (key.includes('supabase') && key.includes('auth-token')) || 
+        (key.startsWith('sb-') && key.includes('auth-token'))
+      );
+      
+      if (supabaseAuthKeys.length > 0) {
+        const authKey = supabaseAuthKeys[0];
+        const authData = localStorage.getItem(authKey);
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            if (parsed?.access_token) {
+              try {
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                userId = payload.sub;
+              } catch (e) {
+                console.error('Error decoding JWT token:', e);
+              }
+            }
+            if (!userId && parsed?.user?.id) {
+              userId = parsed.user.id;
+            }
+          } catch (e) {
+            console.error('Error parsing auth data:', e);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error getting user from localStorage:', error);
   }
 
-  const user = await getSafeUser();
-  if (!user) {
-    return { success: false, error: 'User not authenticated' };
+  if (!userId) {
+    return { success: false, error: 'User not authenticated. Please log in to like events.' };
   }
 
   // Input validation
   if (!eventId || typeof eventId !== 'string' || eventId.trim().length === 0) {
-    logSecurityEvent('INVALID_INPUT', { eventId, userId: user.id }, 'Invalid eventId in toggleEventLike');
+    logSecurityEvent('INVALID_INPUT', { eventId, userId }, 'Invalid eventId in toggleEventLike');
     return { success: false, error: 'Invalid event ID' };
   }
 
-  try {
-    // Check if user already liked this event
-    const { data: existingLike, error: checkError } = await supabase
-      .from('event_likes')
-      .select('id')
-      .eq('event_id', eventId)
-      .eq('user_id', user.id)
-      .single();
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-      logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: checkError.message }, 'Error checking like');
-      console.error('Error checking like:', checkError);
-      return { success: false, error: checkError.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+
+  // Get access token from localStorage
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication token not found. Please log in again.' };
+  }
+
+  try {
+    // Use direct fetch API to check if user already liked this event
+    console.log('toggleEventLike: Using direct fetch API...');
+    
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    
+    // Check if like exists
+    const checkResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}&select=id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      }
+    );
+    
+    if (!checkResponse.ok) {
+      clearTimeout(fetchTimeout);
+      const errorText = await checkResponse.text();
+      logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${checkResponse.status}: ${errorText}` }, 'Error checking like');
+      console.error('Error checking like:', checkResponse.status, errorText);
+      return { success: false, error: `HTTP ${checkResponse.status}: ${errorText}` };
     }
 
-    if (existingLike) {
-      // Unlike: Delete the like
-      const { error: deleteError } = await supabase
-        .from('event_likes')
-        .delete()
-        .eq('event_id', eventId)
-        .eq('user_id', user.id);
+    const existingLikes = await checkResponse.json();
+    const hasLiked = Array.isArray(existingLikes) && existingLikes.length > 0;
 
-      if (deleteError) {
-        logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: deleteError.message }, 'Error unliking');
-        console.error('Error unliking:', deleteError);
-        return { success: false, error: deleteError.message };
+    if (hasLiked) {
+      // Unlike: Delete the like
+      const deleteResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${accessToken}`
+          },
+          signal: fetchController.signal
+        }
+      );
+      
+      clearTimeout(fetchTimeout);
+      
+      if (!deleteResponse.ok) {
+        const errorText = await deleteResponse.text();
+        logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${deleteResponse.status}: ${errorText}` }, 'Error unliking');
+        console.error('Error unliking:', deleteResponse.status, errorText);
+        return { success: false, error: `HTTP ${deleteResponse.status}: ${errorText}` };
       }
 
+      logSecurityEvent('EVENT_UNLIKED', { eventId, userId }, 'Event unliked successfully');
       return { success: true, liked: false };
     } else {
       // Like: Insert new like
-      const { error: insertError } = await supabase
-        .from('event_likes')
-        .insert({
+      const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/event_likes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
           event_id: eventId,
-          user_id: user.id
-        });
-
-      if (insertError) {
-        logSecurityEvent('DATABASE_ERROR', { eventId, userId: user.id, error: insertError.message }, 'Error liking');
-        console.error('Error liking:', insertError);
-        return { success: false, error: insertError.message };
+          user_id: userId
+        }),
+        signal: fetchController.signal
+      });
+      
+      clearTimeout(fetchTimeout);
+      
+      if (!insertResponse.ok) {
+        const errorText = await insertResponse.text();
+        logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: `HTTP ${insertResponse.status}: ${errorText}` }, 'Error liking');
+        console.error('Error liking:', insertResponse.status, errorText);
+        return { success: false, error: `HTTP ${insertResponse.status}: ${errorText}` };
       }
 
+      logSecurityEvent('EVENT_LIKED', { eventId, userId }, 'Event liked successfully');
       return { success: true, liked: true };
     }
   } catch (error) {
-    logSecurityEvent('UNEXPECTED_ERROR', { eventId, userId: user?.id, error: error.message }, 'Unexpected error toggling like');
+    if (error.name === 'AbortError') {
+      logSecurityEvent('DATABASE_ERROR', { eventId, userId, error: 'Toggle like timed out' }, 'Error toggling like');
+      return { success: false, error: 'Request timed out after 15 seconds' };
+    }
+    logSecurityEvent('UNEXPECTED_ERROR', { eventId, userId, error: error.message }, 'Unexpected error toggling like');
     console.error('Unexpected error toggling like:', error);
     return { success: false, error: error.message };
   }
@@ -141,14 +241,47 @@ async function getEventLikeCount(eventId) {
  * @returns {Promise<{success: boolean, liked: boolean, error?: string}>}
  */
 async function hasUserLikedEvent(eventId) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, liked: false, error: 'Supabase not initialized' };
+  // Get user ID from localStorage (guests will have null)
+  let userId = null;
+  try {
+    userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    if (!userId) {
+      // Fallback: Try to get user ID from Supabase auth token in localStorage
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        (key.includes('supabase') && key.includes('auth-token')) || 
+        (key.startsWith('sb-') && key.includes('auth-token'))
+      );
+      
+      if (supabaseAuthKeys.length > 0) {
+        const authKey = supabaseAuthKeys[0];
+        const authData = localStorage.getItem(authKey);
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            if (parsed?.access_token) {
+              try {
+                const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                userId = payload.sub;
+              } catch (e) {
+                // Ignore errors
+              }
+            }
+            if (!userId && parsed?.user?.id) {
+              userId = parsed.user.id;
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore errors - guests will have userId = null
   }
 
-  const user = await getSafeUser();
-  if (!user) {
-    return { success: true, liked: false }; // Not logged in = not liked
+  // Not logged in = not liked
+  if (!userId) {
+    return { success: true, liked: false };
   }
 
   // Input validation
@@ -156,21 +289,66 @@ async function hasUserLikedEvent(eventId) {
     return { success: false, liked: false, error: 'Invalid event ID' };
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('event_likes')
-      .select('id')
-      .eq('event_id', eventId)
-      .eq('user_id', user.id)
-      .single();
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error checking user like:', error);
-      return { success: false, liked: false, error: error.message };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, liked: false, error: 'Supabase configuration not available' };
+  }
+
+  // Get access token from localStorage
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: true, liked: false }; // No token = not liked
+  }
+
+  try {
+    // Use direct fetch API to check if user liked this event
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 10000);
+    
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/event_likes?event_id=eq.${eventId}&user_id=eq.${userId}&select=id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      }
+    );
+    
+    clearTimeout(fetchTimeout);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error checking user like:', response.status, errorText);
+      return { success: false, liked: false, error: `HTTP ${response.status}: ${errorText}` };
     }
 
-    return { success: true, liked: !!data };
+    const data = await response.json();
+    const hasLiked = Array.isArray(data) && data.length > 0;
+
+    return { success: true, liked: hasLiked };
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('hasUserLikedEvent: Request timed out');
+      return { success: false, liked: false, error: 'Request timed out' };
+    }
     console.error('Unexpected error checking user like:', error);
     return { success: false, liked: false, error: error.message };
   }
