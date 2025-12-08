@@ -152,17 +152,40 @@
 
 .event-meta-row__left {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: nowrap;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .event-meta-row__right {
-  display: inline-flex;
+  display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-end;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.event-meta-row__right .event-colleges-group {
+  display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
   align-items: center;
-  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.event-meta-row__right .event-orgs-group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 1;
   min-width: 0;
 }
 
