@@ -490,9 +490,10 @@ async function createNewPendingEvent() {
 
   try {
     // Create event directly in database with timeout protection
+    // Note: events-services.js has its own 15s timeout, this is a backup
     const createPromise = createEvent(newEvent);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Event creation timed out after 10 seconds')), 10000)
+      setTimeout(() => reject(new Error('Event creation timed out after 30 seconds')), 30000)
     );
     
     const result = await Promise.race([createPromise, timeoutPromise]);
