@@ -749,93 +749,97 @@ async function createEvent(eventData) {
     let eventId = null;
     let insertError = null;
     
-    console.log('Attempting direct INSERT with RLS policy...');
+    console.log('Attempting direct fetch INSERT (bypassing Supabase client)...');
     
-    // Force refresh the session to ensure fresh JWT token and connection
-    // This fixes stale connection issues that cause timeouts
-    try {
-      console.log('Refreshing session before INSERT...');
-      const refreshStart = Date.now();
-      const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
-      const refreshDuration = Date.now() - refreshStart;
-      if (refreshError) {
-        console.warn(`Session refresh failed in ${refreshDuration}ms:`, refreshError.message);
-        // Continue anyway - the existing session might still work
-      } else {
-        console.log(`Session refreshed in ${refreshDuration}ms`);
-      }
-    } catch (refreshErr) {
-      console.warn('Session refresh threw error:', refreshErr.message);
-      // Continue anyway
+    // Use direct fetch API to bypass Supabase client connection issues
+    // This makes a raw REST API call to PostgREST
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+    
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error('Supabase URL or key not available for direct fetch');
+      return { success: false, error: 'Supabase configuration not available' };
     }
     
-    // Direct INSERT approach - simpler and more reliable
-    const directInsertPromise = supabase
-      .from('events')
-      .insert({
-        title: dbEvent.title,
-        description: dbEvent.description,
-        location: dbEvent.location,
-        start_date: dbEvent.start_date,
-        end_date: dbEvent.end_date,
-        status: dbEvent.status || 'Pending',
-        is_featured: dbEvent.is_featured || false,
-        college_code: dbEvent.college_code || null,
-        colleges: dbEvent.colleges || null,
-        organization_name: dbEvent.organization_name || null,
-        university_logo_url: dbEvent.university_logo_url || null,
-        created_by: user.id
-      })
-      .select('id')
-      .single();
+    // Get the access token from localStorage for authentication
+    let accessToken = null;
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      }
+    } catch (e) {
+      console.error('Error getting access token:', e);
+    }
     
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database insert timed out after 15 seconds')), 15000)
-    );
+    if (!accessToken) {
+      console.error('No access token found for authenticated INSERT');
+      return { success: false, error: 'Authentication token not found. Please log in again.' };
+    }
+    
+    console.log('Access token obtained, making direct fetch request...');
+    
+    const insertBody = {
+      title: dbEvent.title,
+      description: dbEvent.description,
+      location: dbEvent.location,
+      start_date: dbEvent.start_date,
+      end_date: dbEvent.end_date,
+      status: dbEvent.status || 'Pending',
+      is_featured: dbEvent.is_featured || false,
+      college_code: dbEvent.college_code || null,
+      colleges: dbEvent.colleges || null,
+      organization_name: dbEvent.organization_name || null,
+      university_logo_url: dbEvent.university_logo_url || null,
+      created_by: user.id
+    };
+    
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
     
     try {
-      const result = await Promise.race([directInsertPromise, timeoutPromise]);
-      const insertDuration = Date.now() - insertStartTime;
-      console.log(`Direct INSERT completed in ${insertDuration}ms`);
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/events?select=id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(insertBody),
+        signal: fetchController.signal
+      });
       
-      if (result.error) {
-        console.error('Direct INSERT error:', result.error);
-        insertError = result.error;
-      } else if (result.data) {
-        eventId = result.data.id;
-        console.log('Event created successfully via direct INSERT, ID:', eventId);
+      clearTimeout(fetchTimeout);
+      const insertDuration = Date.now() - insertStartTime;
+      console.log(`Direct fetch completed in ${insertDuration}ms, status: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Direct fetch error:', response.status, errorText);
+        insertError = { message: `HTTP ${response.status}: ${errorText}` };
+      } else {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          eventId = data[0].id;
+          console.log('Event created successfully via direct fetch, ID:', eventId);
+        } else {
+          console.error('Unexpected response format:', data);
+          insertError = { message: 'Unexpected response format from server' };
+        }
       }
     } catch (error) {
+      clearTimeout(fetchTimeout);
       const insertDuration = Date.now() - insertStartTime;
-      console.error(`Direct INSERT failed after ${insertDuration}ms:`, error);
-      
-      // If direct INSERT times out, try RPC as fallback
-      console.log('Trying RPC fallback...');
-      try {
-        const rpcResult = await supabase.rpc('create_event_as_admin', {
-          p_title: dbEvent.title,
-          p_description: dbEvent.description,
-          p_location: dbEvent.location,
-          p_start_date: dbEvent.start_date,
-          p_end_date: dbEvent.end_date,
-          p_status: dbEvent.status || 'Pending',
-          p_is_featured: dbEvent.is_featured || false,
-          p_college_code: dbEvent.college_code || null,
-          p_colleges: dbEvent.colleges || null,
-          p_organization_name: dbEvent.organization_name || null,
-          p_university_logo_url: dbEvent.university_logo_url || null
-        });
-        
-        if (rpcResult.error) {
-          console.error('RPC fallback error:', rpcResult.error);
-          insertError = rpcResult.error;
-        } else if (rpcResult.data) {
-          eventId = rpcResult.data;
-          console.log('Event created via RPC fallback, ID:', eventId);
-        }
-      } catch (rpcError) {
-        console.error('RPC fallback also failed:', rpcError);
-        insertError = { message: error.message || 'Database insert failed (both methods)' };
+      if (error.name === 'AbortError') {
+        console.error(`Direct fetch timed out after ${insertDuration}ms`);
+        insertError = { message: 'Database insert timed out after 15 seconds' };
+      } else {
+        console.error(`Direct fetch failed after ${insertDuration}ms:`, error);
+        insertError = { message: error.message || 'Database insert failed' };
       }
     }
     
