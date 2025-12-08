@@ -191,68 +191,88 @@
 /* Only apply to cards in the top events section */
 #topEventsContainer {
   position: relative; /* For absolute positioning of rank numbers */
+  overflow: visible; /* Allow content outside cards to be visible */
+  padding-top: 50px; /* Add space at top for like counts */
+  padding-left: 180px; /* Add space on left for rank numbers */
+  padding-right: 80px; /* Add space on right for rank 3 */
+  gap: 150px !important; /* Increased gap between cards */
 }
 
 #topEventsContainer .event-card {
   position: relative; /* For absolute positioning of like count */
+  overflow: visible; /* Override overflow: hidden to show rank numbers and like counts outside */
 }
 
 /* Large rank number (1, 2, 3) OUTSIDE the card */
 #topEventsContainer .event-rank-number {
   position: absolute;
-  font-size: 180px;
-  font-weight: 900;
-  color: rgba(184, 30, 32, 0.15); /* Semi-transparent red */
+  font-size: 500px;
+  font-weight: bold;
   line-height: 1;
   z-index: 0;
   pointer-events: none; /* Allow clicks to pass through */
-  font-family: "DM Sans", sans-serif;
+  font-family: "Bebas Neue", "DM Sans", sans-serif;
+  font-weight: 600; /* Regular weight (Bebas Neue is naturally bold) */
+  letter-spacing: 0.02em; /* Slight letter spacing for better readability */
   user-select: none;
+  /* Shadow effect: Southwest direction (bottom left), Blur 25px, Transparency 50% */
+  /* Southwest: negative x (left), positive y (down) */
+  text-shadow: -7.07px 7.07px 25px rgba(0, 0, 0, 0.5);
+  /* Gradient: dark red at top, light red at bottom - spans entire number */
+  /* Make text transparent first so gradient shows through */
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -moz-text-fill-color: transparent;
+  /* Apply gradient */
+  background-image: linear-gradient(180deg, #C41A39 0%, #C92A2A 100%);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* Clip gradient to text */
+  -webkit-background-clip: text;
+  -moz-background-clip: text;
+  background-clip: text;
 }
 
-/* Position rank numbers OUTSIDE cards - positioned relative to the container */
-#topEventsContainer .event-card[data-rank="1"] {
-  position: relative;
-}
-
-#topEventsContainer .event-card[data-rank="1"] .event-rank-number {
-  left: -80px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-#topEventsContainer .event-card[data-rank="2"] {
-  position: relative;
-}
-
-#topEventsContainer .event-card[data-rank="2"] .event-rank-number {
-  left: 50%;
-  transform: translateX(-50%) translateY(-50%);
-  top: -60px;
-}
-
+/* Position rank numbers OUTSIDE cards - all on the left side */
+#topEventsContainer .event-card[data-rank="1"],
+#topEventsContainer .event-card[data-rank="2"],
 #topEventsContainer .event-card[data-rank="3"] {
   position: relative;
 }
 
+#topEventsContainer .event-card[data-rank="1"] .event-rank-number,
+#topEventsContainer .event-card[data-rank="2"] .event-rank-number,
 #topEventsContainer .event-card[data-rank="3"] .event-rank-number {
-  right: -80px;
-  left: auto;
+  left: -120px;
   top: 50%;
   transform: translateY(-50%);
+  right: auto;
 }
 
 /* Top like count display (OUTSIDE the card, at the top, display-only) */
 #topEventsContainer .event-top-like-count {
   position: absolute;
   top: -35px;
-  right: 0;
+  left: 70px; /* Default position for rank 2 and 3 */
   display: flex;
   align-items: center;
   gap: 6px;
   z-index: 10;
   pointer-events: none; /* Display-only, not clickable */
+  white-space: nowrap; /* Prevent wrapping */
   /* No background, no padding, no border-radius - just number and heart */
+}
+
+/* Rank 1: like count at 45px */
+#topEventsContainer .event-card[data-rank="1"] .event-top-like-count {
+  left: 45px;
+}
+
+/* Rank 2 and 3: like count at 70px (already set as default above) */
+#topEventsContainer .event-card[data-rank="2"] .event-top-like-count,
+#topEventsContainer .event-card[data-rank="3"] .event-top-like-count {
+  left: 70px;
 }
 
 #topEventsContainer .event-top-like-count svg {
@@ -262,11 +282,11 @@
 }
 
 #topEventsContainer .event-top-like-count .top-like-count-value {
-  font-size: 14px;
+  font-size: 30px;
   font-weight: 700;
   color: #B81E20;
   line-height: 1;
-  order: -1; /* Number comes before heart icon */
+  /* Number is already first in HTML, no need for order */
 }
 
 /* RESPONSIVENESS FOR MOBILE*/
@@ -312,24 +332,38 @@
 
   /* Mobile: Smaller rank numbers and adjust positioning */
   #topEventsContainer .event-rank-number {
-    font-size: 120px;
+    font-size: 500px;
   }
 
-  #topEventsContainer .event-card[data-rank="1"] .event-rank-number {
-    left: -50px;
-  }
-
-  #topEventsContainer .event-card[data-rank="2"] .event-rank-number {
-    top: -40px;
-  }
-
+  #topEventsContainer .event-card[data-rank="1"] .event-rank-number,
+  #topEventsContainer .event-card[data-rank="2"] .event-rank-number,
   #topEventsContainer .event-card[data-rank="3"] .event-rank-number {
-    right: -50px;
+    left: -100px;
+    top: 50%;
+    transform: translateY(-50%);
+    right: auto;
+  }
+
+  #topEventsContainer {
+    padding-top: 80px;
+    padding-left: 120px;
+    padding-right: 50px;
   }
 
   #topEventsContainer .event-top-like-count {
     top: -30px;
+    left: 0;
     gap: 5px;
+  }
+
+  /* Mobile: Move like counts to the right */
+  #topEventsContainer .event-card[data-rank="1"] .event-top-like-count {
+    left: 70px;
+  }
+
+  #topEventsContainer .event-card[data-rank="2"] .event-top-like-count,
+  #topEventsContainer .event-card[data-rank="3"] .event-top-like-count {
+    left: 95px;
   }
 
   #topEventsContainer .event-top-like-count svg {
@@ -338,7 +372,7 @@
   }
 
   #topEventsContainer .event-top-like-count .top-like-count-value {
-    font-size: 12px;
+    font-size: 30px; /* Same size as desktop */
   }
 }
 
