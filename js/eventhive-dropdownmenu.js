@@ -53,17 +53,45 @@ const DEFAULT_PROFILE_SVG = `<svg width="27" height="27" viewBox="0 0 27 27" fil
   <path d="M2.46209 26.5849C2.46209 26.5849 0.254517 26.5849 0.254517 24.4151C0.254517 22.2453 2.46209 15.7359 13.5 15.7359C24.5378 15.7359 26.7454 22.2453 26.7454 24.4151C26.7454 26.5849 24.5378 26.5849 24.5378 26.5849H2.46209ZM13.5 13.566C15.2564 13.566 16.9409 12.8802 18.1829 11.6595C19.4249 10.4387 20.1227 8.78302 20.1227 7.05661C20.1227 5.3302 19.4249 3.6745 18.1829 2.45375C16.9409 1.23299 15.2564 0.54718 13.5 0.54718C11.7435 0.54718 10.059 1.23299 8.817 2.45375C7.57499 3.6745 6.87724 5.3302 6.87724 7.05661C6.87724 8.78302 7.57499 10.4387 8.817 11.6595C10.059 12.8802 11.7435 13.566 13.5 13.566Z"/>
 </svg>`;
 
-// Update profile icon with user avatar
+// Generate a consistent color from a string (for initials background)
+function stringToColor(str) {
+  if (!str) return '#B81E20'; // Default to red
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Generate a color in HSL with fixed saturation and lightness for readability
+  const hue = Math.abs(hash % 360);
+  return `hsl(${hue}, 65%, 45%)`;
+}
+
+// Get initials from name or email
+function getInitials(name, email) {
+  // Try to get initials from name first
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+  // Fall back to email
+  if (email) {
+    const localPart = email.split('@')[0];
+    return localPart.substring(0, 2).toUpperCase();
+  }
+  return 'U';
+}
+
+// Update profile icon with user avatar image
 function updateProfileIconAvatar(avatarUrl) {
   const profileIcon = document.getElementById('profile-icon');
   if (!profileIcon) return;
 
-  const imgUrl = avatarUrl || 'images/prof_default.svg';
-
   // Check if already an img element
   let img = profileIcon.querySelector('img');
   if (!img) {
-    // Replace SVG with img
+    // Replace SVG/initials with img
     profileIcon.innerHTML = '';
     img = document.createElement('img');
     img.className = 'profile-icon-avatar';
@@ -71,12 +99,28 @@ function updateProfileIconAvatar(avatarUrl) {
     profileIcon.appendChild(img);
     profileIcon.classList.add('has-avatar');
   }
-  img.src = imgUrl;
+  img.src = avatarUrl;
 
-  // Handle image load error - fallback to default
-  img.onerror = function () {
-    this.src = 'images/prof_default.svg';
-  };
+  // Handle image load error - will be handled by caller with initials fallback
+  img.onerror = null; // Reset error handler, caller handles fallback
+}
+
+// Update profile icon with initials (when no avatar available)
+function updateProfileIconInitials(name, email) {
+  const profileIcon = document.getElementById('profile-icon');
+  if (!profileIcon) return;
+
+  const initials = getInitials(name, email);
+  const bgColor = stringToColor(email || name || 'user');
+
+  // Create initials element
+  profileIcon.innerHTML = '';
+  const initialsDiv = document.createElement('div');
+  initialsDiv.className = 'profile-icon-initials';
+  initialsDiv.style.backgroundColor = bgColor;
+  initialsDiv.textContent = initials;
+  profileIcon.appendChild(initialsDiv);
+  profileIcon.classList.add('has-avatar');
 }
 
 // Reset profile icon to default SVG (for logged out state)
@@ -88,7 +132,7 @@ function resetProfileIconToDefault() {
   profileIcon.classList.remove('has-avatar');
 }
 
-// Load avatar from profile cache or fetch from Supabase
+// Load avatar from multiple sources with fallbacks
 async function loadProfileAvatar() {
   // First check if logged in
   const authCache = getCachedAuthState();
@@ -97,39 +141,85 @@ async function loadProfileAvatar() {
     return;
   }
 
-  // Try to get avatar from profile cache
+  let avatarUrl = null;
+  let userName = null;
+  let userEmail = null;
+
+  // Source 1: Try profile cache first (fastest)
   try {
     const profileCacheStr = localStorage.getItem('eventhive_profile_cache');
     if (profileCacheStr) {
       const profileCache = JSON.parse(profileCacheStr);
-      if (profileCache && profileCache.profile && profileCache.profile.avatar_url) {
-        updateProfileIconAvatar(profileCache.profile.avatar_url);
-        return;
+      if (profileCache && profileCache.profile) {
+        avatarUrl = profileCache.profile.avatar_url;
+        userName = profileCache.profile.full_name || profileCache.profile.username;
+        userEmail = profileCache.profile.email;
+
+        if (avatarUrl) {
+          updateProfileIconAvatar(avatarUrl);
+          return;
+        }
       }
     }
   } catch (e) {
     console.warn('Error reading profile cache for avatar:', e);
   }
 
-  // Fallback: fetch profile from Supabase
-  if (typeof getUserProfile === 'function') {
+  // Source 2: Try Supabase session for Google OAuth picture
+  if (typeof getSupabaseClient === 'function') {
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) {
+          const user = data.session.user;
+          userEmail = userEmail || user.email;
+
+          // Check user_metadata for 'picture' (Google OAuth) or 'avatar_url'
+          const metadata = user.user_metadata || {};
+          const sessionAvatar = metadata.picture || metadata.avatar_url;
+          userName = userName || metadata.full_name || metadata.name;
+
+          if (sessionAvatar && !avatarUrl) {
+            avatarUrl = sessionAvatar;
+            updateProfileIconAvatar(avatarUrl);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error getting session for avatar:', e);
+    }
+  }
+
+  // Source 3: Fetch profile from Supabase database
+  if (typeof getUserProfile === 'function' && !avatarUrl) {
     try {
       const result = await getUserProfile();
       if (result.success && result.profile) {
-        updateProfileIconAvatar(result.profile.avatar_url);
-      } else {
-        // No avatar, use default
-        updateProfileIconAvatar(null);
+        avatarUrl = result.profile.avatar_url;
+        userName = userName || result.profile.full_name || result.profile.username;
+        userEmail = userEmail || result.profile.email;
+
+        if (avatarUrl) {
+          updateProfileIconAvatar(avatarUrl);
+          return;
+        }
       }
     } catch (e) {
       console.warn('Error fetching profile for avatar:', e);
-      updateProfileIconAvatar(null);
     }
+  }
+
+  // Fallback: Show initials if no avatar URL found
+  if (userName || userEmail) {
+    updateProfileIconInitials(userName, userEmail);
   } else {
-    // getUserProfile not available, use default
-    updateProfileIconAvatar(null);
+    // Last resort: show default
+    resetProfileIconToDefault();
   }
 }
+
 
 
 // Apply dropdown state by replacing content entirely
