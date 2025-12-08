@@ -13,7 +13,7 @@ const availableColleges = [
 
 // Available organizations (loaded from database)
 let availableOrganizations = [];
-// Cache organization objects (id -> {id, name, description})
+// Cache organization objects (id -> {id, name, description}) test push
 let organizationsCache = {};
 
 /**
