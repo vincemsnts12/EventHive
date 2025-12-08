@@ -10,13 +10,13 @@
  */
 function validateUsername(username) {
   if (!username || typeof username !== 'string') return false;
-  
+
   const trimmed = username.trim();
   // Username: 3-30 characters, alphanumeric and underscores only
   if (!/^[a-zA-Z0-9_]{3,30}$/.test(trimmed)) {
     return false;
   }
-  
+
   return trimmed;
 }
 
@@ -27,13 +27,13 @@ function validateUsername(username) {
  */
 function validateFullName(fullName) {
   if (!fullName || typeof fullName !== 'string') return false;
-  
+
   const trimmed = fullName.trim();
   // Full name: 2-100 characters, letters, spaces, hyphens, apostrophes
   if (!/^[a-zA-Z\s\-']{2,100}$/.test(trimmed)) {
     return false;
   }
-  
+
   return trimmed;
 }
 
@@ -44,13 +44,13 @@ function validateFullName(fullName) {
  */
 function validateBio(bio) {
   if (!bio || typeof bio !== 'string') return null;
-  
+
   const trimmed = bio.trim();
   // Bio: max 500 characters
   if (trimmed.length > 500) {
     return trimmed.substring(0, 500);
   }
-  
+
   return trimmed || null;
 }
 
@@ -61,10 +61,10 @@ function validateBio(bio) {
  */
 function validateUrl(url) {
   if (!url || typeof url !== 'string') return null; // URLs can be optional
-  
+
   const trimmed = url.trim();
   if (trimmed.length === 0) return null;
-  
+
   try {
     const urlObj = new URL(trimmed);
     // Only allow http/https protocols
@@ -88,20 +88,20 @@ function validateUrl(url) {
  */
 function validateEmail(email) {
   if (!email || typeof email !== 'string') return false;
-  
+
   const trimmed = email.trim().toLowerCase();
   // Email regex: basic format check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
+
   if (!emailRegex.test(trimmed)) {
     return false;
   }
-  
+
   // Check TUP domain restriction
   if (!trimmed.endsWith('@tup.edu.ph')) {
     return false;
   }
-  
+
   return trimmed;
 }
 
@@ -112,13 +112,13 @@ function validateEmail(email) {
  */
 function validateEventTitle(title) {
   if (!title || typeof title !== 'string') return false;
-  
+
   const trimmed = title.trim();
   // Title: 3-255 characters
   if (trimmed.length < 3 || trimmed.length > 255) {
     return false;
   }
-  
+
   return trimmed;
 }
 
@@ -129,13 +129,13 @@ function validateEventTitle(title) {
  */
 function validateEventDescription(description) {
   if (!description || typeof description !== 'string') return false;
-  
+
   const trimmed = description.trim();
   // Description: 10-5000 characters
   if (trimmed.length < 10 || trimmed.length > 5000) {
     return false;
   }
-  
+
   return trimmed;
 }
 
@@ -146,13 +146,13 @@ function validateEventDescription(description) {
  */
 function validateEventLocation(location) {
   if (!location || typeof location !== 'string') return false;
-  
+
   const trimmed = location.trim();
   // Location: 3-500 characters
   if (trimmed.length < 3 || trimmed.length > 500) {
     return false;
   }
-  
+
   return trimmed;
 }
 
@@ -163,7 +163,7 @@ function validateEventLocation(location) {
  */
 function validateUUID(uuid) {
   if (!uuid || typeof uuid !== 'string') return false;
-  
+
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
 }
@@ -180,41 +180,41 @@ function validateUUID(uuid) {
  */
 function validatePasswordStrength(password) {
   const errors = [];
-  
+
   if (!password || typeof password !== 'string') {
     return { valid: false, errors: ['Password is required'] };
   }
-  
+
   if (password.length < 8) {
     errors.push('Password must be at least 8 characters long');
   }
-  
+
   if (password.length > 128) {
     errors.push('Password must be less than 128 characters');
   }
-  
+
   if (!/[a-z]/.test(password)) {
     errors.push('Password must contain at least one lowercase letter');
   }
-  
+
   if (!/[A-Z]/.test(password)) {
     errors.push('Password must contain at least one uppercase letter');
   }
-  
+
   if (!/[0-9]/.test(password)) {
     errors.push('Password must contain at least one number');
   }
-  
+
   if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
-  
+
   // Check for common passwords (basic check)
   const commonPasswords = ['password', '12345678', 'qwerty', 'abc123', 'password123'];
   if (commonPasswords.some(common => password.toLowerCase().includes(common))) {
     errors.push('Password is too common');
   }
-  
+
   return {
     valid: errors.length === 0,
     errors: errors
@@ -239,15 +239,15 @@ const PROFANITY_WORDS = [
  */
 function filterProfanity(text) {
   if (!text || typeof text !== 'string') return text;
-  
+
   let filtered = text;
-  
+
   // Basic profanity filtering (replace with asterisks)
   PROFANITY_WORDS.forEach(word => {
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
     filtered = filtered.replace(regex, '*'.repeat(word.length));
   });
-  
+
   return filtered;
 }
 
@@ -258,7 +258,7 @@ function filterProfanity(text) {
  */
 function containsProfanity(text) {
   if (!text || typeof text !== 'string') return false;
-  
+
   const filtered = filterProfanity(text);
   return filtered !== text;
 }
@@ -311,27 +311,22 @@ function logSecurityEvent(eventType, metadata = {}, message = '') {
     },
     message: message
   };
-  
-  // Log to console in development
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log('[SECURITY LOG]', logEntry);
-  }
-  
+
   // Store in localStorage for client-side tracking (limited storage)
   try {
     const logs = JSON.parse(localStorage.getItem('security_logs') || '[]');
     logs.push(logEntry);
-    
+
     // Keep only last 100 logs
     if (logs.length > 100) {
       logs.shift();
     }
-    
+
     localStorage.setItem('security_logs', JSON.stringify(logs));
   } catch (e) {
     console.error('Failed to store security log:', e);
   }
-  
+
   // Send to backend logging endpoint (if available)
   sendLogToBackend(logEntry);
 }
@@ -348,12 +343,12 @@ async function sendLogToBackend(logEntry) {
       if (supabase) {
         // Get current user if available
         const user = await getSafeUser();
-        
+
         // Extract IP address and user agent from metadata if available
         const metadata = logEntry.metadata || {};
         const ipAddress = metadata.ip || null;
         const userAgent = metadata.userAgent || logEntry.metadata?.userAgent || navigator.userAgent;
-        
+
         // Prepare log entry for database
         const dbLogEntry = {
           event_type: logEntry.event,
@@ -368,26 +363,16 @@ async function sendLogToBackend(logEntry) {
           user_agent: userAgent,
           created_at: logEntry.timestamp || new Date().toISOString()
         };
-        
+
         // Insert into security_logs table
         const { error } = await supabase
           .from('security_logs')
           .insert(dbLogEntry);
-        
-        if (error) {
-          // Silently fail - logging shouldn't break the app
-          // Only log to console in development
-          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.warn('Failed to log security event to Supabase:', error);
-          }
-        }
+
+        // Silently fail - logging shouldn't break the app
       }
     } catch (e) {
       // Silently fail - logging shouldn't break the app
-      // Only log to console in development
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.warn('Error sending log to backend:', e);
-      }
     }
   }
 }
@@ -434,11 +419,11 @@ let sessionTimeoutTimer = null;
 function initializeSessionManagement() {
   // Reset activity timer on user activity
   const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-  
+
   activityEvents.forEach(event => {
     document.addEventListener(event, updateLastActivity, true);
   });
-  
+
   // Check session timeout periodically
   checkSessionTimeout();
   setInterval(checkSessionTimeout, 60000); // Check every minute
@@ -449,12 +434,12 @@ function initializeSessionManagement() {
  */
 function updateLastActivity() {
   lastActivityTime = Date.now();
-  
+
   // Clear existing timer
   if (sessionTimeoutTimer) {
     clearTimeout(sessionTimeoutTimer);
   }
-  
+
   // Set new timer
   sessionTimeoutTimer = setTimeout(() => {
     handleSessionTimeout();
@@ -466,14 +451,14 @@ function updateLastActivity() {
  */
 async function checkSessionTimeout() {
   const timeSinceLastActivity = Date.now() - lastActivityTime;
-  
+
   if (timeSinceLastActivity >= SESSION_TIMEOUT) {
     // Verify session is still valid before timing out
     if (typeof getSupabaseClient === 'function') {
       const supabase = getSupabaseClient();
       if (supabase) {
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         // Only timeout if session is actually expired or invalid
         if (!session || error) {
           handleSessionTimeout();
@@ -496,7 +481,7 @@ async function handleSessionTimeout() {
   // Check if Supabase client is available
   if (typeof getSupabaseClient === 'function') {
     const supabase = getSupabaseClient();
-    
+
     if (supabase) {
       const user = await getSafeUser();
 
@@ -505,7 +490,7 @@ async function handleSessionTimeout() {
           userId: user.id,
           timeoutDuration: SESSION_TIMEOUT
         }, 'Session timed out due to inactivity');
-        
+
         // Clear all caches
         try {
           localStorage.removeItem('eventhive_auth_cache');
@@ -513,13 +498,13 @@ async function handleSessionTimeout() {
         } catch (e) {
           console.error('Error clearing caches on timeout:', e);
         }
-        
+
         // Sign out user
         await supabase.auth.signOut();
-        
+
         // Show timeout message
         alert('Your session has timed out due to inactivity. Please log in again.');
-        
+
         // Redirect to homepage
         window.location.href = 'eventhive-homepage.html';
       }
@@ -560,35 +545,31 @@ function generateMFACode() {
 async function sendMFACode(email, code) {
   // In production, this would send via email service
   // For now, we'll use Supabase's email service or a third-party service
-  
+
   if (typeof getSupabaseClient !== 'function') {
     return false;
   }
-  
+
   const supabase = getSupabaseClient();
   if (!supabase) {
     return false;
   }
-  
+
   try {
     // Store code temporarily (5 minutes expiry)
     mfaCodes.set(email, {
       code: code,
       expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutes
     });
-    
+
     // Log MFA code sent
     logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_SENT, {
       email: email
     }, 'MFA code sent to user');
-    
-    // In production, send email via Supabase or email service
-    // For now, log to console (remove in production!)
-    console.log(`[MFA CODE for ${email}]: ${code}`);
-    
-    // TODO: Integrate with email service
+
+    // MFA email sending - integrate with email service when ready
     // await supabase.functions.invoke('send-mfa-email', { body: { email, code } });
-    
+
     return true;
   } catch (error) {
     console.error('Error sending MFA code:', error);
@@ -604,7 +585,7 @@ async function sendMFACode(email, code) {
  */
 function verifyMFACode(email, inputCode) {
   const stored = mfaCodes.get(email);
-  
+
   if (!stored) {
     logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
       email: email,
@@ -612,7 +593,7 @@ function verifyMFACode(email, inputCode) {
     }, 'MFA verification failed: no code found');
     return false;
   }
-  
+
   // Check if code expired
   if (Date.now() > stored.expiresAt) {
     mfaCodes.delete(email);
@@ -622,7 +603,7 @@ function verifyMFACode(email, inputCode) {
     }, 'MFA verification failed: code expired');
     return false;
   }
-  
+
   // Verify code
   if (stored.code !== inputCode) {
     logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
@@ -631,14 +612,14 @@ function verifyMFACode(email, inputCode) {
     }, 'MFA verification failed: invalid code');
     return false;
   }
-  
+
   // Code is valid - remove it
   mfaCodes.delete(email);
-  
+
   logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_VERIFIED, {
     email: email
   }, 'MFA code verified successfully');
-  
+
   return true;
 }
 
@@ -667,7 +648,7 @@ setInterval(cleanupExpiredMFACodes, 60000);
 function validateEventRequest(formData) {
   const errors = [];
   const sanitizedData = {};
-  
+
   // Validate title
   const title = validateEventTitle(formData.title);
   if (!title) {
@@ -675,7 +656,7 @@ function validateEventRequest(formData) {
   } else {
     sanitizedData.title = title;
   }
-  
+
   // Validate description
   const description = validateEventDescription(formData.description);
   if (!description) {
@@ -689,7 +670,7 @@ function validateEventRequest(formData) {
       }, 'Profanity filtered from event description');
     }
   }
-  
+
   // Validate location
   const location = validateEventLocation(formData.location);
   if (!location) {
@@ -697,14 +678,14 @@ function validateEventRequest(formData) {
   } else {
     sanitizedData.location = location;
   }
-  
+
   // Validate dates
   if (!formData.startDate || !formData.endDate) {
     errors.push('Start and end dates are required');
   } else {
     const startDate = new Date(formData.startDate);
     const endDate = new Date(formData.endDate);
-    
+
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       errors.push('Invalid date format');
     } else if (endDate < startDate) {
@@ -714,7 +695,7 @@ function validateEventRequest(formData) {
       sanitizedData.endDate = endDate.toISOString();
     }
   }
-  
+
   // Validate college code
   const validColleges = ['COS', 'COE', 'CAFA', 'CLA', 'CIE', 'CIT', 'TUP'];
   if (!formData.college || !validColleges.includes(formData.college)) {
@@ -722,7 +703,7 @@ function validateEventRequest(formData) {
   } else {
     sanitizedData.college = formData.college;
   }
-  
+
   // Validate organization (optional but if provided, validate)
   if (formData.organization) {
     const org = formData.organization.trim();
@@ -732,7 +713,7 @@ function validateEventRequest(formData) {
       sanitizedData.organization = org;
     }
   }
-  
+
   return {
     valid: errors.length === 0,
     errors: errors,
@@ -748,24 +729,24 @@ function validateEventRequest(formData) {
 async function processSecureEventRequest(formData) {
   // Validate input
   const validation = validateEventRequest(formData);
-  
+
   if (!validation.valid) {
     logSecurityEvent(SECURITY_EVENT_TYPES.INVALID_INPUT, {
       errors: validation.errors
     }, 'Invalid event request from Google Forms');
-    
+
     return {
       success: false,
       error: validation.errors.join(', ')
     };
   }
-  
+
   // Log the request
   logSecurityEvent(SECURITY_EVENT_TYPES.EVENT_CREATED, {
     source: 'google_forms',
     title: validation.sanitizedData.title
   }, 'Event request received from Google Forms');
-  
+
   // Create event in database (via createEvent function)
   if (typeof createEvent === 'function') {
     try {
@@ -775,20 +756,20 @@ async function processSecureEventRequest(formData) {
         isFeatured: false,
         likes: 0
       });
-      
+
       return result;
     } catch (error) {
       logSecurityEvent(SECURITY_EVENT_TYPES.DATABASE_ERROR, {
         error: error.message
       }, 'Error creating event from Google Forms');
-      
+
       return {
         success: false,
         error: error.message
       };
     }
   }
-  
+
   return {
     success: false,
     error: 'Event creation function not available'
