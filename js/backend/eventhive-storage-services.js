@@ -2,8 +2,9 @@
 // This file handles image uploads to Supabase Storage
 // Moved to backend folder with security enhancements
 
-// Storage bucket name (configure this in Supabase Storage)
+// Storage bucket names (configure these in Supabase Storage)
 const EVENT_IMAGES_BUCKET = 'event-images';
+const PROFILE_IMAGES_BUCKET = 'profile-images';
 
 // Ensure Supabase client is initialized
 function getSupabaseClient() {
@@ -22,7 +23,7 @@ function checkAdminFromCacheStorage() {
   const adminCheckStart = Date.now();
   let isAdmin = false;
   let cacheValid = false;
-  
+
   try {
     const cached = localStorage.getItem('eventhive_auth_cache');
     if (cached) {
@@ -30,7 +31,7 @@ function checkAdminFromCacheStorage() {
       const now = Date.now();
       const timeSinceLogin = now - parsed.timestamp;
       const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
-      
+
       // Use cache if it's less than 5 minutes old
       if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
         if (parsed.state) {
@@ -44,7 +45,7 @@ function checkAdminFromCacheStorage() {
   } catch (e) {
     console.error('uploadEventImage: Error reading auth cache:', e);
   }
-  
+
   return { isAdmin, cacheValid };
 }
 
@@ -56,7 +57,7 @@ function checkAdminFromCacheStorage() {
  */
 async function uploadEventImage(file, eventId) {
   console.log('uploadEventImage: Starting upload for event:', eventId);
-  
+
   // Input validation
   if (!file || !(file instanceof File)) {
     console.error('uploadEventImage: Invalid file object');
@@ -71,7 +72,7 @@ async function uploadEventImage(file, eventId) {
   // Check if user is admin from cache (avoids hanging)
   const { isAdmin, cacheValid } = checkAdminFromCacheStorage();
   console.log('uploadEventImage: Admin check from cache:', { isAdmin, cacheValid });
-  
+
   if (!isAdmin) {
     console.error('uploadEventImage: User is not admin');
     return { success: false, error: 'Only admins can upload images' };
@@ -100,19 +101,19 @@ async function uploadEventImage(file, eventId) {
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 15);
     const fileExt = file.name.split('.').pop().toLowerCase();
-    
+
     // Sanitize file extension
     if (!/^[a-zA-Z0-9]+$/.test(fileExt)) {
       return { success: false, error: 'Invalid file extension' };
     }
-    
+
     const fileName = `${eventId}/${timestamp}-${randomStr}.${fileExt}`;
     console.log('uploadEventImage: Generated filename:', fileName);
 
     // Get Supabase config
     const SUPABASE_URL = window.__EH_SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-    
+
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       console.error('uploadEventImage: Supabase config not available');
       return { success: false, error: 'Supabase configuration not available' };
@@ -121,7 +122,7 @@ async function uploadEventImage(file, eventId) {
     // Get access token from localStorage
     let accessToken = null;
     try {
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') && key.includes('auth-token')
       );
       if (supabaseAuthKeys.length > 0) {
@@ -252,7 +253,7 @@ async function deleteEventImage(imageUrl) {
     }
 
     const filePath = urlParts[1];
-    
+
     // Validate file path (prevent directory traversal)
     if (filePath.includes('..') || filePath.includes('//')) {
       console.error('deleteEventImage: Suspicious file path detected');
@@ -264,7 +265,7 @@ async function deleteEventImage(imageUrl) {
     // Get Supabase config
     const SUPABASE_URL = window.__EH_SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-    
+
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       return { success: false, error: 'Supabase configuration not available' };
     }
@@ -272,7 +273,7 @@ async function deleteEventImage(imageUrl) {
     // Get access token from localStorage
     let accessToken = null;
     try {
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') && key.includes('auth-token')
       );
       if (supabaseAuthKeys.length > 0) {
@@ -375,4 +376,130 @@ function getEventImageUrl(filePath) {
   return data?.publicUrl || null;
 }
 
+/**
+ * Upload a profile image (avatar or cover photo)
+ * @param {File} file - Image file to upload
+ * @param {string} imageType - 'avatar' or 'cover'
+ * @returns {Promise<{success: boolean, url?: string, error?: string}>}
+ */
+async function uploadProfileImage(file, imageType) {
+  console.log('uploadProfileImage: Starting upload for type:', imageType);
 
+  // Get user ID from localStorage
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!userId) {
+    console.error('uploadProfileImage: User not authenticated');
+    return { success: false, error: 'Please log in to upload images' };
+  }
+
+  // Input validation
+  if (!file || !(file instanceof File)) {
+    console.error('uploadProfileImage: Invalid file object');
+    return { success: false, error: 'Invalid file' };
+  }
+
+  if (!imageType || !['avatar', 'cover'].includes(imageType)) {
+    console.error('uploadProfileImage: Invalid imageType');
+    return { success: false, error: 'Invalid image type' };
+  }
+
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  if (!validTypes.includes(file.type)) {
+    console.error('uploadProfileImage: Invalid file type:', file.type);
+    return { success: false, error: 'Invalid file type. Only JPG, PNG, and WebP files are allowed.' };
+  }
+
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    console.error('uploadProfileImage: File too large:', file.size);
+    return { success: false, error: 'File size exceeds 5MB limit.' };
+  }
+
+  try {
+    // Generate unique filename
+    const timestamp = Date.now();
+    const fileExt = file.name.split('.').pop().toLowerCase();
+
+    // Sanitize file extension
+    if (!/^[a-zA-Z0-9]+$/.test(fileExt)) {
+      return { success: false, error: 'Invalid file extension' };
+    }
+
+    // File path: userId/avatar.jpg or userId/cover.jpg
+    const fileName = `${userId}/${imageType}-${timestamp}.${fileExt}`;
+    console.log('uploadProfileImage: Generated filename:', fileName);
+
+    // Get Supabase config
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.error('uploadProfileImage: Supabase config not available');
+      return { success: false, error: 'Supabase configuration not available' };
+    }
+
+    // Get access token from localStorage
+    let accessToken = null;
+    try {
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        key.startsWith('sb-') && key.includes('auth-token')
+      );
+      if (supabaseAuthKeys.length > 0) {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      }
+    } catch (e) {
+      console.error('uploadProfileImage: Error getting access token:', e);
+    }
+
+    if (!accessToken) {
+      console.error('uploadProfileImage: No access token found');
+      return { success: false, error: 'Authentication token not found. Please log in again.' };
+    }
+
+    console.log('uploadProfileImage: Uploading file...');
+
+    // Upload file using direct fetch API
+    const uploadController = new AbortController();
+    const uploadTimeout = setTimeout(() => uploadController.abort(), 30000);
+
+    const uploadResponse = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/${PROFILE_IMAGES_BUCKET}/${fileName}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': file.type,
+          'x-upsert': 'true'  // Allow overwriting
+        },
+        body: file,
+        signal: uploadController.signal
+      }
+    );
+
+    clearTimeout(uploadTimeout);
+    console.log('uploadProfileImage: Upload response status:', uploadResponse.status);
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('uploadProfileImage: Upload failed:', uploadResponse.status, errorText);
+      return { success: false, error: `Upload failed: ${errorText}` };
+    }
+
+    // Construct public URL
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${PROFILE_IMAGES_BUCKET}/${fileName}`;
+    console.log('uploadProfileImage: Upload successful, public URL:', publicUrl);
+
+    return { success: true, url: publicUrl };
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('uploadProfileImage: Upload timed out');
+      return { success: false, error: 'Upload timed out. Please try again.' };
+    }
+    console.error('uploadProfileImage: Unexpected error:', error);
+    return { success: false, error: error.message };
+  }
+}

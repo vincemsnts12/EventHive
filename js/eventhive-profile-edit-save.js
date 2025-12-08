@@ -53,16 +53,22 @@ function confirmMainChanges() {
     updateData.bio = bio;
   }
 
-  // Check if anything actually changed
-  if (Object.keys(updateData).length === 0) {
+  // Check if profile picture is being changed
+  const profilePicFile = profilePicInput && profilePicInput.files && profilePicInput.files[0] ? profilePicInput.files[0] : null;
+
+  // Check if cover photo is being changed
+  const coverPhotoFile = coverPhotoInput && coverPhotoInput.files && coverPhotoInput.files[0] ? coverPhotoInput.files[0] : null;
+
+  // Check if anything actually changed (including images)
+  if (Object.keys(updateData).length === 0 && !profilePicFile && !coverPhotoFile) {
     alert('No changes detected.');
     window.location.href = 'eventhive-profile.html';
     return false;
   }
 
-  // Save to Supabase
+  // Save to Supabase (pass image files too)
   if (typeof updateUserProfile === 'function') {
-    saveProfileToSupabase(updateData);
+    saveProfileToSupabase(updateData, profilePicFile, coverPhotoFile);
   } else {
     alert('Profile update functionality not available. Please check Supabase configuration.');
     return false;
@@ -73,7 +79,7 @@ function confirmMainChanges() {
 }
 
 // Save profile data to Supabase
-async function saveProfileToSupabase(profileData) {
+async function saveProfileToSupabase(profileData, avatarFile = null, coverFile = null) {
   try {
     // Show loading state
     const confirmBtn = document.querySelector('.confirm-btn');
@@ -147,6 +153,43 @@ async function saveProfileToSupabase(profileData) {
       }
     }
 
+    // Upload avatar if provided
+    if (avatarFile && typeof uploadProfileImage === 'function') {
+      if (confirmBtn) confirmBtn.textContent = 'Uploading avatar...';
+      const avatarResult = await uploadProfileImage(avatarFile, 'avatar');
+      if (avatarResult.success && avatarResult.url) {
+        profileData.avatarUrl = avatarResult.url;
+        console.log('Avatar uploaded:', avatarResult.url);
+      } else {
+        console.error('Avatar upload failed:', avatarResult.error);
+        alert('Failed to upload avatar: ' + (avatarResult.error || 'Unknown error'));
+        if (confirmBtn) {
+          confirmBtn.textContent = 'Confirm Changes';
+          confirmBtn.disabled = false;
+        }
+        return;
+      }
+    }
+
+    // Upload cover photo if provided
+    if (coverFile && typeof uploadProfileImage === 'function') {
+      if (confirmBtn) confirmBtn.textContent = 'Uploading cover...';
+      const coverResult = await uploadProfileImage(coverFile, 'cover');
+      if (coverResult.success && coverResult.url) {
+        profileData.coverPhotoUrl = coverResult.url;
+        console.log('Cover photo uploaded:', coverResult.url);
+      } else {
+        console.error('Cover upload failed:', coverResult.error);
+        alert('Failed to upload cover photo: ' + (coverResult.error || 'Unknown error'));
+        if (confirmBtn) {
+          confirmBtn.textContent = 'Confirm Changes';
+          confirmBtn.disabled = false;
+        }
+        return;
+      }
+    }
+
+    if (confirmBtn) confirmBtn.textContent = 'Saving...';
     const result = await updateUserProfile(profileData);
 
     if (result.success) {
