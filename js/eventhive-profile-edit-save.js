@@ -84,50 +84,64 @@ async function saveProfileToSupabase(profileData) {
 
     // Check if username is being changed and if new username is taken
     if (profileData.username && profileData.username !== originalProfileData.username) {
-      if (typeof getSupabaseClient === 'function') {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          // Use localStorage cached user ID instead of getCurrentUser() to avoid auth hanging
-          let currentUserId = null;
+      // Get user ID from localStorage (fast, no async call)
+      let currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+
+      // Fallback: try auth cache
+      if (!currentUserId) {
+        try {
+          const authCacheStr = localStorage.getItem('eventhive_auth_cache');
+          if (authCacheStr) {
+            const authCache = JSON.parse(authCacheStr);
+            currentUserId = authCache.userId;
+          }
+        } catch (e) {
+          console.warn('Error reading auth cache:', e);
+        }
+      }
+
+      if (currentUserId) {
+        // Use direct fetch API to check username availability (prevents hanging)
+        const SUPABASE_URL = window.__EH_SUPABASE_URL;
+        const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
           try {
-            const authCacheStr = localStorage.getItem('eventhive_auth_cache');
-            if (authCacheStr) {
-              const authCache = JSON.parse(authCacheStr);
-              currentUserId = authCache.userId;
-            }
-          } catch (e) {
-            console.warn('Error reading auth cache:', e);
-          }
+            const checkController = new AbortController();
+            const checkTimeout = setTimeout(() => checkController.abort(), 10000);
 
-          // Fallback: get userId from Supabase session if cache is empty
-          if (!currentUserId) {
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session && session.user) {
-                currentUserId = session.user.id;
+            const checkResponse = await fetch(
+              `${SUPABASE_URL}/rest/v1/profiles?username=eq.${encodeURIComponent(profileData.username)}&id=neq.${currentUserId}&select=id`,
+              {
+                method: 'GET',
+                headers: {
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Content-Type': 'application/json'
+                },
+                signal: checkController.signal
               }
-            } catch (e) {
-              console.warn('Error getting userId from session:', e);
-            }
-          }
+            );
 
-          if (currentUserId) {
-            // Check if username is taken by someone else
-            const { data: existingUser, error: checkError } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('username', profileData.username)
-              .neq('id', currentUserId) // Exclude current user
-              .single();
+            clearTimeout(checkTimeout);
 
-            if (existingUser) {
-              alert('Username Unavailable\n\nThe username "' + profileData.username + '" is already taken.\n\nPlease choose a different username.');
-              if (confirmBtn) {
-                confirmBtn.textContent = 'Confirm Changes';
-                confirmBtn.disabled = false;
+            if (checkResponse.ok) {
+              const existingUsers = await checkResponse.json();
+              if (Array.isArray(existingUsers) && existingUsers.length > 0) {
+                alert('Username Unavailable\n\nThe username "' + profileData.username + '" is already taken.\n\nPlease choose a different username.');
+                if (confirmBtn) {
+                  confirmBtn.textContent = 'Confirm Changes';
+                  confirmBtn.disabled = false;
+                }
+                return;
               }
-              return;
             }
+          } catch (checkErr) {
+            if (checkErr.name === 'AbortError') {
+              console.warn('Username check timed out, proceeding anyway');
+            } else {
+              console.warn('Error checking username availability:', checkErr);
+            }
+            // Continue with save even if check fails
           }
         }
       }
