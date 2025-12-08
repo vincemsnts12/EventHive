@@ -70,6 +70,12 @@ function updateEventDetails(eventId) {
       }
     }
     
+    // Truncate to 200 characters for carousel display
+    const maxLength = 200;
+    if (descriptionText.length > maxLength) {
+      descriptionText = descriptionText.substring(0, maxLength).trim() + '...';
+    }
+    
     descriptionElement.textContent = descriptionText;
   }
   
