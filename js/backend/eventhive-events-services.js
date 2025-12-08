@@ -1262,9 +1262,22 @@ async function updateEvent(eventId, eventData) {
 
     logSecurityEvent('EVENT_UPDATED', { userId: user?.id, eventId }, 'Event updated successfully');
 
+    // Fetch images so we don't lose them when returning the updated event
+    let images = [];
+    let thumbnailIdx = 0;
+    try {
+      const imagesResult = await getEventImages(eventId);
+      if (imagesResult.success) {
+        images = imagesResult.images || [];
+        thumbnailIdx = imagesResult.thumbnailIndex || 0;
+      }
+    } catch (e) {
+      console.warn('updateEvent: Failed to fetch images for updated event (will return empty images):', e?.message || e);
+    }
+
     // Return the already-fetched event (avoids calling getEventById which uses authenticated client)
     // Process through eventFromDatabase to get proper frontend format
-    const processedEvent = eventFromDatabase(updatedEvent, [], 0, 0);
+    const processedEvent = eventFromDatabase(updatedEvent, images, 0, thumbnailIdx);
     return { success: true, event: processedEvent };
   } catch (error) {
     logSecurityEvent('UNEXPECTED_ERROR', { userId: user?.id, eventId, error: error.message }, 'Unexpected error updating event');
