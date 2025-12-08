@@ -11,6 +11,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     const passwordForm = document.getElementById('passwordForm');
     const submitBtn = document.getElementById('submitBtn');
 
+    // Helper functions
+    function showPasswordForm() {
+        loadingState.style.display = 'none';
+        invalidLinkState.style.display = 'none';
+        passwordFormState.style.display = 'block';
+    }
+
+    function showInvalidLink() {
+        loadingState.style.display = 'none';
+        invalidLinkState.style.display = 'block';
+        passwordFormState.style.display = 'none';
+    }
+
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        successMessage.style.display = 'none';
+    }
+
+    function showSuccess(message) {
+        successMessage.textContent = message;
+        successMessage.style.display = 'block';
+        errorMessage.style.display = 'none';
+    }
+
+    function hideMessages() {
+        errorMessage.style.display = 'none';
+        successMessage.style.display = 'none';
+    }
+
     // Initialize Supabase
     if (typeof initSupabase === 'function') {
         initSupabase();
@@ -35,17 +65,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Check if this is a valid recovery link
-    if (tokenType === 'recovery' && accessToken) {
-        // Valid recovery link - set up the session
-        try {
-            const supabase = getSupabaseClient();
-            if (!supabase) {
-                showInvalidLink();
-                return;
-            }
+    // Wait a bit for Supabase auth listener to process the URL tokens
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
-            // Set the session from the recovery tokens
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+        showInvalidLink();
+        return;
+    }
+
+    // Check for active session first (auth listener may have already processed the recovery)
+    try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (session) {
+            // User is authenticated - show password form
+            showPasswordForm();
+        } else if (tokenType === 'recovery' && accessToken) {
+            // Try to set session manually from recovery tokens
             const { data, error } = await supabase.auth.setSession({
                 access_token: accessToken,
                 refresh_token: refreshToken || ''
@@ -54,36 +91,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) {
                 console.warn('Error setting recovery session:', error.message);
                 showInvalidLink();
-                return;
-            }
-
-            // Session set successfully - show password form
-            showPasswordForm();
-        } catch (err) {
-            console.error('Error processing recovery link:', err);
-            showInvalidLink();
-        }
-    } else {
-        // Check if user already has an active session (maybe they navigated here directly)
-        try {
-            const supabase = getSupabaseClient();
-            if (supabase) {
-                const { data: { session } } = await supabase.auth.getSession();
-
-                if (session) {
-                    // User is logged in - they can set password
-                    showPasswordForm();
-                } else {
-                    // No session and no recovery token - invalid link
-                    showInvalidLink();
-                }
             } else {
-                showInvalidLink();
+                showPasswordForm();
             }
-        } catch (err) {
-            console.error('Error checking session:', err);
+        } else {
+            // No session and no recovery tokens - invalid link
             showInvalidLink();
         }
+    } catch (err) {
+        console.error('Error checking session:', err);
+        showInvalidLink();
     }
 
     // Handle form submission
@@ -177,35 +194,5 @@ document.addEventListener('DOMContentLoaded', async () => {
                 submitBtn.textContent = 'Set Password';
             }
         });
-    }
-
-    // Helper functions
-    function showPasswordForm() {
-        loadingState.style.display = 'none';
-        invalidLinkState.style.display = 'none';
-        passwordFormState.style.display = 'block';
-    }
-
-    function showInvalidLink() {
-        loadingState.style.display = 'none';
-        invalidLinkState.style.display = 'block';
-        passwordFormState.style.display = 'none';
-    }
-
-    function showError(message) {
-        errorMessage.textContent = message;
-        errorMessage.style.display = 'block';
-        successMessage.style.display = 'none';
-    }
-
-    function showSuccess(message) {
-        successMessage.textContent = message;
-        successMessage.style.display = 'block';
-        errorMessage.style.display = 'none';
-    }
-
-    function hideMessages() {
-        errorMessage.style.display = 'none';
-        successMessage.style.display = 'none';
     }
 });

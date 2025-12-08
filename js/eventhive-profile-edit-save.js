@@ -99,6 +99,18 @@ async function saveProfileToSupabase(profileData) {
             console.warn('Error reading auth cache:', e);
           }
 
+          // Fallback: get userId from Supabase session if cache is empty
+          if (!currentUserId) {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session && session.user) {
+                currentUserId = session.user.id;
+              }
+            } catch (e) {
+              console.warn('Error getting userId from session:', e);
+            }
+          }
+
           if (currentUserId) {
             // Check if username is taken by someone else
             const { data: existingUser, error: checkError } = await supabase
@@ -172,7 +184,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSupabase();
   }
 
-  // Load current profile data
+  // IMMEDIATE: Try to populate from cache first so fields aren't blank while loading
+  try {
+    const profileCacheStr = localStorage.getItem('eventhive_profile_cache');
+    if (profileCacheStr) {
+      const cache = JSON.parse(profileCacheStr);
+      if (cache.profile) {
+        const cachedProfile = cache.profile;
+
+        // Populate username immediately from cache
+        const usernameInput = document.querySelector('.user-details-edit .input-mimic-h2');
+        if (usernameInput) {
+          let usernameValue = cachedProfile.username;
+          if (!usernameValue && cachedProfile.email) {
+            usernameValue = cachedProfile.email.split('@')[0];
+          }
+          if (usernameValue) {
+            usernameInput.value = usernameValue;
+            usernameInput.placeholder = usernameValue;
+          }
+        }
+
+        // Populate email immediately from cache
+        const emailDisplay = document.querySelector('.email-display');
+        if (emailDisplay && cachedProfile.email) {
+          emailDisplay.textContent = cachedProfile.email;
+        }
+
+        // Populate bio immediately from cache
+        const bioTextarea = document.querySelector('.description-box .textarea-mimic-p');
+        if (bioTextarea && cachedProfile.bio) {
+          bioTextarea.value = cachedProfile.bio;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error loading profile from cache:', e);
+  }
+
+  // ASYNC: Load fresh profile data from Supabase (will overwrite cache values if newer)
   if (typeof getUserProfile === 'function') {
     try {
       const result = await getUserProfile();
@@ -194,29 +244,52 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Display email (read-only - email cannot be changed)
-        // Use profile.email directly or fallback to localStorage cache
+        // Use profile.email directly or fallback to Supabase session
         const emailDisplay = document.querySelector('.email-display');
         if (emailDisplay) {
+          let emailFound = false;
+
           // Try profile email first
           if (profile.email) {
             emailDisplay.textContent = profile.email;
-          } else {
-            // Fallback to localStorage auth/profile cache
+            emailFound = true;
+          }
+
+          // Fallback 1: localStorage cache
+          if (!emailFound) {
             try {
               const profileCacheStr = localStorage.getItem('eventhive_profile_cache');
               if (profileCacheStr) {
                 const cache = JSON.parse(profileCacheStr);
                 if (cache.profile && cache.profile.email) {
                   emailDisplay.textContent = cache.profile.email;
-                } else {
-                  emailDisplay.textContent = 'No email';
+                  emailFound = true;
                 }
-              } else {
-                emailDisplay.textContent = 'No email';
               }
             } catch (e) {
-              emailDisplay.textContent = 'No email';
+              // Ignore cache errors
             }
+          }
+
+          // Fallback 2: Get from Supabase session
+          if (!emailFound && typeof getSupabaseClient === 'function') {
+            const supabase = getSupabaseClient();
+            if (supabase) {
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session && session.user && session.user.email) {
+                  emailDisplay.textContent = session.user.email;
+                  emailFound = true;
+                }
+              } catch (e) {
+                console.warn('Error getting email from session:', e);
+              }
+            }
+          }
+
+          // Final fallback
+          if (!emailFound) {
+            emailDisplay.textContent = 'No email';
           }
         }
 
