@@ -211,42 +211,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // Mobile Logout Button
   const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
   if (mobileLogoutBtn) {
-    mobileLogoutBtn.addEventListener('click', async (e) => {
+    mobileLogoutBtn.addEventListener('click', (e) => {
       e.preventDefault();
 
-      // Sign out using Supabase with timeout (prevent hanging)
-      if (typeof getSupabaseClient === 'function') {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          try {
-            // Wrap signOut with a 3-second timeout
-            const signOutPromise = supabase.auth.signOut();
-            const timeoutPromise = new Promise((resolve) => {
-              setTimeout(() => resolve({ timeout: true }), 3000);
-            });
-
-            const result = await Promise.race([signOutPromise, timeoutPromise]);
-            if (result?.timeout) {
-              console.warn('signOut timed out, proceeding with local logout');
-            }
-          } catch (err) {
-            console.warn('signOut error, proceeding with local logout:', err);
-          }
-        }
-      }
-
-      // Clear ALL localStorage items (this is the important part)
+      // INSTANT: Clear ALL localStorage items FIRST (this is what actually logs out)
       try {
         localStorage.clear();
-      } catch (e) {
-        console.error('Error clearing localStorage:', e);
+      } catch (err) {
+        console.error('Error clearing localStorage:', err);
       }
 
-      // Update menu state
+      // Update menu state immediately
       applyMobileMenuState(false, false);
       closeMobileMenu();
 
-      // Show success message
+      // Fire signOut in background (don't await - just let it run)
+      if (typeof getSupabaseClient === 'function') {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          supabase.auth.signOut().catch(err => {
+            console.warn('Background signOut error (already logged out locally):', err);
+          });
+        }
+      }
+
+      // Show success message immediately
       alert('Log out successful');
     });
   }
