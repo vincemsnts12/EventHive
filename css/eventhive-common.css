@@ -165,11 +165,11 @@ body {
   background-color: #F2C21F;
 }
 
-.profile-btn.has-initials {
+.icons .profile-btn.has-initials {
   padding: 5px;
 }
 
-.profile-btn.has-initials:hover {
+.icons .profile-btn.has-initials:hover {
   background-color: #F2C21F;
 }
 
