@@ -120,7 +120,8 @@ function updateProfileIconInitials(name, email) {
   initialsDiv.style.backgroundColor = bgColor;
   initialsDiv.textContent = initials;
   profileIcon.appendChild(initialsDiv);
-  profileIcon.classList.add('has-avatar');
+  profileIcon.classList.remove('has-avatar');
+  profileIcon.classList.add('has-initials');
 }
 
 // Reset profile icon to default SVG (for logged out state)
@@ -130,6 +131,7 @@ function resetProfileIconToDefault() {
 
   profileIcon.innerHTML = DEFAULT_PROFILE_SVG;
   profileIcon.classList.remove('has-avatar');
+  profileIcon.classList.remove('has-initials');
 }
 
 // Load avatar from multiple sources with fallbacks

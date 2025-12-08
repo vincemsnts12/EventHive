@@ -165,6 +165,14 @@ body {
   background-color: #F2C21F;
 }
 
+.profile-btn.has-initials {
+  padding: 5px;
+}
+
+.profile-btn.has-initials:hover {
+  background-color: #F2C21F;
+}
+
 /* ===== INITIALS AVATAR FALLBACK ===== */
 .profile-icon-initials {
   width: 27px;
