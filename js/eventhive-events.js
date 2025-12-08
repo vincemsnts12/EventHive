@@ -48,33 +48,14 @@ function updateEventDetails(eventId) {
   if (descriptionElement) {
     let descriptionText = event.description || '';
     
-    // Add college information to description if multiple colleges
-    const colleges = event.colleges || (event.college ? [event.college] : []);
-    if (colleges.length > 1) {
-      // Define college names mapping (same as in dropdown-searchbar.js)
-      const collegeNameMap = {
-        'COS': 'College of Science',
-        'COE': 'College of Engineering',
-        'CLA': 'College of Liberal Arts',
-        'CIE': 'College of Industrial Education',
-        'CIT': 'College of Industrial Technology',
-        'CAFA': 'College of Architecture and Fine Arts',
-        'TUP': 'TUP System-wide'
-      };
-      
-      const collegeNames = colleges.map(code => collegeNameMap[code] || code).filter(Boolean);
-      
-      if (collegeNames.length > 1) {
-        const collegeInfo = `\n\nThis event is a collaboration between: ${collegeNames.join(', ')}.`;
-        descriptionText += collegeInfo;
-      }
-    }
-    
-    // Truncate to 200 characters for carousel display
-    const maxLength = 200;
+    // Truncate to 200 characters for carousel display (including ellipsis)
+    const maxLength = 197; // Leave room for "..."
     if (descriptionText.length > maxLength) {
       descriptionText = descriptionText.substring(0, maxLength).trim() + '...';
     }
+    
+    // Note: College collaboration info is not added to carousel description to keep it concise
+    // The full description with college info is available in the scrollable description card
     
     descriptionElement.textContent = descriptionText;
   }
