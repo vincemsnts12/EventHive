@@ -1,18 +1,11 @@
 // ===== SUPABASE STORAGE SERVICES FOR EVENT IMAGES =====
 // This file handles image uploads to Supabase Storage
 // Moved to backend folder with security enhancements
+// NOTE: Requires eventhive-supabase.js to be loaded first (provides getSupabaseClient())
 
 // Storage bucket names (configure these in Supabase Storage)
 const EVENT_IMAGES_BUCKET = 'event-images';
 const PROFILE_IMAGES_BUCKET = 'profile-images';
-
-// Ensure Supabase client is initialized
-function getSupabaseClient() {
-  if (!supabaseClient) {
-    supabaseClient = initSupabase();
-  }
-  return supabaseClient;
-}
 
 // `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
 

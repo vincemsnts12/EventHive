@@ -1,14 +1,7 @@
 // ===== SUPABASE SERVICES FOR LIKES, COMMENTS, AND PROFILES =====
 // This file contains all Supabase database operations
 // Moved to backend folder for better organization
-
-// Ensure Supabase client is initialized
-function getSupabaseClient() {
-  if (!supabaseClient) {
-    supabaseClient = initSupabase();
-  }
-  return supabaseClient;
-}
+// NOTE: Requires eventhive-supabase.js to be loaded first (provides getSupabaseClient())
 
 // `getSafeUser()` is provided centrally in `js/backend/auth-utils.js`
 

@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
 
       // Check if user has a password set (for OAuth users who haven't set one yet)
-      const cachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+      const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
       const hasPassword = cachedProfile.has_password === true;
 
       // If user doesn't have a password set, they must use "Set My Password" first
@@ -623,9 +623,9 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             // Update local cache
-            const cachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+            const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
             cachedProfile.has_password = true;
-            localStorage.setItem('eh_cached_profile', JSON.stringify(cachedProfile));
+            localStorage.setItem('eventhive_profile_cache', JSON.stringify(cachedProfile));
           }
         } catch (flagErr) {
           console.warn('Could not update has_password flag:', flagErr);

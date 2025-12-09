@@ -297,36 +297,11 @@
   margin-bottom: 5px;
 }
 
+/* Only profile-edit specific overrides - base styles in eventhive-common.css */
 .password-form-wrapper .password-toggle {
-  position: absolute;
   right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
+  /* Slightly more right than auth modals */
   color: #666;
-  pointer-events: auto;
-}
-
-.password-form-wrapper .password-toggle:hover {
-  color: #B81E20;
-}
-
-.password-form-wrapper .password-toggle .icon {
-  width: 20px;
-  height: 20px;
-  display: inline-block;
-}
-
-.password-form-wrapper .password-toggle .icon-hide {
-  display: none;
 }
 
 

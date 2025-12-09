@@ -442,15 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Listen for auth state changes (when user logs in/out)
-// Force check when auth state changes (bypasses 5-minute cache)
-if (typeof getSupabaseClient === 'function') {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    supabase.auth.onAuthStateChange(() => {
-      updateDropdownAuthState(true); // Force check on auth state change
-    });
-  }
-}
+// NOTE: onAuthStateChange is registered once below (around line 550) to avoid duplicate subscriptions
 
 // Set up periodic check every 5 minutes (background refresh)
 // This runs continuously and automatically updates cache every 5 minutes

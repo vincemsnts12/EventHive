@@ -106,12 +106,7 @@ function initOAuthPasswordBlocking() {
     hasPassword = profileData.has_password === true;
     userEmail = profileData.email;
 
-    // Also try eh_cached_profile (used by save handler)
-    if (!hasPassword) {
-        const ehCachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
-        hasPassword = ehCachedProfile.has_password === true;
-        if (!userEmail) userEmail = ehCachedProfile.email;
-    }
+    // Check eventhive_profile_cache (standardized key)
 
     console.log('OAuth Password Blocking - hasPassword:', hasPassword, 'email:', userEmail);
 
@@ -136,13 +131,7 @@ function initOAuthPasswordBlocking() {
                 emailToUse = profCache.profile?.email || profCache.email;
             } catch (e) { }
 
-            // Try eh_cached_profile
-            if (!emailToUse) {
-                try {
-                    const ehCache = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
-                    emailToUse = ehCache.email;
-                } catch (e) { }
-            }
+            // eventhive_profile_cache is the standardized key, no need for fallback
 
             // Try to get from Supabase session directly
             if (!emailToUse && typeof getSupabaseClient === 'function') {
@@ -235,8 +224,8 @@ function initImageRemovalHandlers() {
 
             // Generate initials and show placeholder
             if (profilePlaceholder) {
-                const authCache = JSON.parse(localStorage.getItem('eh_auth_cache') || '{}');
-                const cachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+                const authCache = JSON.parse(localStorage.getItem('eventhive_auth_cache') || '{}');
+                const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
                 const username = cachedProfile.username || authCache.username || 'U';
                 const initials = username.substring(0, 2).toUpperCase();
                 const bgColor = stringToColorForEdit(username);
