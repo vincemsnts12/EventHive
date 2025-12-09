@@ -1420,6 +1420,15 @@ function openViewDateModal(dateString) {
 }
 
 function openEditDateModal(eventId, event) {
+  // Guard: only allow edit modal for published rows that are actually in edit mode
+  if (currentEditingTable === 'published' && !rowsInEditMode.has(eventId)) {
+    // Not in edit mode; fall back to view-only modal
+    if (event?.date) {
+      openViewDateModal(event.date);
+    }
+    return;
+  }
+  
   currentEditingEventId = eventId;
   currentEditingField = 'date';
   if (!currentEditingTable) currentEditingTable = 'published';
@@ -1937,59 +1946,67 @@ async function saveDateEdit() {
   document.body.style.cursor = 'wait';
   
   try {
-  // Format the date string for display (using formatDateRangeForDisplay)
-  const formattedDate = typeof formatDateRangeForDisplay !== 'undefined' 
-    ? formatDateRangeForDisplay(startDateTime, endDateTime)
+    // Format the date string for display (using formatDateRangeForDisplay)
+    const formattedDate = typeof formatDateRangeForDisplay !== 'undefined' 
+      ? formatDateRangeForDisplay(startDateTime, endDateTime)
       : `${date} ${startTime} - ${endTime}`;
-  
-  // Update the event data
-  const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
-  const event = source[currentEditingEventId];
-  
-  if (event) {
-    // Update the date string
-    event.date = formattedDate;
     
-    // Update parsed date fields
-    event.startDate = startDateTime;
-    event.endDate = endDateTime;
-    event.startTime = `${startTime}:00`;
-    event.endTime = `${endTime}:00`;
+    // Update the event data
+    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
+    const event = source[currentEditingEventId];
     
-    // Recalculate status from dates
-    if (typeof calculateEventStatus !== 'undefined') {
-      event.status = calculateEventStatus(startDateTime, endDateTime, event.status === 'Pending' ? 'Pending' : null);
-    }
-    
-    // Event data is already in the correct format from Supabase
-    // No need to enrich - event is already updated
-    
-    if (currentEditingTable === 'published') {
-      rowsInEditMode.delete(currentEditingEventId);
-    } else if (currentEditingTable === 'pending') {
-      // Persist pending date edits if possible
-      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-        const result = await updateEvent(event.id, event);
+    if (event) {
+      // Update the date string
+      event.date = formattedDate;
+      
+      // Update parsed date fields
+      event.startDate = startDateTime;
+      event.endDate = endDateTime;
+      event.startTime = `${startTime}:00`;
+      event.endTime = `${endTime}:00`;
+      
+      // Recalculate status from dates
+      if (typeof calculateEventStatus !== 'undefined') {
+        event.status = calculateEventStatus(startDateTime, endDateTime, event.status === 'Pending' ? 'Pending' : null);
+      }
+      
+      // Persist published edits as well
+      if (currentEditingTable === 'published' && typeof updateEvent === 'function') {
+        const result = await updateEvent(currentEditingEventId, event);
         if (!result.success) {
-          console.warn('Failed to persist pending date edit:', result.error);
-            alert(`Draft saved locally. Sync failed: ${result.error}`);
+          console.warn('Failed to persist published date edit:', result.error);
+          alert(`Save failed: ${result.error}`);
         } else if (result.event) {
           Object.assign(event, result.event);
         }
+        rowsInEditMode.delete(currentEditingEventId);
+      } else if (currentEditingTable === 'pending') {
+        // Persist pending date edits if possible
+        if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+          const result = await updateEvent(event.id, event);
+          if (!result.success) {
+            console.warn('Failed to persist pending date edit:', result.error);
+            alert(`Draft saved locally. Sync failed: ${result.error}`);
+          } else if (result.event) {
+            Object.assign(event, result.event);
+          }
+        }
       }
     }
-  }
-  
-  // Save table type BEFORE closing modal (closeModal clears it)
-  const tableToRefresh = currentEditingTable;
-  closeModal('editDateModal');
-  
-  // Refresh the table
-  if (tableToRefresh === 'published') {
-    populatePublishedEventsTable();
-  } else {
-    populatePendingEventsTable();
-  }
+    
+    // Save table type BEFORE closing modal (closeModal clears it)
+    const tableToRefresh = currentEditingTable;
+    closeModal('editDateModal');
+    
+    // Refresh the table
+    if (tableToRefresh === 'published') {
+      populatePublishedEventsTable();
+    } else {
+      populatePendingEventsTable();
+    }
+  } catch (error) {
+    console.error('Error saving date edit:', error);
+    alert('Failed to save date changes. Please try again.');
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
