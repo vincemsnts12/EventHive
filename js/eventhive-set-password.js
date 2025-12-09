@@ -1,53 +1,11 @@
 // ===== PASSWORD SETUP PAGE HANDLER =====
 // This handles setting password for users who click the password reset link
-// Handles both PKCE code flow (?code=) and legacy implicit flow (#access_token=)
+// Self-contained - does not rely on eventhive-supabase.js to avoid token interference
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const loadingState = document.getElementById('loadingState');
-    const invalidLinkState = document.getElementById('invalidLinkState');
-    const passwordFormState = document.getElementById('passwordFormState');
-    const errorMessage = document.getElementById('errorMessage');
-    const successMessage = document.getElementById('successMessage');
-    const passwordForm = document.getElementById('passwordForm');
-    const submitBtn = document.getElementById('submitBtn');
-
-    // Track state
-    let formShown = false;
-
-    // Helper functions
-    function showPasswordForm() {
-        if (formShown) return;
-        formShown = true;
-        loadingState.style.display = 'none';
-        invalidLinkState.style.display = 'none';
-        passwordFormState.style.display = 'block';
-        console.log('Password form displayed');
-    }
-
-    function showInvalidLink(reason = '') {
-        if (formShown) return;
-        loadingState.style.display = 'none';
-        invalidLinkState.style.display = 'block';
-        passwordFormState.style.display = 'none';
-        console.log('Invalid link displayed:', reason);
-    }
-
-    function showError(message) {
-        errorMessage.textContent = message;
-        errorMessage.style.display = 'block';
-        successMessage.style.display = 'none';
-    }
-
-    function showSuccess(message) {
-        successMessage.textContent = message;
-        successMessage.style.display = 'block';
-        errorMessage.style.display = 'none';
-    }
-
-    function hideMessages() {
-        errorMessage.style.display = 'none';
-        successMessage.style.display = 'none';
-    }
+(function () {
+    // Capture hash immediately before any other script can clear it
+    const originalHash = window.location.hash;
+    const originalSearch = window.location.search;
 
     // Parse hash fragment into object
     function parseHash(hash) {
@@ -63,257 +21,271 @@ document.addEventListener('DOMContentLoaded', async () => {
         return params;
     }
 
-    // Wait for Supabase with retries
-    async function waitForSupabase(maxWaitMs = 8000) {
+    // Store parsed tokens immediately
+    const hashParams = parseHash(originalHash);
+    const searchParams = new URLSearchParams(originalSearch);
+
+    console.log('Set-password: Captured URL on load:', {
+        hasAccessToken: !!hashParams.access_token,
+        hasCode: searchParams.has('code'),
+        tokenType: hashParams.type
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const loadingState = document.getElementById('loadingState');
+        const invalidLinkState = document.getElementById('invalidLinkState');
+        const passwordFormState = document.getElementById('passwordFormState');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const passwordForm = document.getElementById('passwordForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        let formShown = false;
+        let supabaseClient = null;
+
+        function showPasswordForm() {
+            if (formShown) return;
+            formShown = true;
+            loadingState.style.display = 'none';
+            invalidLinkState.style.display = 'none';
+            passwordFormState.style.display = 'block';
+            console.log('Password form displayed');
+        }
+
+        function showInvalidLink(reason = '') {
+            if (formShown) return;
+            loadingState.style.display = 'none';
+            invalidLinkState.style.display = 'block';
+            passwordFormState.style.display = 'none';
+            console.log('Invalid link:', reason);
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+
+        function hideMessages() {
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+        }
+
+        // Check for errors in URL
+        const errorCode = searchParams.get('error_code') || hashParams.error_code;
+        const errorDescription = searchParams.get('error_description') || hashParams.error_description;
+
+        if (errorCode || errorDescription) {
+            console.warn('Error in URL:', errorCode, errorDescription);
+            showInvalidLink('Link error: ' + (errorDescription || errorCode));
+            return;
+        }
+
+        // Check for recovery tokens (captured at top of script)
+        const hasCode = searchParams.has('code');
+        const accessToken = hashParams.access_token;
+        const refreshToken = hashParams.refresh_token || '';
+        const tokenType = hashParams.type;
+
+        if (!hasCode && !accessToken) {
+            showInvalidLink('No recovery token found');
+            return;
+        }
+
+        console.log('Found tokens:', { hasCode, hasAccessToken: !!accessToken, tokenType });
+
+        // Wait for Supabase library to load
+        const maxWait = 5000;
         const startTime = Date.now();
-        while (Date.now() - startTime < maxWaitMs) {
-            if (window.__EH_SUPABASE_CLIENT) {
-                return window.__EH_SUPABASE_CLIENT;
-            }
-            if (typeof getSupabaseClient === 'function') {
-                const client = getSupabaseClient();
-                if (client) return client;
-            }
+        while (typeof supabase === 'undefined' && Date.now() - startTime < maxWait) {
             await new Promise(r => setTimeout(r, 100));
         }
-        return null;
-    }
 
-    // Parse URL parameters
-    const searchParams = new URLSearchParams(window.location.search);
-    const hashParams = parseHash(window.location.hash);
-
-    console.log('Set-password page loaded:', {
-        hasCode: searchParams.has('code'),
-        hasAccessToken: !!hashParams.access_token,
-        tokenType: hashParams.type,
-        hash: window.location.hash ? 'present' : 'none'
-    });
-
-    // Check for errors in URL
-    const errorCode = searchParams.get('error_code') || hashParams.error_code;
-    const errorDescription = searchParams.get('error_description') || hashParams.error_description;
-
-    if (errorCode || errorDescription) {
-        console.warn('Error in URL:', errorCode, errorDescription);
-        showInvalidLink('URL error');
-        return;
-    }
-
-    // Check if we have recovery tokens
-    const hasCode = searchParams.has('code');
-    const hasAccessToken = !!hashParams.access_token;
-    const tokenType = hashParams.type;
-
-    // Must have either PKCE code or access_token in hash
-    if (!hasCode && !hasAccessToken) {
-        showInvalidLink('No recovery token in URL');
-        return;
-    }
-
-    // Wait for Supabase
-    const supabase = await waitForSupabase();
-    if (!supabase) {
-        showInvalidLink('Supabase not loaded');
-        return;
-    }
-
-    console.log('Supabase client ready, setting up session...');
-
-    // Set up auth state change listener FIRST
-    let sessionEstablished = false;
-
-    supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth event:', event, session ? 'has session' : 'no session');
-
-        if (event === 'PASSWORD_RECOVERY' ||
-            event === 'SIGNED_IN' ||
-            event === 'TOKEN_REFRESHED' ||
-            event === 'INITIAL_SESSION') {
-            if (session) {
-                console.log('Session established via event:', event);
-                sessionEstablished = true;
-                showPasswordForm();
-            }
+        if (typeof supabase === 'undefined') {
+            showInvalidLink('Supabase library not loaded');
+            return;
         }
-    });
 
-    // For legacy flow with access_token in hash, we need to set the session manually
-    if (hasAccessToken) {
-        console.log('Legacy flow detected - setting session from hash tokens...');
+        // Initialize Supabase client directly
+        // Get credentials from window globals or use defaults
+        const SUPABASE_URL = window.__EH_SUPABASE_URL || 'https://pskbgtfmfsvulqzxcsdb.supabase.co';
+        const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBza2JndGZtZnN2dWxxenhjc2RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI1Mzg3NTgsImV4cCI6MjA0ODExNDc1OH0.o3eHUaYS2gPycofBGdkuVxWMqOMBTYNioj6sS06e7Hs';
 
         try {
-            const accessToken = hashParams.access_token;
-            const refreshToken = hashParams.refresh_token || '';
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase client created directly');
+        } catch (err) {
+            console.error('Failed to create Supabase client:', err);
+            showInvalidLink('Failed to initialize');
+            return;
+        }
 
-            // Try to set the session using the tokens from the hash
-            const { data, error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-            });
+        // Set up auth state listener
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.log('Auth event:', event, session ? 'has session' : 'no session');
 
-            if (error) {
-                console.warn('setSession error:', error.message);
-                // Don't fail immediately - the auth listener might still fire
-            } else if (data?.session) {
-                console.log('Session set successfully from hash tokens');
-                sessionEstablished = true;
+            if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
                 showPasswordForm();
             }
-        } catch (err) {
-            console.warn('Error setting session from hash:', err);
-        }
-    }
+        });
 
-    // For PKCE flow, Supabase auto-handles code exchange
-    // Wait a bit and then check for session
-    if (hasCode && !sessionEstablished) {
-        console.log('PKCE flow - waiting for automatic code exchange...');
+        // Handle tokens based on flow type
+        if (accessToken) {
+            // Legacy implicit flow - set session with access token from hash
+            console.log('Setting session from hash access_token...');
 
-        // Give Supabase time to process the code
-        await new Promise(r => setTimeout(r, 1500));
+            try {
+                const { data, error } = await supabaseClient.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
 
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                console.log('Session found after PKCE exchange');
-                sessionEstablished = true;
-                showPasswordForm();
+                if (error) {
+                    console.error('setSession error:', error);
+                    // Check if it's an expired token error
+                    if (error.message && (error.message.includes('expired') || error.message.includes('invalid'))) {
+                        showInvalidLink('Token expired or invalid');
+                        return;
+                    }
+                } else if (data?.session) {
+                    console.log('Session established from hash tokens');
+                    showPasswordForm();
+                }
+            } catch (err) {
+                console.error('Error setting session:', err);
             }
-        } catch (err) {
-            console.warn('Error checking session:', err);
-        }
-    }
+        } else if (hasCode) {
+            // PKCE flow - exchange code for session
+            const code = searchParams.get('code');
+            console.log('Exchanging PKCE code for session...');
 
-    // Check for existing session if not already shown
-    if (!formShown) {
+            try {
+                const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
+
+                if (error) {
+                    console.error('Code exchange error:', error);
+                } else if (data?.session) {
+                    console.log('Session established from PKCE code');
+                    showPasswordForm();
+                }
+            } catch (err) {
+                console.error('Error exchanging code:', err);
+            }
+        }
+
+        // Fallback: check for session after a delay
         setTimeout(async () => {
             if (formShown) return;
 
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
-                    console.log('Found existing session on delayed check');
+                    console.log('Found session on delayed check');
                     showPasswordForm();
                 }
             } catch (err) {
-                console.warn('Delayed session check error:', err);
+                console.warn('Delayed check error:', err);
             }
-        }, 1000);
-    }
+        }, 1500);
 
-    // Final timeout - show invalid if nothing worked
-    setTimeout(() => {
-        if (!formShown) {
-            // Last attempt
-            supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session) {
-                    showPasswordForm();
-                } else {
-                    showInvalidLink('No session after timeout');
-                }
-            }).catch(() => {
-                showInvalidLink('Session check failed');
-            });
-        }
-    }, 6000);
-
-    // Handle form submission
-    if (passwordForm) {
-        passwordForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            hideMessages();
-
-            if (newPassword !== confirmPassword) {
-                showError('Passwords do not match. Please try again.');
-                return;
+        // Final timeout
+        setTimeout(() => {
+            if (!formShown) {
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    if (session) {
+                        showPasswordForm();
+                    } else {
+                        showInvalidLink('Session timeout');
+                    }
+                }).catch(() => {
+                    showInvalidLink('Session check failed');
+                });
             }
+        }, 5000);
 
-            // Basic validation
-            if (newPassword.length < 8) {
-                showError('Password must be at least 8 characters long.');
-                return;
-            }
+        // Handle form submission
+        if (passwordForm) {
+            passwordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
 
-            // Password strength validation if available
-            if (typeof validatePasswordStrength === 'function') {
-                const validation = validatePasswordStrength(newPassword);
-                if (!validation.valid) {
-                    showError('Password does not meet requirements:\n' + validation.errors.join('\n'));
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                hideMessages();
+
+                if (newPassword !== confirmPassword) {
+                    showError('Passwords do not match.');
                     return;
                 }
-            }
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Setting Password...';
-
-            try {
-                console.log('Updating password...');
-
-                const { data, error } = await supabase.auth.updateUser({
-                    password: newPassword
-                });
-
-                if (error) {
-                    throw error;
+                if (newPassword.length < 8) {
+                    showError('Password must be at least 8 characters.');
+                    return;
                 }
 
-                console.log('Password updated successfully');
+                if (typeof validatePasswordStrength === 'function') {
+                    const validation = validatePasswordStrength(newPassword);
+                    if (!validation.valid) {
+                        showError('Password requirements:\n' + validation.errors.join('\n'));
+                        return;
+                    }
+                }
 
-                // Update has_password flag
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Setting Password...';
+
                 try {
-                    const userId = data?.user?.id;
-                    if (userId) {
-                        await supabase
-                            .from('profiles')
-                            .update({ has_password: true })
-                            .eq('id', userId);
-                        console.log('has_password flag updated');
+                    const { data, error } = await supabaseClient.auth.updateUser({
+                        password: newPassword
+                    });
 
-                        // Update local cache
-                        try {
-                            const cached = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
-                            if (cached.profile) cached.profile.has_password = true;
-                            else cached.has_password = true;
-                            localStorage.setItem('eventhive_profile_cache', JSON.stringify(cached));
-                        } catch (e) { /* ignore */ }
+                    if (error) throw error;
+
+                    console.log('Password updated successfully');
+
+                    // Update has_password flag
+                    try {
+                        const userId = data?.user?.id;
+                        if (userId) {
+                            await supabaseClient
+                                .from('profiles')
+                                .update({ has_password: true })
+                                .eq('id', userId);
+                            console.log('has_password updated');
+                        }
+                    } catch (e) {
+                        console.warn('Could not update has_password:', e);
                     }
-                } catch (flagErr) {
-                    console.warn('Could not update has_password:', flagErr);
-                }
 
-                showSuccess('Password set successfully! Redirecting...');
-                passwordForm.style.display = 'none';
+                    showSuccess('Password set! Redirecting...');
+                    passwordForm.style.display = 'none';
+                    window.history.replaceState(null, null, window.location.pathname);
 
-                // Clean URL
-                window.history.replaceState(null, null, window.location.pathname);
+                    setTimeout(() => {
+                        window.location.href = 'eventhive-homepage.html';
+                    }, 2000);
 
-                // Redirect
-                setTimeout(() => {
-                    window.location.href = 'eventhive-homepage.html';
-                }, 2000);
+                } catch (err) {
+                    console.error('Password error:', err);
 
-            } catch (err) {
-                console.error('Password update error:', err);
-
-                let msg = 'Failed to set password.';
-                if (err.message) {
-                    if (err.message.toLowerCase().includes('session') ||
-                        err.message.toLowerCase().includes('expired')) {
-                        msg = 'Your session has expired. Please request a new password reset link.';
-                    } else {
-                        msg = 'Error: ' + err.message;
+                    let msg = 'Failed to set password.';
+                    if (err.message?.includes('expired') || err.message?.includes('session')) {
+                        msg = 'Session expired. Please request a new password reset link.';
+                    } else if (err.message) {
+                        msg = err.message;
                     }
-                }
 
-                showError(msg);
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Set Password';
-            }
-        });
-    }
-});
+                    showError(msg);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Set Password';
+                }
+            });
+        }
+    });
+})();
