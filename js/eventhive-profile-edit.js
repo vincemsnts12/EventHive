@@ -76,7 +76,63 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize image removal handlers
     initImageRemovalHandlers();
+
+    // Initialize OAuth user password blocking
+    initOAuthPasswordBlocking();
 });
+
+/* =========================================
+   4b. OAuth User Password Field Blocking
+   Blocks OAuth users who haven't set a password
+   from accessing password update fields
+   ========================================= */
+function initOAuthPasswordBlocking() {
+    // Get all password inputs in the password update section
+    const passwordInputs = document.querySelectorAll('.password-form-wrapper .pass-input');
+
+    if (passwordInputs.length === 0) return;
+
+    // Track if we've already shown the alert (to avoid spam)
+    let alertShown = false;
+
+    passwordInputs.forEach(input => {
+        input.addEventListener('focus', function (e) {
+            // Check if user has a password set
+            const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
+            const profileData = cachedProfile.profile || cachedProfile;
+            const hasPassword = profileData.has_password === true;
+
+            // If user doesn't have a password set, block access
+            if (!hasPassword) {
+                // Blur the input immediately
+                e.target.blur();
+
+                // Show alert only once per page load to avoid spam
+                if (!alertShown) {
+                    alertShown = true;
+                    alert('You signed up with Google and haven\'t set a password yet.\n\nPlease check your email for the "Set Your Password" link, or request a new one using "Forgot Password" on the login page.');
+
+                    // Reset after a short delay so they can be reminded again if they try again
+                    setTimeout(() => {
+                        alertShown = false;
+                    }, 3000);
+                }
+            }
+        });
+
+        // Also block on click for extra safety
+        input.addEventListener('click', function (e) {
+            const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
+            const profileData = cachedProfile.profile || cachedProfile;
+            const hasPassword = profileData.has_password === true;
+
+            if (!hasPassword) {
+                e.preventDefault();
+                e.target.blur();
+            }
+        });
+    });
+}
 
 /* =========================================
    5. Image Removal Handlers
