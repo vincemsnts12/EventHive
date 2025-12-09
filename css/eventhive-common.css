@@ -476,6 +476,8 @@ body {
 .password-toggle {
   position: absolute;
   right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
@@ -484,6 +486,12 @@ body {
   align-items: center;
   justify-content: center;
   color: #444;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.password-toggle:hover {
+  color: #B81E20;
 }
 
 .password-toggle .icon {
