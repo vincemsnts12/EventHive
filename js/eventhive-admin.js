@@ -1962,8 +1962,11 @@ async function saveDateEdit() {
       // Update parsed date fields
       event.startDate = startDateTime;
       event.endDate = endDateTime;
+      // Persist time in both camelCase and snake_case for DB payload
       event.startTime = `${startTime}:00`;
       event.endTime = `${endTime}:00`;
+      event.start_time = event.startTime;
+      event.end_time = event.endTime;
       
       // Recalculate status from dates
       if (typeof calculateEventStatus !== 'undefined') {
