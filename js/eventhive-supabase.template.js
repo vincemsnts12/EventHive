@@ -275,7 +275,12 @@ function setupAuthStateListener() {
           // This is actually a new login (different user or first login after sign out)
           lastAuthenticatedUserId = userId;
           localStorage.setItem('eventhive_last_authenticated_user_id', userId);
-          alert('Log in successful!');
+
+          // ONLY show alert for OAuth logins here
+          // Email/password logins already show alert in eventhive-pop-up__log&sign.js
+          if (isOAuthLogin) {
+            alert('Log in successful!');
+          }
         } else {
           // Same user, just navigating between pages - don't show message
           lastAuthenticatedUserId = userId;
