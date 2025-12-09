@@ -18,6 +18,8 @@ This document contains all security-related code snippets from the EventHive rep
 10. [Database RLS Policies](#10-database-rls-policies)
 11. [Admin Check Function](#11-admin-check-function)
 12. [New User Handler (Email Restriction)](#12-new-user-handler)
+13. [Password Reset Security (OAuth Users)](#13-password-reset-security-oauth-users)
+14. [Auth Alert Deduplication](#14-auth-alert-deduplication)
 
 ---
 
@@ -804,6 +806,106 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
+## 13. Password Reset Security (OAuth Users)
+
+**Files:** `js/eventhive-set-password.js`, `js/eventhive-profile-edit.js`
+
+OAuth users (Google sign-in) can set a password to enable email/password login. The password reset flow includes:
+
+### Password Setup Email Request
+```javascript
+// js/eventhive-profile-edit.js - Forgot password button for OAuth users
+const { error } = await supabase.auth.resetPasswordForEmail(emailToUse, {
+  redirectTo: window.location.origin + '/eventhive-set-password.html'
+});
+```
+
+### Token Capture and Session Handling
+```javascript
+// js/eventhive-set-password.js - Capture hash tokens immediately at script load
+(function() {
+    const originalHash = window.location.hash;
+    const hashParams = parseHash(originalHash);
+    
+    // Store tokens before any other script can process them
+    const capturedAccessToken = hashParams.access_token;
+    const capturedRefreshToken = hashParams.refresh_token || '';
+    
+    // Direct API call for password update (bypasses session issues)
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'apikey': supabaseKey
+        },
+        body: JSON.stringify({ password: newPassword })
+    });
+})();
+```
+
+### Auth Listener Skip on Password Reset Page
+```javascript
+// js/eventhive-supabase.template.js - Skip complex auth processing on set-password page
+if (event === 'SIGNED_IN' && session?.user?.email) {
+  const isSetPasswordPage = window.location.pathname.includes('set-password');
+  if (isSetPasswordPage) {
+    console.log('On set-password page - skipping auth listener processing');
+    return;  // Let set-password.js handle the session
+  }
+  // ... rest of auth processing
+}
+```
+
+### has_password Flag
+```javascript
+// Update profile after password set
+await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': supabaseKey,
+        'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify({ has_password: true })
+});
+```
+
+---
+
+## 14. Auth Alert Deduplication
+
+**Files:** `js/eventhive-supabase.template.js`, `js/eventhive-pop-up__log&sign.js`
+
+Prevents duplicate "Log in successful!" alerts when logging in with email/password.
+
+### Problem
+Two separate code paths could show login success alerts:
+1. `eventhive-pop-up__log&sign.js` - Form submission handler
+2. `eventhive-supabase.template.js` - Auth state change listener
+
+### Solution
+The auth state listener only shows alerts for OAuth logins (Google sign-in). Email/password logins show their own alert in the form handler.
+
+```javascript
+// js/eventhive-supabase.template.js
+} else if (isNewUserLogin && !isFirstTimeSignup) {
+  const storedUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!storedUserId || storedUserId !== userId) {
+    lastAuthenticatedUserId = userId;
+    localStorage.setItem('eventhive_last_authenticated_user_id', userId);
+    
+    // ONLY show alert for OAuth logins here
+    // Email/password logins already show alert in eventhive-pop-up__log&sign.js
+    if (isOAuthLogin) {
+      alert('Log in successful!');
+    }
+  }
+```
+
+---
+
 ## Summary
 
 | Security Feature | Location | Description |
@@ -817,4 +919,6 @@ CREATE TRIGGER on_auth_user_created
 | MFA | `security-services.js` | 6-digit code verification (TODO: email integration) |
 | RLS Policies | Supabase | Row-level security for all tables |
 | Admin Function | Supabase | Fast indexed `is_admin()` check |
+| Password Reset | `eventhive-set-password.js` | Secure password setup for OAuth users |
+| Alert Deduplication | `eventhive-supabase.template.js` | Prevents duplicate login alerts |
 
