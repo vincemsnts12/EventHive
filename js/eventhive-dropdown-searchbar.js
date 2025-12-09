@@ -435,6 +435,9 @@ function filterCards() {
     const visible = matchesCollege && matchesDate && matchesSearch;
     if (visible) {
       filteredCards.push(card);
+    } else {
+      // Hide cards that don't meet current filters
+      card.style.display = "none";
     }
 
     if (timeBadge) {
