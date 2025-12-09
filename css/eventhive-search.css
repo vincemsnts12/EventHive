@@ -26,7 +26,7 @@
   justify-content: center;
   align-items: center;
   background-color: #c92a2a;
-  padding: 14px 24px;
+  padding: 14px 0;
   border-radius: 50px;
   gap: 25px;
   width: min(75%, 1100px);
