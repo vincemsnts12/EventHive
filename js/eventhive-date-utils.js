@@ -116,6 +116,33 @@ function formatDateForDatabase(date) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
+// Format raw time string (HH:MM or HH:MM:SS) to 12-hour display
+function formatTimeStringForDisplay(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return timeStr;
+  let [h, m] = parts;
+  let hour = parseInt(h, 10);
+  const minute = m.padStart(2, '0');
+  if (isNaN(hour)) return timeStr;
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute} ${suffix}`;
+}
+
+function formatDateRangeFromParts(dateStr, startTimeStr, endTimeStr) {
+  if (!dateStr) return '';
+  const baseDate = new Date(dateStr);
+  if (isNaN(baseDate.getTime())) return '';
+  const options = { month: 'long', day: 'numeric', year: 'numeric', weekday: 'long' };
+  const dateOnly = baseDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const dayName = baseDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const start = formatTimeStringForDisplay(startTimeStr);
+  const end = formatTimeStringForDisplay(endTimeStr);
+  return `${dateOnly} (${dayName}) | ${start} - ${end}`;
+}
+
 /**
  * Calculate event status from start and end dates
  * @param {Date|string} startDate - Event start date
@@ -372,12 +399,39 @@ function eventFromDatabase(dbEvent, images = [], likesCount = 0, thumbnailIndex 
     organizations = [dbEvent.organization_name];
   }
   
+  const rawStartTime = dbEvent.start_time || dbEvent.startTime || null;
+  const rawEndTime = dbEvent.end_time || dbEvent.endTime || null;
+
+  let dateOnlyStr = null;
+  if (typeof dbEvent.start_date === 'string' && dbEvent.start_date.includes('T')) {
+    dateOnlyStr = dbEvent.start_date.split('T')[0];
+  } else if (dbEvent.start_date instanceof Date) {
+    const d = dbEvent.start_date;
+    const pad = (n) => n.toString().padStart(2, '0');
+    dateOnlyStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  let formattedDate = '';
+  if (dateOnlyStr && rawStartTime && rawEndTime) {
+    formattedDate = formatDateRangeFromParts(dateOnlyStr, rawStartTime, rawEndTime);
+  } else {
+    formattedDate = formatDateRangeForDisplay(dbEvent.start_date, dbEvent.end_date);
+  }
+
+  const startDateObj = (dateOnlyStr && rawStartTime)
+    ? new Date(`${dateOnlyStr}T${rawStartTime}`)
+    : (dbEvent.start_date ? new Date(dbEvent.start_date) : null);
+
+  const endDateObj = (dateOnlyStr && rawEndTime)
+    ? new Date(`${dateOnlyStr}T${rawEndTime}`)
+    : (dbEvent.end_date ? new Date(dbEvent.end_date) : null);
+
   return {
     id: dbEvent.id,
     title: dbEvent.title,
     description: dbEvent.description,
     location: dbEvent.location,
-    date: formatDateRangeForDisplay(dbEvent.start_date, dbEvent.end_date),
+    date: formattedDate,
     status: status,
     statusColor: getStatusColor(status),
     isFeatured: dbEvent.is_featured || false,
@@ -395,10 +449,10 @@ function eventFromDatabase(dbEvent, images = [], likesCount = 0, thumbnailIndex 
     updatedAt: dbEvent.updated_at,
     createdBy: dbEvent.created_by,
     // Add parsed date fields for easier manipulation
-    startDate: dbEvent.start_date ? new Date(dbEvent.start_date) : null,
-    endDate: dbEvent.end_date ? new Date(dbEvent.end_date) : null,
-    startTime: dbEvent.start_time || null,
-    endTime: dbEvent.end_time || null
+    startDate: startDateObj,
+    endDate: endDateObj,
+    startTime: rawStartTime,
+    endTime: rawEndTime
   };
 }
 
