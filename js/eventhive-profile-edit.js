@@ -87,40 +87,86 @@ document.addEventListener('DOMContentLoaded', function () {
    from accessing password update fields
    ========================================= */
 function initOAuthPasswordBlocking() {
-    const passwordFormWrapper = document.querySelector('.password-form-wrapper');
+    const passwordSection = document.getElementById('passwordSection') || document.querySelector('.password-container');
     const lockOverlay = document.getElementById('passwordLockOverlay');
     const forgotBtn = document.getElementById('lockForgotPasswordBtn');
 
-    if (!passwordFormWrapper || !lockOverlay) return;
+    if (!passwordSection || !lockOverlay) {
+        console.log('Password section or lock overlay not found');
+        return;
+    }
 
-    // Check if user has a password set
+    // Check if user has a password set - try multiple cache locations
+    let hasPassword = false;
+    let userEmail = null;
+
+    // Try eventhive_profile_cache first
     const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
     const profileData = cachedProfile.profile || cachedProfile;
-    const hasPassword = profileData.has_password === true;
+    hasPassword = profileData.has_password === true;
+    userEmail = profileData.email;
+
+    // Also try eh_cached_profile (used by save handler)
+    if (!hasPassword) {
+        const ehCachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+        hasPassword = ehCachedProfile.has_password === true;
+        if (!userEmail) userEmail = ehCachedProfile.email;
+    }
+
+    console.log('OAuth Password Blocking - hasPassword:', hasPassword, 'email:', userEmail);
 
     // Show lock overlay if user doesn't have a password
     if (!hasPassword) {
         lockOverlay.style.display = 'flex';
-        passwordFormWrapper.classList.add('locked');
+        passwordSection.classList.add('locked');
     } else {
         lockOverlay.style.display = 'none';
-        passwordFormWrapper.classList.remove('locked');
+        passwordSection.classList.remove('locked');
     }
 
     // Handle forgot password button click
     if (forgotBtn) {
         forgotBtn.addEventListener('click', async function () {
-            // Get user email from cache
-            const authCache = JSON.parse(localStorage.getItem('eventhive_auth_cache') || '{}');
-            const userEmail = profileData.email || authCache.state?.email;
+            // Get user email from multiple cache sources at click time
+            let emailToUse = null;
 
-            if (!userEmail) {
+            // Try eventhive_profile_cache
+            try {
+                const profCache = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
+                emailToUse = profCache.profile?.email || profCache.email;
+            } catch (e) { }
+
+            // Try eh_cached_profile
+            if (!emailToUse) {
+                try {
+                    const ehCache = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+                    emailToUse = ehCache.email;
+                } catch (e) { }
+            }
+
+            // Try to get from Supabase session directly
+            if (!emailToUse && typeof getSupabaseClient === 'function') {
+                try {
+                    const supabase = getSupabaseClient();
+                    if (supabase) {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        emailToUse = session?.user?.email;
+                    }
+                } catch (e) {
+                    console.error('Error getting session:', e);
+                }
+            }
+
+            console.log('Forgot password - email found:', emailToUse);
+
+            if (!emailToUse) {
                 alert('Could not find your email address. Please try logging in again.');
                 return;
             }
 
             // Show loading state
             forgotBtn.disabled = true;
+            const originalHTML = forgotBtn.innerHTML;
             forgotBtn.innerHTML = 'Sending...';
 
             try {
@@ -128,32 +174,29 @@ function initOAuthPasswordBlocking() {
                 if (typeof getSupabaseClient === 'function') {
                     const supabase = getSupabaseClient();
                     if (supabase) {
-                        const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+                        const { error } = await supabase.auth.resetPasswordForEmail(emailToUse, {
                             redirectTo: window.location.origin + '/eventhive-set-password.html'
                         });
 
                         if (error) {
+                            console.error('Password reset error:', error);
                             alert('Error sending email: ' + error.message);
                         } else {
-                            alert('Password setup email sent to ' + userEmail + '!\n\nPlease check your inbox and click the link to set your password.');
+                            alert('Password setup email sent to ' + emailToUse + '!\n\nPlease check your inbox and click the link to set your password.\n\nNote: The link expires in 1 hour.');
                         }
+                    } else {
+                        alert('Could not connect to authentication service.');
                     }
                 } else {
                     alert('Authentication service is not available. Please try again later.');
                 }
             } catch (err) {
                 console.error('Error sending password reset:', err);
-                alert('An error occurred. Please try again.');
+                alert('An error occurred: ' + err.message);
             } finally {
                 // Restore button
                 forgotBtn.disabled = false;
-                forgotBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                        <polyline points="22,6 12,13 2,6"></polyline>
-                    </svg>
-                    Send Password Setup Email
-                `;
+                forgotBtn.innerHTML = originalHTML;
             }
         });
     }

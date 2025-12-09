@@ -351,7 +351,7 @@
 }
 
 /* Password Lock Overlay for OAuth users */
-.password-form-wrapper {
+.password-container {
   position: relative;
 }
 
@@ -361,14 +361,14 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 20;
-  border-radius: 10px;
+  border-radius: inherit;
   padding: 30px;
   text-align: center;
 }
@@ -413,10 +413,12 @@
   border-color: #B81E20;
 }
 
-.password-form-wrapper.locked .form-group,
-.password-form-wrapper.locked .save-pass-btn {
-  filter: blur(3px);
+/* When section is locked, blur content behind overlay */
+.password-container.locked .liked-header,
+.password-container.locked .password-form-wrapper {
+  filter: blur(4px);
   pointer-events: none;
+  user-select: none;
 }
 
 
