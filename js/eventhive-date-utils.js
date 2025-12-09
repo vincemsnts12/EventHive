@@ -244,6 +244,9 @@ function eventToDatabase(event) {
     location: event.location,
     start_date: startDate ? formatDateForDatabase(startDate) : null,
     end_date: endDate ? formatDateForDatabase(endDate) : null,
+    // Persist start/end time (HH:MM:SS) to dedicated time columns
+    start_time: event.startTime || event.start_time || null,
+    end_time: event.endTime || event.end_time || null,
     is_featured: event.isFeatured || false,
     college_code: event.mainCollege || event.college, // Main college for backward compatibility
     organization_name: event.organization, // Only use organization_name, not organization_id
