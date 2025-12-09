@@ -506,6 +506,216 @@ function resetSessionTimeout() {
   updateLastActivity();
 }
 
+// ===== LOGIN LOCKOUT SYSTEM =====
+
+/**
+ * Login lockout constants
+ */
+const LOGIN_LOCKOUT_MAX_ATTEMPTS = 8;
+const LOGIN_LOCKOUT_DURATION = 5 * 60 * 1000; // 5 minutes
+const FORGOT_PASSWORD_MAX_REQUESTS = 3;
+const FORGOT_PASSWORD_WINDOW = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Get login attempts from localStorage
+ * @param {string} email - User email
+ * @returns {Object} - {attempts: number, lockoutUntil: number|null}
+ */
+function getLoginAttempts(email) {
+  try {
+    const key = `login_attempts_${email.toLowerCase()}`;
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
+
+    // Also check browser lockout (no email check bypassing)
+    const browserLockout = JSON.parse(localStorage.getItem('browser_login_lockout') || '{}');
+
+    // Return the more restrictive lockout
+    const emailLockoutUntil = data.lockoutUntil || 0;
+    const browserLockoutUntil = browserLockout.lockoutUntil || 0;
+    const effectiveLockoutUntil = Math.max(emailLockoutUntil, browserLockoutUntil);
+
+    return {
+      attempts: data.attempts || 0,
+      lockoutUntil: effectiveLockoutUntil > Date.now() ? effectiveLockoutUntil : null
+    };
+  } catch (e) {
+    return { attempts: 0, lockoutUntil: null };
+  }
+}
+
+/**
+ * Check if login is locked out
+ * @param {string} email - User email
+ * @returns {Object} - {locked: boolean, remainingSeconds: number, attempts: number}
+ */
+function checkLoginLockout(email) {
+  const data = getLoginAttempts(email);
+
+  if (data.lockoutUntil) {
+    const remainingMs = data.lockoutUntil - Date.now();
+    if (remainingMs > 0) {
+      return {
+        locked: true,
+        remainingSeconds: Math.ceil(remainingMs / 1000),
+        attempts: data.attempts
+      };
+    }
+  }
+
+  return {
+    locked: false,
+    remainingSeconds: 0,
+    attempts: data.attempts
+  };
+}
+
+/**
+ * Record a failed login attempt
+ * @param {string} email - User email
+ * @returns {Object} - {locked: boolean, remainingSeconds: number, attemptsLeft: number}
+ */
+function recordFailedLogin(email) {
+  const emailKey = `login_attempts_${email.toLowerCase()}`;
+
+  try {
+    // Get current attempts
+    let data = JSON.parse(localStorage.getItem(emailKey) || '{}');
+
+    // Check if lockout has expired, reset if so
+    if (data.lockoutUntil && data.lockoutUntil <= Date.now()) {
+      data = { attempts: 0, lockoutUntil: null };
+    }
+
+    // Increment attempts
+    data.attempts = (data.attempts || 0) + 1;
+
+    // Check if we should lock out
+    if (data.attempts >= LOGIN_LOCKOUT_MAX_ATTEMPTS) {
+      data.lockoutUntil = Date.now() + LOGIN_LOCKOUT_DURATION;
+
+      // Also lock the browser (prevents switching emails to bypass)
+      localStorage.setItem('browser_login_lockout', JSON.stringify({
+        lockoutUntil: data.lockoutUntil
+      }));
+
+      // Log to security_logs
+      logSecurityEvent(SECURITY_EVENT_TYPES.ACCOUNT_LOCKED, {
+        email: email,
+        attempts: data.attempts,
+        lockoutDuration: LOGIN_LOCKOUT_DURATION / 1000
+      }, `Account locked after ${data.attempts} failed login attempts`);
+    }
+
+    // Save to localStorage
+    localStorage.setItem(emailKey, JSON.stringify(data));
+
+    // Also log each failed attempt to server
+    logSecurityEvent(SECURITY_EVENT_TYPES.FAILED_LOGIN, {
+      email: email,
+      attemptNumber: data.attempts
+    }, 'Failed login attempt');
+
+    const attemptsLeft = LOGIN_LOCKOUT_MAX_ATTEMPTS - data.attempts;
+
+    return {
+      locked: data.lockoutUntil !== null && data.lockoutUntil > Date.now(),
+      remainingSeconds: data.lockoutUntil ? Math.ceil((data.lockoutUntil - Date.now()) / 1000) : 0,
+      attemptsLeft: Math.max(0, attemptsLeft)
+    };
+  } catch (e) {
+    console.error('Error recording failed login:', e);
+    return { locked: false, remainingSeconds: 0, attemptsLeft: LOGIN_LOCKOUT_MAX_ATTEMPTS };
+  }
+}
+
+/**
+ * Clear login attempts after successful login
+ * @param {string} email - User email
+ */
+function clearLoginAttempts(email) {
+  try {
+    const emailKey = `login_attempts_${email.toLowerCase()}`;
+    localStorage.removeItem(emailKey);
+    localStorage.removeItem('browser_login_lockout');
+  } catch (e) {
+    console.error('Error clearing login attempts:', e);
+  }
+}
+
+/**
+ * Format remaining lockout time as MM:SS
+ * @param {number} seconds - Seconds remaining
+ * @returns {string} - Formatted time string
+ */
+function formatLockoutTime(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ===== FORGOT PASSWORD RATE LIMITING =====
+
+/**
+ * Check if forgot password request is allowed (rate limiting)
+ * @param {string} email - User email
+ * @returns {Object} - {allowed: boolean, remainingRequests: number, nextAllowedTime: number|null}
+ */
+function checkForgotPasswordRateLimit(email) {
+  try {
+    const key = `forgot_password_${email.toLowerCase()}`;
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
+    const now = Date.now();
+
+    // Filter out requests older than 1 hour
+    const recentRequests = (data.requests || []).filter(
+      timestamp => now - timestamp < FORGOT_PASSWORD_WINDOW
+    );
+
+    if (recentRequests.length >= FORGOT_PASSWORD_MAX_REQUESTS) {
+      // Find when the oldest request will expire
+      const oldestRequest = Math.min(...recentRequests);
+      const nextAllowedTime = oldestRequest + FORGOT_PASSWORD_WINDOW;
+
+      return {
+        allowed: false,
+        remainingRequests: 0,
+        nextAllowedTime: nextAllowedTime
+      };
+    }
+
+    return {
+      allowed: true,
+      remainingRequests: FORGOT_PASSWORD_MAX_REQUESTS - recentRequests.length,
+      nextAllowedTime: null
+    };
+  } catch (e) {
+    console.error('Error checking forgot password rate limit:', e);
+    return { allowed: true, remainingRequests: FORGOT_PASSWORD_MAX_REQUESTS, nextAllowedTime: null };
+  }
+}
+
+/**
+ * Record a forgot password request
+ * @param {string} email - User email
+ */
+function recordForgotPasswordRequest(email) {
+  try {
+    const key = `forgot_password_${email.toLowerCase()}`;
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
+    const now = Date.now();
+
+    // Filter out old requests and add new one
+    const recentRequests = (data.requests || []).filter(
+      timestamp => now - timestamp < FORGOT_PASSWORD_WINDOW
+    );
+    recentRequests.push(now);
+
+    localStorage.setItem(key, JSON.stringify({ requests: recentRequests }));
+  } catch (e) {
+    console.error('Error recording forgot password request:', e);
+  }
+}
+
 // ===== MULTI-FACTOR AUTHENTICATION (MFA) =====
 
 /**

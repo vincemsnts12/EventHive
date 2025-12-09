@@ -1,375 +1,466 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Search Page</title>
+  <meta charset="UTF-8">
+  <title>Search Page</title>
+  <link rel="icon" type="image/png" href="images/favicon.png">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap"
+    rel="stylesheet">
 
-    <link rel="stylesheet" href="css/eventhive-common.css">
-    <link rel="stylesheet" href="css/eventhive-search.css">
+  <link rel="stylesheet" href="css/eventhive-common.css">
+  <link rel="stylesheet" href="css/eventhive-search.css">
 </head>
 
 <body>
-    <!-- ===== HEADER ===== -->
-    <div class="header">
-        <nav class="navbar">
-        <h1><a class="titlelogo" href="eventhive-homepage.html">EventHive</a></h1>
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <nav class="navbar">
+      <h1><a class="titlelogo" href="eventhive-homepage.html">EventHive</a></h1>
 
-        <div class="navlist">
-            <ul>
-            <li><a href="eventhive-homepage.html">Home</a></li>
-            <li><a href="eventhive-aboutus.html">About Us</a></li>
-            <li><a href="eventhive-contacts.html">Contacts</a></li>
-            </ul>
-        </div>
+      <div class="navlist">
+        <ul>
+          <li><a href="eventhive-homepage.html">Home</a></li>
+          <li><a href="eventhive-aboutus.html">About Us</a></li>
+          <li><a href="eventhive-contacts.html">Contacts</a></li>
+        </ul>
+      </div>
 
-        <div class="icons">
+      <div class="icons">
 
-            <a>
-            <svg width="25" height="26" viewBox="0 0 25 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18.2965 16.6861C19.7962 14.6074 20.4679 12.03 20.1773 9.46977C19.8866 6.90951 18.6549 4.55515 16.7288 2.87771C14.8026 1.20027 12.324 0.323458 9.78869 0.42269C7.25343 0.521921 4.84854 1.58988 3.05515 3.41291C1.26177 5.23593 0.21214 7.67958 0.116266 10.255C0.0203925 12.8304 0.885342 15.3475 2.53807 17.3029C4.1908 19.2583 6.50942 20.5077 9.03006 20.8012C11.5507 21.0946 14.0875 20.4105 16.1329 18.8856H16.1313C16.1767 18.9485 16.2273 19.0088 16.2831 19.0665L22.246 25.1236C22.5364 25.4188 22.9304 25.5848 23.3412 25.5849C23.7521 25.5851 24.1462 25.4194 24.4368 25.1244C24.7274 24.8294 24.8907 24.4292 24.8909 24.0119C24.891 23.5945 24.728 23.1942 24.4375 22.899L18.4746 16.8419C18.4193 16.7849 18.3598 16.7339 18.2965 16.6861ZM18.6961 10.6385C18.6961 11.7748 18.4758 12.9 18.0477 13.9498C17.6196 14.9997 16.9921 15.9536 16.2011 16.7571C15.4101 17.5606 14.4711 18.198 13.4376 18.6328C12.4041 19.0677 11.2964 19.2915 10.1777 19.2915C9.05904 19.2915 7.95134 19.0677 6.91783 18.6328C5.88433 18.198 4.94527 17.5606 4.15426 16.7571C3.36325 15.9536 2.73578 14.9997 2.30769 13.9498C1.8796 12.9 1.65927 11.7748 1.65927 10.6385C1.65927 8.34355 2.55674 6.14263 4.15426 4.51987C5.75177 2.89712 7.91847 1.98546 10.1777 1.98546C12.4369 1.98546 14.6036 2.89712 16.2011 4.51987C17.7987 6.14263 18.6961 8.34355 18.6961 10.6385Z"/>
-            </svg>
-            </a>
-            
-            
-            <a id="profile-icon" class="profile-btn">
-                <svg width="27" height="27" viewBox="0 0 27 27" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2.46209 26.5849C2.46209 26.5849 0.254517 26.5849 0.254517 24.4151C0.254517 22.2453 2.46209 15.7359 13.5 15.7359C24.5378 15.7359 26.7454 22.2453 26.7454 24.4151C26.7454 26.5849 24.5378 26.5849 24.5378 26.5849H2.46209ZM13.5 13.566C15.2564 13.566 16.9409 12.8802 18.1829 11.6595C19.4249 10.4387 20.1227 8.78302 20.1227 7.05661C20.1227 5.3302 19.4249 3.6745 18.1829 2.45375C16.9409 1.23299 15.2564 0.54718 13.5 0.54718C11.7435 0.54718 10.059 1.23299 8.817 2.45375C7.57499 3.6745 6.87724 5.3302 6.87724 7.05661C6.87724 8.78302 7.57499 10.4387 8.817 11.6595C10.059 12.8802 11.7435 13.566 13.5 13.566Z"/>
-                </svg>
-            </a>
+        <a>
+          <svg width="25" height="26" viewBox="0 0 25 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M18.2965 16.6861C19.7962 14.6074 20.4679 12.03 20.1773 9.46977C19.8866 6.90951 18.6549 4.55515 16.7288 2.87771C14.8026 1.20027 12.324 0.323458 9.78869 0.42269C7.25343 0.521921 4.84854 1.58988 3.05515 3.41291C1.26177 5.23593 0.21214 7.67958 0.116266 10.255C0.0203925 12.8304 0.885342 15.3475 2.53807 17.3029C4.1908 19.2583 6.50942 20.5077 9.03006 20.8012C11.5507 21.0946 14.0875 20.4105 16.1329 18.8856H16.1313C16.1767 18.9485 16.2273 19.0088 16.2831 19.0665L22.246 25.1236C22.5364 25.4188 22.9304 25.5848 23.3412 25.5849C23.7521 25.5851 24.1462 25.4194 24.4368 25.1244C24.7274 24.8294 24.8907 24.4292 24.8909 24.0119C24.891 23.5945 24.728 23.1942 24.4375 22.899L18.4746 16.8419C18.4193 16.7849 18.3598 16.7339 18.2965 16.6861ZM18.6961 10.6385C18.6961 11.7748 18.4758 12.9 18.0477 13.9498C17.6196 14.9997 16.9921 15.9536 16.2011 16.7571C15.4101 17.5606 14.4711 18.198 13.4376 18.6328C12.4041 19.0677 11.2964 19.2915 10.1777 19.2915C9.05904 19.2915 7.95134 19.0677 6.91783 18.6328C5.88433 18.198 4.94527 17.5606 4.15426 16.7571C3.36325 15.9536 2.73578 14.9997 2.30769 13.9498C1.8796 12.9 1.65927 11.7748 1.65927 10.6385C1.65927 8.34355 2.55674 6.14263 4.15426 4.51987C5.75177 2.89712 7.91847 1.98546 10.1777 1.98546C12.4369 1.98546 14.6036 2.89712 16.2011 4.51987C17.7987 6.14263 18.6961 8.34355 18.6961 10.6385Z" />
+          </svg>
+        </a>
 
-             <!-- drop down menu-->
-         <div class="dropdown-menu" id="dropdownMenu">
-             <!-- State 1: Guest (default) -->
-             <div id="dropdownState-guest">
-               <a href="#" id="navLoginBtn">Log In</a>
-               <a href="#" id="navSignupBtn">Sign Up</a>
-             </div>
-             
-             <!-- State 2: User (logged in, not admin) -->
-             <div id="dropdownState-user" style="display: none;">
-               <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
-               <a href="#" id="navLogoutBtn">Log Out</a>
-             </div>
-             
-             <!-- State 3: Admin (logged in, admin) -->
-             <div id="dropdownState-admin" style="display: none;">
-               <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
-               <a href="eventhive-admin.html" id="navDashboardBtn">Dashboard</a>
-               <a href="#" id="navLogoutBtn">Log Out</a>
-             </div>
+
+        <a id="profile-icon" class="profile-btn">
+          <svg width="27" height="27" viewBox="0 0 27 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M2.46209 26.5849C2.46209 26.5849 0.254517 26.5849 0.254517 24.4151C0.254517 22.2453 2.46209 15.7359 13.5 15.7359C24.5378 15.7359 26.7454 22.2453 26.7454 24.4151C26.7454 26.5849 24.5378 26.5849 24.5378 26.5849H2.46209ZM13.5 13.566C15.2564 13.566 16.9409 12.8802 18.1829 11.6595C19.4249 10.4387 20.1227 8.78302 20.1227 7.05661C20.1227 5.3302 19.4249 3.6745 18.1829 2.45375C16.9409 1.23299 15.2564 0.54718 13.5 0.54718C11.7435 0.54718 10.059 1.23299 8.817 2.45375C7.57499 3.6745 6.87724 5.3302 6.87724 7.05661C6.87724 8.78302 7.57499 10.4387 8.817 11.6595C10.059 12.8802 11.7435 13.566 13.5 13.566Z" />
+          </svg>
+        </a>
+
+        <!-- drop down menu-->
+        <div class="dropdown-menu" id="dropdownMenu">
+          <!-- State 1: Guest (default) -->
+          <div id="dropdownState-guest">
+            <a href="#" id="navLoginBtn">Log In</a>
+            <a href="#" id="navSignupBtn">Sign Up</a>
           </div>
-        
+
+          <!-- State 2: User (logged in, not admin) -->
+          <div id="dropdownState-user" style="display: none;">
+            <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
+            <a href="#" id="navLogoutBtn">Log Out</a>
+          </div>
+
+          <!-- State 3: Admin (logged in, admin) -->
+          <div id="dropdownState-admin" style="display: none;">
+            <a href="eventhive-profile.html" id="navProfileBtn">View Profile</a>
+            <a href="eventhive-admin.html" id="navDashboardBtn">Dashboard</a>
+            <a href="#" id="navLogoutBtn">Log Out</a>
+          </div>
         </div>
 
-        <!-- Hamburger Button (Mobile) -->
-        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
-          <span></span>
-          <span></span>
-          <span></span>
+      </div>
+
+      <!-- Hamburger Button (Mobile) -->
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+    </nav>
+  </div>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+
+  <!-- Mobile Slide-out Menu -->
+  <nav class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-nav">
+      <a href="eventhive-homepage.html">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+        </svg>
+        Home
+      </a>
+      <a href="eventhive-aboutus.html">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+        </svg>
+        About Us
+      </a>
+      <a href="eventhive-contacts.html">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+        </svg>
+        Contacts
+      </a>
+      <div class="mobile-menu-divider"></div>
+
+      <!-- Guest Links (shown when logged out) -->
+      <div id="mobileGuestLinks">
+        <a href="#" id="mobileLoginBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z" />
+          </svg>
+          Log In
+        </a>
+        <a href="#" id="mobileSignupBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
+          Sign Up
+        </a>
+      </div>
+
+      <!-- User Links (shown when logged in) -->
+      <div id="mobileUserLinks" style="display: none;">
+        <a href="eventhive-profile.html">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
+          View Profile
+        </a>
+        <a href="eventhive-admin.html" id="mobileDashboardBtn" style="display: none;">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+            <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" />
+          </svg>
+          Dashboard
+        </a>
+        <a href="#" id="mobileLogoutBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+          </svg>
+          Log Out
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== LOG IN POP UP ===== -->
+  <div class="auth-modal-overlay" id="loginModal">
+    <div class="auth-modal-container">
+
+      <!-- Header -->
+      <div class="auth-modal-header">
+        <h2 class="auth-modal__title">Login</h2>
+        <button class="auth-modal__closebtn" id="closeLoginBtn">&times;</button>
+      </div>
+
+      <!-- Form -->
+      <form class="auth-modal-form">
+        <label class="auth-modal__label" for="login-email">Email or Username</label>
+        <input class="auth-modal__input" type="text" id="login-email" placeholder="Enter your email or username"
+          required>
+
+        <label class="auth-modal__label" for="login-password">Password</label>
+        <div class="password-input-wrapper">
+          <input class="auth-modal__input" type="password" id="login-password" placeholder="Enter your password"
+            required>
+          <button type="button" class="password-toggle" data-target="login-password"
+            aria-label="Toggle password visibility">
+            <svg class="icon icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="icon icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.6 20.6 0 0 1 5.06-6.94"></path>
+              <path d="M1 1l22 22"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div id="loginLockoutMessage" class="login-lockout-message" style="display: none;"></div>
+
+        <div class="forgot-password-wrapper">
+          <a href="#" id="forgotPasswordLink" class="forgot-password-link">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="auth-modal__submit">Login</button>
+
+        <div class="auth-modal__divider">
+          <span>Or</span>
+        </div>
+
+        <button type="button" class="auth-modal__google-btn" id="googleLoginBtn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M17.64 9.20454C17.64 8.56636 17.5827 7.95272 17.4764 7.36363H9V10.8449H13.8436C13.635 11.9699 13.0009 12.9231 12.0477 13.5613V15.8195H14.9564C16.6582 14.2527 17.64 11.9454 17.64 9.20454Z"
+              fill="#4285F4" />
+            <path
+              d="M9 18C11.43 18 13.467 17.1941 14.9564 15.8195L12.0477 13.5613C11.2418 14.1013 10.2109 14.4204 9 14.4204C6.65454 14.4204 4.67182 12.8372 3.96409 10.71H0.957275V13.0418C2.43818 15.9831 5.48182 18 9 18Z"
+              fill="#34A853" />
+            <path
+              d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40681 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54772 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z"
+              fill="#FBBC05" />
+            <path
+              d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65454 3.57955 9 3.57955Z"
+              fill="#EA4335" />
+          </svg>
+          Continue with Google
         </button>
 
-        </nav>
+        <p class="auth-modal__switch">
+          Don't have an account?
+          <a href="#" id="openSignupFromLogin">Sign Up</a>
+        </p>
+      </form>
     </div>
+  </div>
 
-    <!-- Mobile Menu Overlay -->
-    <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+  <!-- ===== SIGN UP POP UP ===== -->
+  <div class="auth-modal-overlay" id="signupModal">
+    <div class="auth-modal-container">
 
-    <!-- Mobile Slide-out Menu -->
-    <nav class="mobile-menu" id="mobileMenu">
-      <div class="mobile-menu-nav">
-        <a href="eventhive-homepage.html">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-          Home
-        </a>
-        <a href="eventhive-aboutus.html">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-          About Us
-        </a>
-        <a href="eventhive-contacts.html">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-          Contacts
-        </a>
-      <div class="mobile-menu-divider"></div>
-      
-      <!-- Guest Links (shown when logged out) -->
-        <div id="mobileGuestLinks">
-          <a href="#" id="mobileLoginBtn">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/></svg>
-            Log In
-          </a>
-          <a href="#" id="mobileSignupBtn">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            Sign Up
-          </a>
+      <!-- Header -->
+      <div class="auth-modal-header">
+        <h2 class="auth-modal__title">Sign Up</h2>
+        <button class="auth-modal__closebtn" id="closeSignupBtn">&times;</button>
+      </div>
+
+      <!-- Form -->
+      <form class="auth-modal-form">
+
+        <label class="auth-modal__label" for="signup-email">Email</label>
+        <input class="auth-modal__input" type="email" id="signup-email" placeholder="Enter your email" required>
+
+        <label class="auth-modal__label" for="signup-username">Username</label>
+        <input class="auth-modal__input" type="text" id="signup-username" placeholder="Choose a username" required>
+
+        <label class="auth-modal__label" for="signup-password">Password</label>
+        <div class="password-input-wrapper">
+          <input class="auth-modal__input" type="password" id="signup-password" placeholder="Enter your password"
+            required>
+          <button type="button" class="password-toggle" data-target="signup-password"
+            aria-label="Toggle password visibility">
+            <svg class="icon icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="icon icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.6 20.6 0 0 1 5.06-6.94"></path>
+              <path d="M1 1l22 22"></path>
+            </svg>
+          </button>
         </div>
 
-        <!-- User Links (shown when logged in) -->
-        <div id="mobileUserLinks" style="display: none;">
-          <a href="eventhive-profile.html">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            View Profile
-          </a>
-          <a href="eventhive-admin.html" id="mobileDashboardBtn" style="display: none;">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/></svg>
-            Dashboard
-          </a>
-          <a href="#" id="mobileLogoutBtn">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
-            Log Out
-          </a>
+        <label class="auth-modal__label" for="signup-confirm-password">Confirm Password</label>
+        <div class="password-input-wrapper">
+          <input class="auth-modal__input" type="password" id="signup-confirm-password"
+            placeholder="Confirm your password" required>
+          <button type="button" class="password-toggle" data-target="signup-confirm-password"
+            aria-label="Toggle password visibility">
+            <svg class="icon icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="icon icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.6 20.6 0 0 1 5.06-6.94"></path>
+              <path d="M1 1l22 22"></path>
+            </svg>
+          </button>
+        </div>
+
+        <button type="submit" class="auth-modal__submit">Sign Up</button>
+
+        <div class="auth-modal__divider">
+          <span>Or</span>
+        </div>
+
+        <button type="button" class="auth-modal__google-btn" id="googleSignupBtn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M17.64 9.20454C17.64 8.56636 17.5827 7.95272 17.4764 7.36363H9V10.8449H13.8436C13.635 11.9699 13.0009 12.9231 12.0477 13.5613V15.8195H14.9564C16.6582 14.2527 17.64 11.9454 17.64 9.20454Z"
+              fill="#4285F4" />
+            <path
+              d="M9 18C11.43 18 13.467 17.1941 14.9564 15.8195L12.0477 13.5613C11.2418 14.1013 10.2109 14.4204 9 14.4204C6.65454 14.4204 4.67182 12.8372 3.96409 10.71H0.957275V13.0418C2.43818 15.9831 5.48182 18 9 18Z"
+              fill="#34A853" />
+            <path
+              d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40681 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54772 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z"
+              fill="#FBBC05" />
+            <path
+              d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65454 3.57955 9 3.57955Z"
+              fill="#EA4335" />
+          </svg>
+          Continue with Google
+        </button>
+
+        <p class="auth-modal__switch">
+          Already have an account?
+          <a href="#" id="openLoginFromSignup">Login</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <section class="search-section">
+    <div class="search-container">
+      <h1>Explore More Events</h1>
+      <p>Stay updated, stay connected.</p>
+
+      <div class="searchbar" id="searchBar">
+        <div class="category-column">
+          <button class="dropdown-category" id="dropdownCategoryBtn">Select Colleges <span
+              class="arrow">&#9662;</span></button>
+          <div class="dropdown-content" id="dropdownContent">
+            <div>College of Science</div>
+            <div>College of Engineering</div>
+            <div>College of Liberal Arts</div>
+            <div>College of Industrial Education</div>
+            <div>College of Industrial Technology</div>
+            <div>College of Architecture and Fine Arts</div>
+          </div>
+        </div>
+
+        <div class="date-column">
+          <input type="text" id="dateDisplayInput" class="date-display" placeholder="MM/DD/YY" readonly />
+          <span class="date-arrow">&#9662;</span>
+          <button class="clear-date-btn" id="clearDateBtn" type="button" title="Clear date"
+            aria-label="Clear date filter">&times;</button>
+          <input type="date" id="datePickerInput" class="native-date-input" aria-label="Choose a date" />
+        </div>
+
+        <div class="search-column">
+          <input type="text" id="searchInput" placeholder="Type here to search..." />
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10.2746 9.05031C11.1219 7.89404 11.5013 6.46047 11.3371 5.0364C11.1729 3.61233 10.4771 2.30279 9.38898 1.36976C8.30083 0.43673 6.90056 -0.0509732 5.46831 0.00422151C4.03607 0.0594162 2.67747 0.653438 1.66433 1.66745C0.651194 2.68145 0.0582276 4.04066 0.00406556 5.47315C-0.0500965 6.90563 0.43854 8.30575 1.37222 9.39339C2.30589 10.481 3.61575 11.176 5.03974 11.3392C6.46373 11.5024 7.89682 11.1219 9.05232 10.2737C9.07799 10.3087 9.10569 10.3422 9.13719 10.3743L12.5058 13.7434C12.6699 13.9076 12.8924 13.9999 13.1245 14C13.3566 14.0001 13.5793 13.9079 13.7435 13.7439C13.9076 13.5798 13.9999 13.3572 14 13.125C14.0001 12.8929 13.908 12.6702 13.7439 12.506L10.3753 9.13695C10.344 9.10526 10.3104 9.07688 10.2746 9.05031ZM10.5004 5.68647C10.5004 6.31852 10.3759 6.94438 10.1341 7.52832C9.89223 8.11226 9.53776 8.64284 9.0909 9.08977C8.64403 9.5367 8.11352 9.89122 7.52967 10.1331C6.94581 10.375 6.32003 10.4995 5.68807 10.4995C5.05611 10.4995 4.43033 10.375 3.84648 10.1331C3.26262 9.89122 2.73211 9.5367 2.28525 9.08977C1.83838 8.64284 1.48391 8.11226 1.24207 7.52832C1.00023 6.94438 0.875753 6.31852 0.875753 5.68647C0.875753 4.40998 1.38276 3.18578 2.28525 2.28316C3.18773 1.38055 4.41177 0.873469 5.68807 0.873469C6.96438 0.873469 8.18841 1.38055 9.0909 2.28316C9.99338 3.18578 10.5004 4.40998 10.5004 5.68647Z" />
+          </svg>
+
         </div>
       </div>
-    </nav>
 
-        <!-- ===== LOG IN POP UP ===== -->
-        <div class="auth-modal-overlay" id="loginModal">
-            <div class="auth-modal-container">
+    </div>
+  </section>
 
-            <!-- Header -->
-            <div class="auth-modal-header">
-                <h2 class="auth-modal__title">Login</h2>
-                <button class="auth-modal__closebtn" id="closeLoginBtn">&times;</button>
-            </div>
+  <section class="events-section">
 
-            <!-- Form -->
-            <form class="auth-modal-form">
-                <label class="auth-modal__label" for="login-email">Email or Username</label>
-                <input class="auth-modal__input" type="text" id="login-email" placeholder="Enter your email or username" required>
-
-                <label class="auth-modal__label" for="login-password">Password</label>
-                <div class="password-input-wrapper">
-                  <input class="auth-modal__input" type="password" id="login-password" placeholder="Enter your password" required>
-                  <button type="button" class="password-toggle" data-target="login-password" aria-label="Toggle password visibility">
-                    <svg class="icon icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    <svg class="icon icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.6 20.6 0 0 1 5.06-6.94"></path><path d="M1 1l22 22"></path></svg>
-                  </button>
-                </div>
-
-                <button type="submit" class="auth-modal__submit">Login</button>
-
-                <div class="auth-modal__divider">
-                  <span>Or</span>
-                </div>
-
-                <button type="button" class="auth-modal__google-btn" id="googleLoginBtn">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.64 9.20454C17.64 8.56636 17.5827 7.95272 17.4764 7.36363H9V10.8449H13.8436C13.635 11.9699 13.0009 12.9231 12.0477 13.5613V15.8195H14.9564C16.6582 14.2527 17.64 11.9454 17.64 9.20454Z" fill="#4285F4"/>
-                    <path d="M9 18C11.43 18 13.467 17.1941 14.9564 15.8195L12.0477 13.5613C11.2418 14.1013 10.2109 14.4204 9 14.4204C6.65454 14.4204 4.67182 12.8372 3.96409 10.71H0.957275V13.0418C2.43818 15.9831 5.48182 18 9 18Z" fill="#34A853"/>
-                    <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40681 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54772 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
-                    <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65454 3.57955 9 3.57955Z" fill="#EA4335"/>
-                  </svg>
-                  Continue with Google
-                </button>
-
-                <p class="auth-modal__switch">
-                Don't have an account?
-                <a href="#" id="openSignupFromLogin">Sign Up</a>
-                </p>
-            </form>
-            </div>
-        </div>
-
-        <!-- ===== SIGN UP POP UP ===== -->
-        <div class="auth-modal-overlay" id="signupModal">
-            <div class="auth-modal-container">
-
-            <!-- Header -->
-            <div class="auth-modal-header">
-                <h2 class="auth-modal__title">Sign Up</h2>
-                <button class="auth-modal__closebtn" id="closeSignupBtn">&times;</button>
-            </div>
-
-            <!-- Form -->
-            <form class="auth-modal-form">
-
-                <label class="auth-modal__label" for="signup-email">Email</label>
-                <input class="auth-modal__input" type="email" id="signup-email" placeholder="Enter your email" required>
-
-                <label class="auth-modal__label" for="signup-username">Username</label>
-                <input class="auth-modal__input" type="text" id="signup-username" placeholder="Choose a username" required>
-
-                <label class="auth-modal__label" for="signup-password">Password</label>
-                <div class="password-input-wrapper">
-                  <input class="auth-modal__input" type="password" id="signup-password" placeholder="Enter your password" required>
-                  <button type="button" class="password-toggle" data-target="signup-password" aria-label="Toggle password visibility">
-                    <svg class="icon icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    <svg class="icon icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.6 20.6 0 0 1 5.06-6.94"></path><path d="M1 1l22 22"></path></svg>
-                  </button>
-                </div>
-
-                <label class="auth-modal__label" for="signup-confirm-password">Confirm Password</label>
-                <div class="password-input-wrapper">
-                  <input class="auth-modal__input" type="password" id="signup-confirm-password" placeholder="Confirm your password" required>
-                  <button type="button" class="password-toggle" data-target="signup-confirm-password" aria-label="Toggle password visibility">
-                    <svg class="icon icon-show" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    <svg class="icon icon-hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.6 20.6 0 0 1 5.06-6.94"></path><path d="M1 1l22 22"></path></svg>
-                  </button>
-                </div>
-
-                <button type="submit" class="auth-modal__submit">Sign Up</button>
-
-                <div class="auth-modal__divider">
-                  <span>Or</span>
-                </div>
-
-                <button type="button" class="auth-modal__google-btn" id="googleSignupBtn">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.64 9.20454C17.64 8.56636 17.5827 7.95272 17.4764 7.36363H9V10.8449H13.8436C13.635 11.9699 13.0009 12.9231 12.0477 13.5613V15.8195H14.9564C16.6582 14.2527 17.64 11.9454 17.64 9.20454Z" fill="#4285F4"/>
-                    <path d="M9 18C11.43 18 13.467 17.1941 14.9564 15.8195L12.0477 13.5613C11.2418 14.1013 10.2109 14.4204 9 14.4204C6.65454 14.4204 4.67182 12.8372 3.96409 10.71H0.957275V13.0418C2.43818 15.9831 5.48182 18 9 18Z" fill="#34A853"/>
-                    <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40681 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54772 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
-                    <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65454 3.57955 9 3.57955Z" fill="#EA4335"/>
-                  </svg>
-                  Continue with Google
-                </button>
-
-                <p class="auth-modal__switch">
-                Already have an account?
-                <a href="#" id="openLoginFromSignup">Login</a>
-                </p>
-            </form>
-            </div>
-        </div>
-
-    <section class="search-section">
-        <div class="search-container">
-            <h1>Explore More Events</h1>
-            <p>Stay updated, stay connected.</p>
-
-            <div class="searchbar" id="searchBar">
-            <div class="category-column">
-                <button class="dropdown-category" id="dropdownCategoryBtn">Select Colleges <span class="arrow">&#9662;</span></button>
-                <div class="dropdown-content" id="dropdownContent">
-                <div>College of Science</div>
-                <div>College of Engineering</div>
-                <div>College of Liberal Arts</div>
-                <div>College of Industrial Education</div>
-                <div>College of Industrial Technology</div>
-                <div>College of Architecture and Fine Arts</div>
-                </div>
-            </div>
-
-            <div class="date-column">
-                <input type="text" id="dateDisplayInput" class="date-display" placeholder="MM/DD/YY" readonly />
-                <span class="date-arrow">&#9662;</span>
-                <button class="clear-date-btn" id="clearDateBtn" type="button" title="Clear date" aria-label="Clear date filter">&times;</button>
-                <input type="date" id="datePickerInput" class="native-date-input" aria-label="Choose a date" />
-            </div>
-
-            <div class="search-column">
-                <input type="text" id="searchInput" placeholder="Type here to search..." />
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10.2746 9.05031C11.1219 7.89404 11.5013 6.46047 11.3371 5.0364C11.1729 3.61233 10.4771 2.30279 9.38898 1.36976C8.30083 0.43673 6.90056 -0.0509732 5.46831 0.00422151C4.03607 0.0594162 2.67747 0.653438 1.66433 1.66745C0.651194 2.68145 0.0582276 4.04066 0.00406556 5.47315C-0.0500965 6.90563 0.43854 8.30575 1.37222 9.39339C2.30589 10.481 3.61575 11.176 5.03974 11.3392C6.46373 11.5024 7.89682 11.1219 9.05232 10.2737C9.07799 10.3087 9.10569 10.3422 9.13719 10.3743L12.5058 13.7434C12.6699 13.9076 12.8924 13.9999 13.1245 14C13.3566 14.0001 13.5793 13.9079 13.7435 13.7439C13.9076 13.5798 13.9999 13.3572 14 13.125C14.0001 12.8929 13.908 12.6702 13.7439 12.506L10.3753 9.13695C10.344 9.10526 10.3104 9.07688 10.2746 9.05031ZM10.5004 5.68647C10.5004 6.31852 10.3759 6.94438 10.1341 7.52832C9.89223 8.11226 9.53776 8.64284 9.0909 9.08977C8.64403 9.5367 8.11352 9.89122 7.52967 10.1331C6.94581 10.375 6.32003 10.4995 5.68807 10.4995C5.05611 10.4995 4.43033 10.375 3.84648 10.1331C3.26262 9.89122 2.73211 9.5367 2.28525 9.08977C1.83838 8.64284 1.48391 8.11226 1.24207 7.52832C1.00023 6.94438 0.875753 6.31852 0.875753 5.68647C0.875753 4.40998 1.38276 3.18578 2.28525 2.28316C3.18773 1.38055 4.41177 0.873469 5.68807 0.873469C6.96438 0.873469 8.18841 1.38055 9.0909 2.28316C9.99338 3.18578 10.5004 4.40998 10.5004 5.68647Z"/>
-                </svg>
-
-            </div>
-            </div>
-            
-        </div>
-    </section>
-
-    <section class="events-section">
-    
     <h2 id="dynamicHeader">Up-and-Coming Events</h2>
 
     <div class="events-container" id="activeEventsContainer">
       <!-- Events will be populated dynamically -->
     </div>
     <div class="pagination" id="eventsPagination"></div>
-    </section>
+  </section>
 
   <section class="events-section" id="pastSection" style="display: none;">
-      
-      <h2>Completed Events</h2>
-      
-      <div class="events-container" id="pastEventsContainer">
-          </div>
+
+    <h2>Completed Events</h2>
+
+    <div class="events-container" id="pastEventsContainer">
+    </div>
 
   </section>
 
 
-      <!-- ===== FOOTER ===== -->
-      <footer class="footer">
-        <div class="footer-container">
-          
-          <!-- Logo Section -->
-          <div class="footer-logo">
-            <span class="footer-logo__badge">EventHive</span>
-            <span class="footer-logo__text">on Campus</span>
-          </div>
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="footer-container">
 
-          <!-- Navigation Links -->
-          <nav class="footer-nav">
-            <a href="eventhive-contacts.html" class="footer-nav__link"> Contact us </a>
-            <a href="eventhive-homepage.html" class="footer-nav__link">Home</a>
-            <a href="#join-us" class="footer-nav__link">Want to publish an event?</a>
-          </nav>
-        </div>
-
-        <!-- Copyright Section -->
-        <div class="footer-copyright">
-        <div class="tup">
-            <img src="images/tup.png" alt="TUP Logo">
-            <p>Technological University of the Philippines - Manila</p>
-        </div>
-        <p class="footer-copyright__text">Copyright EventHive Group 2</p>
+      <!-- Logo Section -->
+      <div class="footer-logo">
+        <span class="footer-logo__badge">EventHive</span>
+        <span class="footer-logo__text">on Campus</span>
       </div>
-      </footer>
 
-    <!-- JOIN US Pop Up-->
-    <div class="join-us-modal-overlay" id="joinUsModal">
-      <div class="join-us-modal-container">
-        
-        <!-- Header -->
-        <div class="join-us-modal-header">
-          <button class="join-us-modal__closebtn" id="closeModalBtn">&times;</button>
-          <h2>Want a Post about your Event? Come and Follow this steps!</h2>
-        </div>
-        
-        <!-- Yellow Stripe -->
-        <div class="join-us-yellow-stripe"></div>
-        
-        <!-- Body with Steps -->
-        <div class="join-us-modal-body">
-
-          <div class="join-us-step">
-            <div class="join-us-step__number">1</div>
-            <div class="join-us-step__text">Fill up this <a href="">form</a></div>
-          </div>
-          
-          <div class="join-us-step">
-            <div class="join-us-step__number">2</div>
-            <div class="join-us-step__text">Wait for Approval of Post</div>
-          </div>
-          
-          <div class="join-us-step">
-            <div class="join-us-step__number">3</div>
-            <div class="join-us-step__text">Check your tup email inbox and spam for update.</div>
-          </div>
-        </div>
-        
-      </div>
+      <!-- Navigation Links -->
+      <nav class="footer-nav">
+        <a href="eventhive-contacts.html" class="footer-nav__link"> Contact us </a>
+        <a href="eventhive-homepage.html" class="footer-nav__link">Home</a>
+        <a href="#join-us" class="footer-nav__link">Want to publish an event?</a>
+      </nav>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <!-- SUPABASE CLIENT -->
-    <script src="js/eventhive-supabase.js"></script> <!-- SUPABASE CONFIGURATION -->
-    <script src="js/backend/auth-utils.js"></script>
-    <script src="js/backend/security-services.js"></script> <!-- SECURITY SERVICES (MUST LOAD FIRST) -->
-    <script src="js/backend/eventhive-supabase-services.js"></script> <!-- SUPABASE SERVICES (LIKES, COMMENTS, PROFILES, AUTH) -->
-    <script src="js/backend/eventhive-events-services.js"></script> <!-- EVENT SERVICES -->
-    <script src="js/eventhive-date-utils.js"></script> <!-- DATE UTILITY FUNCTIONS -->
-    <script src="js/eventhive-events.js"></script> <!-- EVENT DATA STRUCTURE -->
-    <script src="js/eventhive-search-init.js"></script> <!-- LOAD EVENTS FROM SUPABASE -->
-    <script src="js/eventhive-title-scroll.js"></script> <!-- TITLE HORIZONTAL SCROLL ON HOVER -->
-    <script src="js/eventhive-dropdownmenu.js"></script> <!-- PROFILE ICON DROPDOWN JS FILE -->
-    <script src="js/eventhive-pop-up__log&sign.js"></script> <!-- POP UP PROFILE SIGN IN AND LOG IN JS FILE -->
-    <script src="js/eventhive-pop-up__join-us.js"></script> <!-- POP UP CONTACT JS FILE -->
-    <script src="js/eventhive-dropdown-searchbar.js"></script> <!-- DROPDOWN FOR CATEGORY LIST -->
-    <script src="js/eventhive-hamburger.js"></script> <!-- HAMBURGER MENU JS FILE -->
-    
+    <!-- Copyright Section -->
+    <div class="footer-copyright">
+      <div class="tup">
+        <img src="images/tup.png" alt="TUP Logo">
+        <p>Technological University of the Philippines - Manila</p>
+      </div>
+      <p class="footer-copyright__text">Copyright EventHive Group 2</p>
+    </div>
+  </footer>
+
+  <!-- JOIN US Pop Up-->
+  <div class="join-us-modal-overlay" id="joinUsModal">
+    <div class="join-us-modal-container">
+
+      <!-- Header -->
+      <div class="join-us-modal-header">
+        <button class="join-us-modal__closebtn" id="closeModalBtn">&times;</button>
+        <h2>Want a Post about your Event? Come and Follow this steps!</h2>
+      </div>
+
+      <!-- Yellow Stripe -->
+      <div class="join-us-yellow-stripe"></div>
+
+      <!-- Body with Steps -->
+      <div class="join-us-modal-body">
+
+        <div class="join-us-step">
+          <div class="join-us-step__number">1</div>
+          <div class="join-us-step__text">Fill up this <a href="">form</a></div>
+        </div>
+
+        <div class="join-us-step">
+          <div class="join-us-step__number">2</div>
+          <div class="join-us-step__text">Wait for Approval of Post</div>
+        </div>
+
+        <div class="join-us-step">
+          <div class="join-us-step__number">3</div>
+          <div class="join-us-step__text">Check your tup email inbox and spam for update.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <!-- SUPABASE CLIENT -->
+  <script src="js/eventhive-supabase.js"></script> <!-- SUPABASE CONFIGURATION -->
+  <script src="js/backend/auth-utils.js"></script>
+  <script src="js/backend/security-services.js"></script> <!-- SECURITY SERVICES (MUST LOAD FIRST) -->
+  <script src="js/backend/eventhive-supabase-services.js"></script>
+  <!-- SUPABASE SERVICES (LIKES, COMMENTS, PROFILES, AUTH) -->
+  <script src="js/backend/eventhive-events-services.js"></script> <!-- EVENT SERVICES -->
+  <script src="js/eventhive-date-utils.js"></script> <!-- DATE UTILITY FUNCTIONS -->
+  <script src="js/eventhive-events.js"></script> <!-- EVENT DATA STRUCTURE -->
+  <script src="js/eventhive-search-init.js"></script> <!-- LOAD EVENTS FROM SUPABASE -->
+  <script src="js/eventhive-title-scroll.js"></script> <!-- TITLE HORIZONTAL SCROLL ON HOVER -->
+  <script src="js/eventhive-dropdownmenu.js"></script> <!-- PROFILE ICON DROPDOWN JS FILE -->
+  <script src="js/eventhive-pop-up__log&sign.js"></script> <!-- POP UP PROFILE SIGN IN AND LOG IN JS FILE -->
+  <script src="js/eventhive-pop-up__join-us.js"></script> <!-- POP UP CONTACT JS FILE -->
+  <script src="js/eventhive-dropdown-searchbar.js"></script> <!-- DROPDOWN FOR CATEGORY LIST -->
+  <script src="js/eventhive-hamburger.js"></script> <!-- HAMBURGER MENU JS FILE -->
+
 </body>
+
 </html>

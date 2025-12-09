@@ -20,6 +20,8 @@ This document contains all security-related code snippets from the EventHive rep
 12. [New User Handler (Email Restriction)](#12-new-user-handler)
 13. [Password Reset Security (OAuth Users)](#13-password-reset-security-oauth-users)
 14. [Auth Alert Deduplication](#14-auth-alert-deduplication)
+15. [Login Lockout System](#15-login-lockout-system)
+16. [Forgot Password Rate Limiting](#16-forgot-password-rate-limiting)
 
 ---
 
@@ -906,6 +908,66 @@ The auth state listener only shows alerts for OAuth logins (Google sign-in). Ema
 
 ---
 
+## 15. Login Lockout System
+
+**Files:** `js/backend/security-services.js`, `js/eventhive-pop-up__log&sign.js`
+
+Prevents brute-force attacks by locking accounts after failed login attempts.
+
+### Configuration
+- **8 failed attempts** → 5-minute lockout
+- Locks both email AND browser (prevents email switching bypass)
+- Countdown timer displayed to user
+- Counter resets after lockout expires or successful login
+
+### Functions
+```javascript
+// Check if login is locked
+const status = checkLoginLockout(email);
+if (status.locked) {
+  // Show lockout message with status.remainingSeconds
+}
+
+// Record failed attempt
+const result = recordFailedLogin(email);
+if (result.locked) {
+  // Account is now locked - start countdown
+}
+
+// Clear attempts on successful login
+clearLoginAttempts(email);
+
+// Format time for display
+const timeStr = formatLockoutTime(seconds); // Returns "4:32"
+```
+
+---
+
+## 16. Forgot Password Rate Limiting
+
+**Files:** `js/backend/security-services.js`, `js/eventhive-pop-up__log&sign.js`
+
+Prevents email spam by limiting password reset requests.
+
+### Configuration
+- **Max 3 requests** per email per hour
+- Uses existing password reset flow (Supabase `resetPasswordForEmail`)
+- Redirects to `eventhive-set-password.html`
+
+### Functions
+```javascript
+// Check if request is allowed
+const rateLimit = checkForgotPasswordRateLimit(email);
+if (!rateLimit.allowed) {
+  // Show rate limit message with rateLimit.nextAllowedTime
+}
+
+// Record a request
+recordForgotPasswordRequest(email);
+```
+
+---
+
 ## Summary
 
 | Security Feature | Location | Description |
@@ -921,4 +983,6 @@ The auth state listener only shows alerts for OAuth logins (Google sign-in). Ema
 | Admin Function | Supabase | Fast indexed `is_admin()` check |
 | Password Reset | `eventhive-set-password.js` | Secure password setup for OAuth users |
 | Alert Deduplication | `eventhive-supabase.template.js` | Prevents duplicate login alerts |
+| Login Lockout | `security-services.js` | 5-min lockout after 8 failed attempts |
+| Forgot Password | `eventhive-pop-up__log&sign.js` | Rate-limited (3/hour) password reset |
 

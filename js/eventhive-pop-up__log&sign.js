@@ -133,6 +133,58 @@ document.addEventListener('DOMContentLoaded', () => {
   // ===== EMAIL/PASSWORD LOGIN FORM =====
   const loginForm = loginModal?.querySelector('.auth-modal-form');
   if (loginForm) {
+    // Lockout countdown timer
+    let lockoutInterval = null;
+    const lockoutMessageEl = document.getElementById('loginLockoutMessage');
+
+    function showLockoutMessage(seconds) {
+      if (lockoutMessageEl) {
+        lockoutMessageEl.style.display = 'block';
+        const timeStr = typeof formatLockoutTime === 'function'
+          ? formatLockoutTime(seconds)
+          : `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
+        lockoutMessageEl.innerHTML = `<strong>Account Locked</strong><br>Too many failed attempts. Try again in <span id="lockoutTimer">${timeStr}</span>`;
+      }
+    }
+
+    function hideLockoutMessage() {
+      if (lockoutMessageEl) {
+        lockoutMessageEl.style.display = 'none';
+      }
+      if (lockoutInterval) {
+        clearInterval(lockoutInterval);
+        lockoutInterval = null;
+      }
+    }
+
+    function startLockoutCountdown(seconds, email) {
+      let remaining = seconds;
+      showLockoutMessage(remaining);
+
+      if (lockoutInterval) clearInterval(lockoutInterval);
+
+      lockoutInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          hideLockoutMessage();
+          // Enable submit button
+          const submitBtn = loginForm.querySelector('.auth-modal__submit');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Login';
+          }
+        } else {
+          const timerEl = document.getElementById('lockoutTimer');
+          if (timerEl) {
+            const timeStr = typeof formatLockoutTime === 'function'
+              ? formatLockoutTime(remaining)
+              : `${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')}`;
+            timerEl.textContent = timeStr;
+          }
+        }
+      }, 1000);
+    }
+
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -163,6 +215,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (!email.endsWith('@tup.edu.ph')) {
           alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
           return;
+        }
+
+        // Check lockout status before attempting login
+        if (typeof checkLoginLockout === 'function') {
+          const lockoutStatus = checkLoginLockout(email);
+          if (lockoutStatus.locked) {
+            startLockoutCountdown(lockoutStatus.remainingSeconds, email);
+            if (submitBtn) {
+              submitBtn.disabled = true;
+            }
+            return;
+          }
         }
       }
 
@@ -197,6 +261,18 @@ document.addEventListener('DOMContentLoaded', () => {
               }
 
               loginEmail = profile.email;
+
+              // Check lockout for the resolved email
+              if (typeof checkLoginLockout === 'function') {
+                const lockoutStatus = checkLoginLockout(loginEmail);
+                if (lockoutStatus.locked) {
+                  startLockoutCountdown(lockoutStatus.remainingSeconds, loginEmail);
+                  if (submitBtn) {
+                    submitBtn.disabled = true;
+                  }
+                  return;
+                }
+              }
             }
 
             const { data, error } = await supabase.auth.signInWithPassword({
@@ -205,16 +281,28 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (error) {
+              // Record failed login attempt
+              let lockoutResult = { locked: false, attemptsLeft: 8 };
+              if (typeof recordFailedLogin === 'function') {
+                lockoutResult = recordFailedLogin(loginEmail);
+              }
+
               // Check if error is due to unverified email or invalid credentials
               const errorMessage = error.message || '';
-              const errorCode = error.status || '';
 
               // Check for invalid credentials FIRST (before generic 400 check)
-              // This catches Google OAuth users who don't have a password set
               if (errorMessage.toLowerCase().includes('invalid login credentials') ||
                 errorMessage.toLowerCase().includes('invalid password') ||
                 errorMessage.toLowerCase().includes('invalid credentials')) {
-                // Check if this might be a Google OAuth user by looking up their profile
+
+                // Check if account is now locked
+                if (lockoutResult.locked) {
+                  startLockoutCountdown(lockoutResult.remainingSeconds, loginEmail);
+                  if (submitBtn) submitBtn.disabled = true;
+                  return;
+                }
+
+                // Check if this might be a Google OAuth user
                 const loginEmailCheck = loginEmail || email;
                 let isGoogleUser = false;
 
@@ -225,23 +313,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     .eq('email', loginEmailCheck)
                     .single();
 
-                  // If profile exists but login failed, might be Google OAuth user
                   if (profile) {
-                    // Show helpful message for potential Google OAuth users
-                    alert('Invalid Credentials\n\nIf you signed up with Google, please:\n• Use "Continue with Google" to log in, OR\n• Check your TUP email for the default password sent during first-time Google sign-in.\n\nYou can also configure a new password from the Edit Profile page after logging in.');
+                    const attemptsMsg = lockoutResult.attemptsLeft > 0
+                      ? `\n\n(${lockoutResult.attemptsLeft} attempts remaining before lockout)`
+                      : '';
+                    alert('Invalid Credentials\n\nIf you signed up with Google, please:\n• Use "Continue with Google" to log in, OR\n• Click "Forgot Password?" to set a new password.' + attemptsMsg);
                     isGoogleUser = true;
                   }
                 } catch (e) {
-                  // Profile lookup failed - just show normal error
+                  // Profile lookup failed
                 }
 
                 if (!isGoogleUser) {
-                  alert('Login failed: Invalid email or password.');
+                  const attemptsMsg = lockoutResult.attemptsLeft > 0
+                    ? ` (${lockoutResult.attemptsLeft} attempts remaining)`
+                    : '';
+                  alert('Login failed: Invalid email or password.' + attemptsMsg);
                 }
               } else if (errorMessage.toLowerCase().includes('email not confirmed') ||
                 errorMessage.toLowerCase().includes('email not verified') ||
                 errorMessage.toLowerCase().includes('confirm your email')) {
-                // Specifically check for email verification errors (not just 400 status)
                 alert('Please verify before logging in. A verification has been sent to your TUP Email.');
               } else {
                 alert('Login failed: ' + errorMessage);
@@ -250,9 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
               if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Login';
-              }
-              if (typeof logSecurityEvent === 'function') {
-                logSecurityEvent('FAILED_LOGIN', { email: loginEmail, error: error.message }, 'User login attempt failed');
               }
             } else {
               // Check if email is verified
@@ -271,6 +359,12 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               // Success - wait for both auth and profile to load BEFORE completing login
               // This ensures dropdown is functional immediately after login
+
+              // Clear failed login attempts on successful login
+              if (typeof clearLoginAttempts === 'function') {
+                clearLoginAttempts(loginEmail);
+              }
+              hideLockoutMessage();
 
               // Wait for session to be fully established
               await new Promise(resolve => setTimeout(resolve, 500));
@@ -399,6 +493,79 @@ document.addEventListener('DOMContentLoaded', () => {
           submitBtn.disabled = false;
           submitBtn.textContent = 'Login';
         }
+      }
+    });
+  }
+
+  // ===== FORGOT PASSWORD LINK =====
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      // Get email from login form if available
+      const emailInput = document.getElementById('login-email');
+      let email = emailInput?.value?.trim() || '';
+
+      // If no email, prompt for it
+      if (!email) {
+        email = prompt('Enter your TUP email address:');
+        if (!email) return;
+        email = email.trim();
+      }
+
+      // Validate email domain
+      if (!email.endsWith('@tup.edu.ph')) {
+        alert('Only TUP email addresses (@tup.edu.ph) are allowed.');
+        return;
+      }
+
+      // Check rate limiting
+      if (typeof checkForgotPasswordRateLimit === 'function') {
+        const rateLimit = checkForgotPasswordRateLimit(email);
+        if (!rateLimit.allowed) {
+          const waitMins = Math.ceil((rateLimit.nextAllowedTime - Date.now()) / 60000);
+          alert(`Too many password reset requests.\n\nPlease wait ${waitMins} minutes before trying again.`);
+          return;
+        }
+      }
+
+      // Show loading state
+      forgotPasswordLink.textContent = 'Sending...';
+      forgotPasswordLink.style.pointerEvents = 'none';
+
+      try {
+        if (typeof getSupabaseClient === 'function') {
+          const supabase = getSupabaseClient();
+          if (supabase) {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+              redirectTo: window.location.origin + '/eventhive-set-password.html'
+            });
+
+            if (error) {
+              console.error('Password reset error:', error);
+              alert('Error sending reset email: ' + error.message);
+            } else {
+              // Record the request for rate limiting
+              if (typeof recordForgotPasswordRequest === 'function') {
+                recordForgotPasswordRequest(email);
+              }
+
+              alert('Password reset email sent!\n\nPlease check your TUP email inbox (and spam folder) for the reset link.\n\nThe link expires in 1 hour.');
+            }
+          } else {
+            alert('Could not connect to authentication service.');
+          }
+        } else {
+          alert('Authentication service is not available.');
+        }
+      } catch (err) {
+        console.error('Forgot password error:', err);
+        alert('An error occurred: ' + err.message);
+      } finally {
+        // Restore link
+        forgotPasswordLink.textContent = 'Forgot Password?';
+        forgotPasswordLink.style.pointerEvents = 'auto';
       }
     });
   }

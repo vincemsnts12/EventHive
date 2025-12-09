@@ -584,6 +584,51 @@ body {
   flex-shrink: 0;
 }
 
+/* ===== LOGIN LOCKOUT MESSAGE ===== */
+.login-lockout-message {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 15px;
+  margin: 10px 0;
+  text-align: center;
+  color: #991b1b;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.login-lockout-message strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 1rem;
+  color: #7f1d1d;
+}
+
+#lockoutTimer {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #B81E20;
+  font-family: monospace;
+}
+
+/* ===== FORGOT PASSWORD LINK ===== */
+.forgot-password-wrapper {
+  text-align: right;
+  margin: 5px 0 0 0;
+}
+
+.forgot-password-link {
+  color: #6b7280;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.forgot-password-link:hover {
+  color: #B81E20;
+  text-decoration: underline;
+}
+
 /* ===== EVENT CARD SHARED STYLES ===== */
 .events-section {
   width: 90%;
