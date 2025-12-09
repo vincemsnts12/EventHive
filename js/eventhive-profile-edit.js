@@ -84,13 +84,54 @@ document.addEventListener('DOMContentLoaded', function () {
    ========================================= */
 
 // Track which images are marked for removal
-window.__EH_REMOVE_AVATAR = false; // Kept for compatibility, but not used since avatar defaults to initials
+window.__EH_REMOVE_AVATAR = false;
 window.__EH_REMOVE_COVER = false;
 
 function initImageRemovalHandlers() {
+    const removeAvatarBtn = document.getElementById('removeAvatarBtn');
     const removeCoverBtn = document.getElementById('removeCoverBtn');
+    const profileImg = document.getElementById('profileImgDisplay');
     const coverImg = document.getElementById('coverImgDisplay');
+    const profilePlaceholder = document.getElementById('profileInitialsPlaceholder');
     const coverPhoto = document.querySelector('.cover-photo');
+
+    // Avatar removal handler
+    if (removeAvatarBtn) {
+        removeAvatarBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Mark avatar for removal
+            window.__EH_REMOVE_AVATAR = true;
+
+            // Hide the image and show initials placeholder
+            if (profileImg) {
+                profileImg.style.display = 'none';
+            }
+
+            // Generate initials and show placeholder
+            if (profilePlaceholder) {
+                const authCache = JSON.parse(localStorage.getItem('eh_auth_cache') || '{}');
+                const cachedProfile = JSON.parse(localStorage.getItem('eh_cached_profile') || '{}');
+                const username = cachedProfile.username || authCache.username || 'U';
+                const initials = username.substring(0, 2).toUpperCase();
+                const bgColor = stringToColorForEdit(username);
+
+                profilePlaceholder.textContent = initials;
+                profilePlaceholder.style.backgroundColor = bgColor;
+                profilePlaceholder.style.display = 'flex';
+            }
+
+            // Hide the trash button
+            removeAvatarBtn.style.display = 'none';
+
+            // Reset file input
+            const profileInput = document.getElementById('profileUpload');
+            if (profileInput) profileInput.value = '';
+
+            console.log('Avatar marked for removal');
+        });
+    }
 
     // Cover removal handler
     if (removeCoverBtn) {
@@ -131,10 +172,14 @@ function stringToColorForEdit(str) {
     return `hsl(${hue}, 45%, 45%)`;
 }
 
-// Show/hide cover remove button based on whether there's an image
+// Show/hide remove buttons based on whether there's an image
 function updateRemoveButtonVisibility(hasAvatar, hasCover) {
-    // Note: Avatar remove button removed - avatar always defaults to initials
+    const removeAvatarBtn = document.getElementById('removeAvatarBtn');
     const removeCoverBtn = document.getElementById('removeCoverBtn');
+
+    if (removeAvatarBtn) {
+        removeAvatarBtn.style.display = hasAvatar ? 'flex' : 'none';
+    }
     if (removeCoverBtn) {
         removeCoverBtn.style.display = hasCover ? 'flex' : 'none';
     }
@@ -155,9 +200,11 @@ function previewImage(input, imgId) {
 
             // Show the remove button and reset removal flag
             if (imgId === 'profileImgDisplay') {
-                // Avatar changed - reset removal flag (but no remove button since avatar defaults to initials)
+                // Avatar changed - show remove button
                 window.__EH_REMOVE_AVATAR = false;
+                const removeBtn = document.getElementById('removeAvatarBtn');
                 const placeholder = document.getElementById('profileInitialsPlaceholder');
+                if (removeBtn) removeBtn.style.display = 'flex';
                 if (placeholder) placeholder.style.display = 'none';
             } else if (imgId === 'coverImgDisplay') {
                 // Cover photo changed - show remove button
