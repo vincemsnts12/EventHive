@@ -103,7 +103,17 @@ function formatTime(date) {
  */
 function formatDateForDatabase(date) {
   if (!date) return null;
-  return date.toISOString();
+  // Preserve local wall-clock time to avoid timezone shifts in DB
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return null;
+  const pad = (n) => n.toString().padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
 /**
@@ -244,7 +254,7 @@ function eventToDatabase(event) {
     location: event.location,
     start_date: startDate ? formatDateForDatabase(startDate) : null,
     end_date: endDate ? formatDateForDatabase(endDate) : null,
-    // Persist start/end time (HH:MM:SS) to dedicated time columns
+      // Persist start/end time (HH:MM:SS) to dedicated time columns
     start_time: event.startTime || event.start_time || null,
     end_time: event.endTime || event.end_time || null,
     is_featured: event.isFeatured || false,

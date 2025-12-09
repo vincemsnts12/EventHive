@@ -521,6 +521,9 @@ async function createNewPendingEvent() {
     date: todayDate,
     startDate: startDate, // Explicit Date object for database
     endDate: endDate, // Explicit Date object for database
+    // Explicit time fields (HH:MM:SS) to avoid timezone shifts
+    startTime: '09:00:00',
+    endTime: '17:00:00',
     status: 'Pending',
     isFeatured: false,
     likes: 0,
@@ -1962,11 +1965,9 @@ async function saveDateEdit() {
       // Update parsed date fields
       event.startDate = startDateTime;
       event.endDate = endDateTime;
-      // Persist time in both camelCase and snake_case for DB payload
+      // Persist time (camelCase; DB mapping handled downstream)
       event.startTime = `${startTime}:00`;
       event.endTime = `${endTime}:00`;
-      event.start_time = event.startTime;
-      event.end_time = event.endTime;
       
       // Recalculate status from dates
       if (typeof calculateEventStatus !== 'undefined') {
