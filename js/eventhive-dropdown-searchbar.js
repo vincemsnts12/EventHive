@@ -4,6 +4,12 @@ const dropdownContent = document.getElementById("dropdownContent");
 const dropdownItems = dropdownContent ? dropdownContent.querySelectorAll("div") : [];
 const headerTitle = document.getElementById("dynamicHeader"); 
 
+// Date filter controls
+const datePickerInput = document.getElementById("datePickerInput");
+const dateDisplayInput = document.getElementById("dateDisplayInput");
+const clearDateBtn = document.getElementById("clearDateBtn");
+const dateArrow = document.querySelector(".date-arrow");
+
 // Containers
 const activeContainer = document.getElementById("activeEventsContainer");
 const pastContainer = document.getElementById("pastEventsContainer");
@@ -11,7 +17,82 @@ const pastSection = document.getElementById("pastSection");
 
 // State
 let selectedColleges = [];
+let selectedDate = null; // normalized YYYY-MM-DD
 let allEventCards = []; // Store all dynamically created cards
+let searchQuery = '';
+let currentPage = 1;
+const pageSize = 12; // 3 rows * 4 columns
+
+// --- DATE HELPERS ---
+function formatDateKey(dateInput) {
+  if (!dateInput) return null;
+  const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(dateObj.getTime())) return null;
+  const year = dateObj.getFullYear();
+  const month = `${dateObj.getMonth() + 1}`.padStart(2, '0');
+  const day = `${dateObj.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatPickerDisplay(dateInput) {
+  const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(dateObj.getTime())) return '';
+  const month = dateObj.getMonth() + 1;
+  const day = dateObj.getDate();
+  const year = String(dateObj.getFullYear()).slice(-2);
+  return `${month}/${day}/${year}`;
+}
+
+function formatHeadingFromKey(dateKey) {
+  const dateObj = dateKey ? new Date(dateKey) : null;
+  if (!dateObj || isNaN(dateObj.getTime())) return "Filtered Events";
+  return dateObj.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+function getEventDateKey(event) {
+  if (event.startDate) {
+    const normalized = formatDateKey(event.startDate);
+    if (normalized) return normalized;
+  }
+  if (event.date) {
+    const dateOnly = event.date.split('|')[0].replace(/\(.*\)/, '').trim();
+    const normalized = formatDateKey(dateOnly);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
+function getEventStartTime(event) {
+  if (event.startTime) return event.startTime;
+  if (event.date) {
+    const parts = event.date.split('|');
+    if (parts[1]) {
+      const timeRange = parts[1].trim();
+      const start = timeRange.split('-')[0]?.trim();
+      if (start) return start;
+    }
+  }
+  return null;
+}
+
+function updateDateControls(dateKey) {
+  if (!dateDisplayInput || !clearDateBtn) return;
+  if (dateKey) {
+    const dateObj = new Date(dateKey);
+    dateDisplayInput.value = formatPickerDisplay(dateObj);
+    clearDateBtn.classList.remove('hidden');
+  } else {
+    dateDisplayInput.value = '';
+    clearDateBtn.classList.add('hidden');
+    if (datePickerInput) {
+      datePickerInput.value = '';
+    }
+  }
+}
 
 // --- HELPER FUNCTION: BUILD EVENT CARD ---
 function buildEventCard(event) {
@@ -34,6 +115,10 @@ function buildEventCard(event) {
   const mainCollege = event.mainCollege || event.college || 'TUP';
   const collegeName = collegeNameMap[mainCollege] || mainCollege;
   card.setAttribute('data-category', collegeName);
+  const startDateKey = getEventDateKey(event);
+  if (startDateKey) {
+    card.setAttribute('data-start-date', startDateKey);
+  }
   
   // Add click handler to navigate to event details
   card.addEventListener('click', () => {
@@ -209,6 +294,14 @@ function buildEventCard(event) {
     collegeTag.classList.add(collegeColor);
   }
   actions.appendChild(collegeTag);
+  const startTime = getEventStartTime(event);
+  if (startTime) {
+    const timeBadge = document.createElement('div');
+    timeBadge.className = 'event-time-badge';
+    timeBadge.textContent = startTime;
+    timeBadge.style.display = 'none';
+    card.appendChild(timeBadge);
+  }
   
   footer.appendChild(title);
   footer.appendChild(actions);
@@ -281,6 +374,10 @@ function populateEvents() {
   if (typeof setupTitleScrolling === 'function') {
     setupTitleScrolling();
   }
+
+  // Initialize pagination view on first load
+  currentPage = 1;
+  filterCards();
 }
 
 // --- SEPARATE ACTIVE VS PAST EVENTS (legacy function, now handled by populateEvents) ---
@@ -293,7 +390,9 @@ function separateEvents() {
 function updateHeader() {
   if (!headerTitle) return;
   
-  if (selectedColleges.length === 0) {
+  if (selectedDate) {
+    headerTitle.textContent = formatHeadingFromKey(selectedDate);
+  } else if (selectedColleges.length === 0) {
     headerTitle.textContent = "Up-and-Coming Events";
   } else if (selectedColleges.length === 1) {
     headerTitle.textContent = selectedColleges[0];
@@ -304,19 +403,70 @@ function updateHeader() {
 
 // --- FILTER CARDS BY COLLEGE ---
 function filterCards() {
+  const filteredCards = [];
   allEventCards.forEach(card => {
     const cardCategory = card.getAttribute("data-category");
+    const cardDate = card.getAttribute("data-start-date");
+    const cardTitle = (card.querySelector('.event-title')?.textContent || '').toLowerCase();
+    const timeBadge = card.querySelector('.event-time-badge');
     
-    // Show if no selection or matches category
-    if (selectedColleges.length === 0 || selectedColleges.includes(cardCategory)) {
+    const matchesCollege = selectedColleges.length === 0 || selectedColleges.includes(cardCategory);
+    const matchesDate = !selectedDate || (cardDate && cardDate === selectedDate);
+    const matchesSearch = searchQuery === '' || cardTitle.includes(searchQuery);
+
+    const visible = matchesCollege && matchesDate && matchesSearch;
+    if (visible) {
+      filteredCards.push(card);
+    }
+
+    if (timeBadge) {
+      timeBadge.style.display = selectedDate ? 'block' : 'none';
+    }
+  });
+  
+  applyPagination(filteredCards);
+  renderPagination(filteredCards.length);
+  
+  // Re-check visibility of past section after filtering
+  checkPastSectionVisibility();
+}
+
+function applyPagination(filteredCards) {
+  const start = (currentPage - 1) * pageSize;
+  const end = start + pageSize;
+  filteredCards.forEach((card, idx) => {
+    if (idx >= start && idx < end) {
       card.style.display = "block"; 
     } else {
       card.style.display = "none";  
     }
   });
+}
+
+function renderPagination(totalItems) {
+  const paginationEl = document.getElementById('eventsPagination');
+  if (!paginationEl) return;
   
-  // Re-check visibility of past section after filtering
-  checkPastSectionVisibility();
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  
+  paginationEl.innerHTML = '';
+  if (totalPages <= 1) {
+    paginationEl.style.display = 'none';
+    return;
+  }
+  paginationEl.style.display = 'flex';
+  
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    if (i === currentPage) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      currentPage = i;
+      filterCards();
+    });
+    paginationEl.appendChild(btn);
+  }
 }
 
 // --- TOGGLE PAST SECTION VISIBILITY ---
@@ -352,6 +502,78 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 100);
   }
 });
+
+// --- DATE PICKER HANDLERS ---
+if (clearDateBtn) {
+  clearDateBtn.classList.add('hidden');
+  clearDateBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectedDate = null;
+    currentPage = 1;
+    updateDateControls(null);
+    if (dateArrow) dateArrow.classList.remove('rotate');
+    updateHeader();
+    filterCards();
+  });
+}
+
+if (dateDisplayInput && datePickerInput) {
+  const openPicker = (e) => {
+    e.stopPropagation();
+    if (dateArrow) dateArrow.classList.add('rotate');
+    if (datePickerInput.showPicker) {
+      datePickerInput.showPicker();
+    } else {
+      datePickerInput.focus();
+    }
+  };
+  dateDisplayInput.addEventListener('click', openPicker);
+  const dateColumn = document.querySelector('.date-column');
+  if (dateColumn) {
+    dateColumn.addEventListener('click', (e) => {
+      if (e.target === clearDateBtn) return;
+      openPicker(e);
+    });
+  }
+}
+
+if (datePickerInput) {
+  datePickerInput.addEventListener('change', (e) => {
+    const value = e.target.value;
+    if (dateArrow) dateArrow.classList.remove('rotate');
+    if (value) {
+      const normalized = formatDateKey(value);
+      selectedDate = normalized;
+      currentPage = 1;
+      updateDateControls(normalized);
+      updateHeader();
+      filterCards();
+    }
+  });
+
+  // When date picker loses focus without selection (e.g., click outside), reset arrow
+  datePickerInput.addEventListener('blur', () => {
+    if (dateArrow) dateArrow.classList.remove('rotate');
+  });
+}
+
+// Close arrow rotation when clicking outside the date capsule
+const dateColumn = document.querySelector('.date-column');
+window.addEventListener('click', (e) => {
+  if (dateArrow && dateColumn && !dateColumn.contains(e.target)) {
+    dateArrow.classList.remove('rotate');
+  }
+});
+
+// --- SEARCH INPUT ---
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+  searchInput.addEventListener('input', (e) => {
+    searchQuery = (e.target.value || '').toLowerCase();
+    currentPage = 1;
+    filterCards();
+  });
+}
 
 // --- DROPDOWN TOGGLE ---
 if (dropdownBtn) {

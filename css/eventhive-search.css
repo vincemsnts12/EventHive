@@ -29,7 +29,8 @@
   padding: 14px 24px;
   border-radius: 50px;
   gap: 25px;
-  width: 60%;
+  width: min(75%, 1100px);
+  flex-wrap: wrap;
   margin: 0 auto;
   margin-bottom: 50px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -38,7 +39,7 @@
 /* ===== CATEGORY DROPDOWN ===== */
 .category-column {
    position: relative;
-   width: 250px;
+   width: 190px;
 }
 
 .dropdown-category {
@@ -52,6 +53,8 @@
   cursor: pointer;
   display: flex;
   justify-content: space-between;
+  min-height: 48px;
+  align-items: center;
 }
 
 .dropdown-btn:hover {
@@ -85,6 +88,8 @@
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
   z-index: 100;
   overflow: hidden;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .dropdown-content div {
@@ -106,6 +111,71 @@
   color: white;
 }
 
+/* ===== DATE COLUMN ===== */
+.date-column {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  border-radius: 25px;
+  padding: 10px 16px;
+  min-height: 48px;
+  width: 180px;
+  box-sizing: border-box;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.date-display {
+  border: none;
+  outline: none;
+  font-size: 15px;
+  color: #111;
+  background: none;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  text-align: center;
+}
+
+.date-arrow {
+  font-size: 14px;
+  color: #666;
+  transition: transform 0.2s ease;
+  margin-left: 8px;
+}
+
+.date-arrow.rotate {
+  transform: rotate(180deg);
+}
+
+.clear-date-btn {
+  background: #f1f1f1;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  color: #555;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.clear-date-btn.hidden {
+  display: none;
+}
+
+.native-date-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ===== SEARCH COLUMN ===== */
 .search-column {
   display: flex;
@@ -113,7 +183,10 @@
   background-color: white;
   border-radius: 25px;
   padding: 10px 18px;
-  flex: 2;
+  flex: 1;
+  max-width: 50%;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .search-column input {
@@ -198,6 +271,49 @@
     pointer-events: none; /* Allow clicks to pass through to card */
 }
 
+.event-time-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.3px;
+    z-index: 3;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.pagination button {
+  background: #fff;
+  border: 1px solid #b81e20;
+  color: #b81e20;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  min-width: 38px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.pagination button:hover {
+  background: #b81e20;
+  color: #fff;
+}
+
+.pagination button.active {
+  background: #b81e20;
+  color: #fff;
+}
+
 /* RESPONSIVENESS FOR TABLET*/
 @media (max-width: 768px) {
   .search-section {
@@ -221,12 +337,15 @@
   }
 
   .category-column,
+  .date-column,
   .dropdown-content {
       width: 100%; /* full width */
   }
 
   .search-column {
       width: 100%;
+      max-width: 100%;
+      flex: 1 1 100%;
   }
 
   .search-column input {
