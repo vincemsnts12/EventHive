@@ -153,6 +153,12 @@
         </svg>
         <span>Change Cover</span>
       </label>
+      <button type="button" class="image-remove-btn" id="removeCoverBtn" title="Remove cover photo"
+        style="display: none;">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+        </svg>
+      </button>
       <input type="file" id="coverUpload" accept="image/*" hidden onchange="previewImage(this, 'coverImgDisplay')">
     </div>
 
@@ -160,12 +166,19 @@
 
       <div class="profile-picture">
         <img src="images/profile-pic.jpg" alt="Profile Picture" id="profileImgDisplay">
+        <div class="profile-initials-placeholder" id="profileInitialsPlaceholder" style="display: none;"></div>
         <label for="profileUpload" class="upload-overlay profile-overlay">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
             <path
               d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" />
           </svg>
         </label>
+        <button type="button" class="image-remove-btn avatar-remove-btn" id="removeAvatarBtn" title="Remove avatar"
+          style="display: none;">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+          </svg>
+        </button>
         <input type="file" id="profileUpload" accept="image/*" hidden
           onchange="previewImage(this, 'profileImgDisplay')">
       </div>

@@ -48,9 +48,9 @@ function confirmMainChanges() {
     // Note: full_name is NOT synced with username - they are separate
   }
 
-  // Bio changed? (empty means "don't change" - keep existing)
-  if (bio && bio !== originalProfileData.bio) {
-    updateData.bio = bio;
+  // Bio changed? (empty string IS valid - means clear the bio)
+  if (bio !== originalProfileData.bio) {
+    updateData.bio = bio; // Can be empty string to clear
   }
 
   // Check if profile picture is being changed
@@ -59,16 +59,32 @@ function confirmMainChanges() {
   // Check if cover photo is being changed
   const coverPhotoFile = coverPhotoInput && coverPhotoInput.files && coverPhotoInput.files[0] ? coverPhotoInput.files[0] : null;
 
-  // Check if anything actually changed (including images)
-  if (Object.keys(updateData).length === 0 && !profilePicFile && !coverPhotoFile) {
+  // Check if avatar or cover is marked for removal
+  const removeAvatar = window.__EH_REMOVE_AVATAR === true;
+  const removeCover = window.__EH_REMOVE_COVER === true;
+
+  // Add removal flags to update data
+  if (removeAvatar) {
+    updateData.avatar_url = null;
+  }
+  if (removeCover) {
+    updateData.cover_photo_url = null;
+  }
+
+  // Check if anything actually changed (including images and removals)
+  const hasTextChanges = Object.keys(updateData).length > 0;
+  const hasNewImages = profilePicFile || coverPhotoFile;
+  const hasRemovals = removeAvatar || removeCover;
+
+  if (!hasTextChanges && !hasNewImages && !hasRemovals) {
     alert('No changes detected.');
     window.location.href = 'eventhive-profile.html';
     return false;
   }
 
-  // Save to Supabase (pass image files too)
+  // Save to Supabase (pass image files and removal flags)
   if (typeof updateUserProfile === 'function') {
-    saveProfileToSupabase(updateData, profilePicFile, coverPhotoFile);
+    saveProfileToSupabase(updateData, profilePicFile, coverPhotoFile, removeAvatar, removeCover);
   } else {
     alert('Profile update functionality not available. Please check Supabase configuration.');
     return false;
@@ -359,14 +375,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Load profile picture
         const profilePicElement = document.getElementById('profileImgDisplay');
+        const profilePlaceholder = document.getElementById('profileInitialsPlaceholder');
+        const removeAvatarBtn = document.getElementById('removeAvatarBtn');
+
         if (profilePicElement) {
-          profilePicElement.src = profile.avatar_url || 'images/prof_default.svg';
+          if (profile.avatar_url) {
+            // Has avatar - show image and remove button
+            profilePicElement.src = profile.avatar_url;
+            profilePicElement.style.display = 'block';
+            if (profilePlaceholder) profilePlaceholder.style.display = 'none';
+            if (removeAvatarBtn) removeAvatarBtn.style.display = 'flex';
+          } else {
+            // No avatar - show initials placeholder
+            profilePicElement.style.display = 'none';
+            if (profilePlaceholder) {
+              const username = profile.username || profile.email?.split('@')[0] || 'U';
+              const initials = username.substring(0, 2).toUpperCase();
+              const bgColor = stringToColorForEdit ? stringToColorForEdit(username) : '#666';
+              profilePlaceholder.textContent = initials;
+              profilePlaceholder.style.backgroundColor = bgColor;
+              profilePlaceholder.style.display = 'flex';
+            }
+            if (removeAvatarBtn) removeAvatarBtn.style.display = 'none';
+          }
         }
 
         // Load cover photo
         const coverPhotoElement = document.getElementById('coverImgDisplay');
-        if (coverPhotoElement && profile.cover_photo_url) {
-          coverPhotoElement.src = profile.cover_photo_url;
+        const coverPhoto = document.querySelector('.cover-photo');
+        const removeCoverBtn = document.getElementById('removeCoverBtn');
+
+        if (coverPhotoElement) {
+          if (profile.cover_photo_url) {
+            // Has cover - show image and remove button
+            coverPhotoElement.src = profile.cover_photo_url;
+            coverPhotoElement.style.display = 'block';
+            if (coverPhoto) coverPhoto.classList.remove('no-cover');
+            if (removeCoverBtn) removeCoverBtn.style.display = 'flex';
+          } else {
+            // No cover - show placeholder color
+            coverPhotoElement.style.display = 'none';
+            if (coverPhoto) coverPhoto.classList.add('no-cover');
+            if (removeCoverBtn) removeCoverBtn.style.display = 'none';
+          }
         }
 
         // Store original values for change detection - username only (not full_name)
