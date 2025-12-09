@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Check lockout status before attempting login
         if (typeof checkLoginLockout === 'function') {
-          const lockoutStatus = checkLoginLockout(email);
+          const lockoutStatus = await checkLoginLockout(email);
           if (lockoutStatus.locked) {
             startLockoutCountdown(lockoutStatus.remainingSeconds, email);
             if (submitBtn) {
@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
               // Check lockout for the resolved email
               if (typeof checkLoginLockout === 'function') {
-                const lockoutStatus = checkLoginLockout(loginEmail);
+                const lockoutStatus = await checkLoginLockout(loginEmail);
                 if (lockoutStatus.locked) {
                   startLockoutCountdown(lockoutStatus.remainingSeconds, loginEmail);
                   if (submitBtn) {
@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
               // Record failed login attempt
               let lockoutResult = { locked: false, attemptsLeft: 8 };
               if (typeof recordFailedLogin === 'function') {
-                lockoutResult = recordFailedLogin(loginEmail);
+                lockoutResult = await recordFailedLogin(loginEmail);
               }
 
               // Check if error is due to unverified email or invalid credentials
@@ -362,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
               // Clear failed login attempts on successful login
               if (typeof clearLoginAttempts === 'function') {
-                clearLoginAttempts(loginEmail);
+                await clearLoginAttempts(loginEmail);
               }
               hideLockoutMessage();
 

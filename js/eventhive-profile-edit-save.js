@@ -520,9 +520,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const newPassValue = newPass ? newPass.value : '';
 
         // Get user info from localStorage (no blocking calls)
-        const authCache = JSON.parse(localStorage.getItem('eh_auth_cache') || '{}');
-        const userEmail = authCache.email;
-        const userId = authCache.userId || localStorage.getItem('eh_user_id');
+        const authCache = JSON.parse(localStorage.getItem('eventhive_auth_cache') || '{}');
+        const profileCache = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
+        const userEmail = profileCache?.profile?.email || authCache?.email;
+        const userId = authCache.userId || localStorage.getItem('eventhive_last_authenticated_user_id');
 
         // Get access token from localStorage
         let accessToken = null;
@@ -609,9 +610,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Success! Update has_password flag in database
         try {
-          const userId = authCache.userId || localStorage.getItem('eh_user_id');
-          if (userId) {
-            await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
+          const userIdForUpdate = authCache.userId || localStorage.getItem('eventhive_last_authenticated_user_id');
+          if (userIdForUpdate) {
+            await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userIdForUpdate}`, {
               method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',

@@ -387,7 +387,7 @@ function clearSecurityLogs() {
 /**
  * Session timeout duration (30 minutes in milliseconds)
  */
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes 
+const SESSION_TIMEOUT = 30 * 1000; // 30 minutes 60 *  
 
 /**
  * Last activity timestamp
@@ -464,37 +464,67 @@ async function checkSessionTimeout() {
  * Handle session timeout
  */
 async function handleSessionTimeout() {
-  // Check if Supabase client is available
-  if (typeof getSupabaseClient === 'function') {
-    const supabase = getSupabaseClient();
+  // Prevent multiple timeout handlers from running
+  if (window.__EH_SESSION_TIMEOUT_IN_PROGRESS) {
+    return;
+  }
+  window.__EH_SESSION_TIMEOUT_IN_PROGRESS = true;
 
-    if (supabase) {
-      const user = await getSafeUser();
+  try {
+    // Log the timeout event first (before clearing anything)
+    logSecurityEvent(SECURITY_EVENT_TYPES.SESSION_TIMEOUT, {
+      timeoutDuration: SESSION_TIMEOUT
+    }, 'Session timed out due to inactivity');
 
-      if (user) {
-        logSecurityEvent(SECURITY_EVENT_TYPES.SESSION_TIMEOUT, {
-          userId: user.id,
-          timeoutDuration: SESSION_TIMEOUT
-        }, 'Session timed out due to inactivity');
+    // Show timeout message FIRST (user sees this immediately)
+    alert('Your session has timed out due to inactivity. Please log in again.');
 
-        // Clear all caches
-        try {
-          localStorage.removeItem('eventhive_auth_cache');
-          localStorage.removeItem('eventhive_profile_cache');
-        } catch (e) {
-          console.error('Error clearing caches on timeout:', e);
+    // Clear all caches
+    try {
+      localStorage.removeItem('eventhive_auth_cache');
+      localStorage.removeItem('eventhive_profile_cache');
+      localStorage.removeItem('eventhive_last_authenticated_user_id');
+      localStorage.removeItem('eventhive_just_signed_up');
+      localStorage.removeItem('eventhive_just_signed_up_email');
+
+      // Clear Supabase session tokens
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith('sb-') && key.includes('-auth-token')) {
+          localStorage.removeItem(key);
         }
+      });
+    } catch (e) {
+      console.error('Error clearing caches on timeout:', e);
+    }
 
-        // Sign out user
-        await supabase.auth.signOut();
-
-        // Show timeout message
-        alert('Your session has timed out due to inactivity. Please log in again.');
-
-        // Redirect to homepage
-        window.location.href = 'eventhive-homepage.html';
+    // Sign out with timeout protection (don't let it hang)
+    if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          // Use Promise.race to prevent hanging
+          await Promise.race([
+            supabase.auth.signOut(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('SignOut timeout')), 3000))
+          ]);
+        } catch (signOutErr) {
+          console.warn('SignOut during timeout failed or timed out:', signOutErr.message);
+          // Continue with redirect anyway
+        }
       }
     }
+
+    // Redirect to homepage using origin for Vercel compatibility
+    const redirectUrl = window.location.origin + '/eventhive-homepage.html';
+    window.location.replace(redirectUrl);
+
+  } catch (error) {
+    console.error('Error during session timeout handling:', error);
+    // Force redirect even if something fails
+    window.location.replace(window.location.origin + '/eventhive-homepage.html');
+  } finally {
+    window.__EH_SESSION_TIMEOUT_IN_PROGRESS = false;
   }
 }
 
@@ -517,109 +547,163 @@ const FORGOT_PASSWORD_MAX_REQUESTS = 3;
 const FORGOT_PASSWORD_WINDOW = 60 * 60 * 1000; // 1 hour
 
 /**
- * Get login attempts from localStorage
+ * Get login attempts from server (security_logs table)
  * @param {string} email - User email
- * @returns {Object} - {attempts: number, lockoutUntil: number|null}
+ * @returns {Promise<Object>} - {attempts: number, lockoutUntil: Date|null, locked: boolean}
  */
-function getLoginAttempts(email) {
+async function getLoginAttempts(email) {
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn('Supabase not configured for lockout check');
+    return { attempts: 0, lockoutUntil: null, locked: false };
+  }
+
+  const emailLower = email.toLowerCase();
+  const fiveMinutesAgo = new Date(Date.now() - LOGIN_LOCKOUT_DURATION).toISOString();
+
   try {
-    const key = `login_attempts_${email.toLowerCase()}`;
-    const data = JSON.parse(localStorage.getItem(key) || '{}');
+    // Check for recent ACCOUNT_LOCKED event first
+    const lockController = new AbortController();
+    const lockTimeout = setTimeout(() => lockController.abort(), 5000);
 
-    // Also check browser lockout (no email check bypassing)
-    const browserLockout = JSON.parse(localStorage.getItem('browser_login_lockout') || '{}');
+    const lockResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/security_logs?event_type=eq.ACCOUNT_LOCKED&details->>email=eq.${encodeURIComponent(emailLower)}&created_at=gte.${encodeURIComponent(fiveMinutesAgo)}&order=created_at.desc&limit=1`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        signal: lockController.signal
+      }
+    );
+    clearTimeout(lockTimeout);
 
-    // Return the more restrictive lockout
-    const emailLockoutUntil = data.lockoutUntil || 0;
-    const browserLockoutUntil = browserLockout.lockoutUntil || 0;
-    const effectiveLockoutUntil = Math.max(emailLockoutUntil, browserLockoutUntil);
+    if (lockResponse.ok) {
+      const lockEvents = await lockResponse.json();
+      if (lockEvents.length > 0) {
+        // Account is locked - calculate remaining time
+        const lockTime = new Date(lockEvents[0].created_at);
+        const lockoutUntil = new Date(lockTime.getTime() + LOGIN_LOCKOUT_DURATION);
+        const remainingMs = lockoutUntil.getTime() - Date.now();
 
-    return {
-      attempts: data.attempts || 0,
-      lockoutUntil: effectiveLockoutUntil > Date.now() ? effectiveLockoutUntil : null
-    };
+        if (remainingMs > 0) {
+          return {
+            attempts: LOGIN_LOCKOUT_MAX_ATTEMPTS,
+            lockoutUntil: lockoutUntil,
+            locked: true,
+            remainingSeconds: Math.ceil(remainingMs / 1000)
+          };
+        }
+      }
+    }
+
+    // Count recent failed login attempts (since last lockout or last 5 min)
+    const attemptsController = new AbortController();
+    const attemptsTimeout = setTimeout(() => attemptsController.abort(), 5000);
+
+    const attemptsResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/security_logs?event_type=eq.FAILED_LOGIN&details->>email=eq.${encodeURIComponent(emailLower)}&created_at=gte.${encodeURIComponent(fiveMinutesAgo)}&select=id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'count=exact'
+        },
+        signal: attemptsController.signal
+      }
+    );
+    clearTimeout(attemptsTimeout);
+
+    if (attemptsResponse.ok) {
+      // Get count from Content-Range header
+      const contentRange = attemptsResponse.headers.get('Content-Range');
+      let attempts = 0;
+      if (contentRange) {
+        const match = contentRange.match(/\/(\d+)/);
+        if (match) attempts = parseInt(match[1], 10);
+      } else {
+        // Fallback: count the returned items
+        const items = await attemptsResponse.json();
+        attempts = items.length;
+      }
+
+      return {
+        attempts: attempts,
+        lockoutUntil: null,
+        locked: false,
+        remainingSeconds: 0
+      };
+    }
+
+    return { attempts: 0, lockoutUntil: null, locked: false, remainingSeconds: 0 };
+
   } catch (e) {
-    return { attempts: 0, lockoutUntil: null };
+    if (e.name === 'AbortError') {
+      console.warn('Lockout check timed out');
+    } else {
+      console.error('Error checking login attempts:', e);
+    }
+    return { attempts: 0, lockoutUntil: null, locked: false, remainingSeconds: 0 };
   }
 }
 
 /**
- * Check if login is locked out
+ * Check if login is locked out (server-side)
  * @param {string} email - User email
- * @returns {Object} - {locked: boolean, remainingSeconds: number, attempts: number}
+ * @returns {Promise<Object>} - {locked: boolean, remainingSeconds: number, attempts: number}
  */
-function checkLoginLockout(email) {
-  const data = getLoginAttempts(email);
-
-  if (data.lockoutUntil) {
-    const remainingMs = data.lockoutUntil - Date.now();
-    if (remainingMs > 0) {
-      return {
-        locked: true,
-        remainingSeconds: Math.ceil(remainingMs / 1000),
-        attempts: data.attempts
-      };
-    }
-  }
-
+async function checkLoginLockout(email) {
+  const data = await getLoginAttempts(email);
   return {
-    locked: false,
-    remainingSeconds: 0,
-    attempts: data.attempts
+    locked: data.locked || false,
+    remainingSeconds: data.remainingSeconds || 0,
+    attempts: data.attempts || 0
   };
 }
 
 /**
- * Record a failed login attempt
+ * Record a failed login attempt (server-side)
  * @param {string} email - User email
- * @returns {Object} - {locked: boolean, remainingSeconds: number, attemptsLeft: number}
+ * @returns {Promise<Object>} - {locked: boolean, remainingSeconds: number, attemptsLeft: number}
  */
-function recordFailedLogin(email) {
-  const emailKey = `login_attempts_${email.toLowerCase()}`;
+async function recordFailedLogin(email) {
+  const emailLower = email.toLowerCase();
 
   try {
-    // Get current attempts
-    let data = JSON.parse(localStorage.getItem(emailKey) || '{}');
-
-    // Check if lockout has expired, reset if so
-    if (data.lockoutUntil && data.lockoutUntil <= Date.now()) {
-      data = { attempts: 0, lockoutUntil: null };
-    }
-
-    // Increment attempts
-    data.attempts = (data.attempts || 0) + 1;
-
-    // Check if we should lock out
-    if (data.attempts >= LOGIN_LOCKOUT_MAX_ATTEMPTS) {
-      data.lockoutUntil = Date.now() + LOGIN_LOCKOUT_DURATION;
-
-      // Also lock the browser (prevents switching emails to bypass)
-      localStorage.setItem('browser_login_lockout', JSON.stringify({
-        lockoutUntil: data.lockoutUntil
-      }));
-
-      // Log to security_logs
-      logSecurityEvent(SECURITY_EVENT_TYPES.ACCOUNT_LOCKED, {
-        email: email,
-        attempts: data.attempts,
-        lockoutDuration: LOGIN_LOCKOUT_DURATION / 1000
-      }, `Account locked after ${data.attempts} failed login attempts`);
-    }
-
-    // Save to localStorage
-    localStorage.setItem(emailKey, JSON.stringify(data));
-
-    // Also log each failed attempt to server
-    logSecurityEvent(SECURITY_EVENT_TYPES.FAILED_LOGIN, {
-      email: email,
-      attemptNumber: data.attempts
+    // First, log the failed attempt
+    await logSecurityEvent(SECURITY_EVENT_TYPES.FAILED_LOGIN, {
+      email: emailLower
     }, 'Failed login attempt');
 
-    const attemptsLeft = LOGIN_LOCKOUT_MAX_ATTEMPTS - data.attempts;
+    // Get updated count (after recording this attempt)
+    const data = await getLoginAttempts(emailLower);
+    const attempts = data.attempts;
+
+    // Check if we should lock out (attempt count includes the one we just logged)
+    if (attempts >= LOGIN_LOCKOUT_MAX_ATTEMPTS && !data.locked) {
+      // Record lockout event
+      await logSecurityEvent(SECURITY_EVENT_TYPES.ACCOUNT_LOCKED, {
+        email: emailLower,
+        attempts: attempts,
+        lockoutDuration: LOGIN_LOCKOUT_DURATION / 1000
+      }, `Account locked after ${attempts} failed login attempts`);
+
+      return {
+        locked: true,
+        remainingSeconds: Math.ceil(LOGIN_LOCKOUT_DURATION / 1000),
+        attemptsLeft: 0
+      };
+    }
+
+    const attemptsLeft = LOGIN_LOCKOUT_MAX_ATTEMPTS - attempts;
 
     return {
-      locked: data.lockoutUntil !== null && data.lockoutUntil > Date.now(),
-      remainingSeconds: data.lockoutUntil ? Math.ceil((data.lockoutUntil - Date.now()) / 1000) : 0,
+      locked: data.locked || false,
+      remainingSeconds: data.remainingSeconds || 0,
       attemptsLeft: Math.max(0, attemptsLeft)
     };
   } catch (e) {
@@ -629,16 +713,18 @@ function recordFailedLogin(email) {
 }
 
 /**
- * Clear login attempts after successful login
+ * Clear login attempts after successful login (logs successful login event)
+ * Note: Server-side lockouts expire automatically after 5 minutes
  * @param {string} email - User email
  */
-function clearLoginAttempts(email) {
+async function clearLoginAttempts(email) {
   try {
-    const emailKey = `login_attempts_${email.toLowerCase()}`;
-    localStorage.removeItem(emailKey);
-    localStorage.removeItem('browser_login_lockout');
+    // Log successful login - this helps in tracking patterns
+    await logSecurityEvent(SECURITY_EVENT_TYPES.SUCCESSFUL_LOGIN, {
+      email: email.toLowerCase()
+    }, 'Successful login - cleared failed attempts');
   } catch (e) {
-    console.error('Error clearing login attempts:', e);
+    console.error('Error logging successful login:', e);
   }
 }
 

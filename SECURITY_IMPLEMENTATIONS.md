@@ -916,28 +916,34 @@ Prevents brute-force attacks by locking accounts after failed login attempts.
 
 ### Configuration
 - **8 failed attempts** → 5-minute lockout
-- Locks both email AND browser (prevents email switching bypass)
+- **Server-side storage** using `security_logs` table (cannot be bypassed by clearing localStorage)
 - Countdown timer displayed to user
-- Counter resets after lockout expires or successful login
+- Lockouts expire automatically after 5 minutes
 
-### Functions
+### How It Works
+1. Each failed login inserts a `FAILED_LOGIN` event into `security_logs`
+2. On login attempt, server is queried for recent failed attempts
+3. If 8+ failures in last 5 minutes, an `ACCOUNT_LOCKED` event is logged
+4. Lock status is checked by querying for recent `ACCOUNT_LOCKED` events
+
+### Functions (async - use await)
 ```javascript
-// Check if login is locked
-const status = checkLoginLockout(email);
+// Check if login is locked (async)
+const status = await checkLoginLockout(email);
 if (status.locked) {
   // Show lockout message with status.remainingSeconds
 }
 
-// Record failed attempt
-const result = recordFailedLogin(email);
+// Record failed attempt (async)
+const result = await recordFailedLogin(email);
 if (result.locked) {
   // Account is now locked - start countdown
 }
 
-// Clear attempts on successful login
-clearLoginAttempts(email);
+// Clear attempts on successful login (async)
+await clearLoginAttempts(email);
 
-// Format time for display
+// Format time for display (sync)
 const timeStr = formatLockoutTime(seconds); // Returns "4:32"
 ```
 
