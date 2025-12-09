@@ -494,7 +494,7 @@ function clearAllCaches() {
 // Desktop Logout Button Handler
 const logoutBtn = document.getElementById('navLogoutBtn');
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', (e) => {
+  logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
 
     // Close dropdown immediately
@@ -502,25 +502,45 @@ if (logoutBtn) {
       dropdownMenu.classList.remove('show');
     }
 
-    // INSTANT: Clear ALL localStorage items FIRST (this is what actually logs out)
+    // Step 1: Sign out from Supabase FIRST (await to ensure it completes)
+    if (typeof getSupabaseClient === 'function') {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          await supabase.auth.signOut();
+          console.log('Supabase signOut completed');
+        } catch (err) {
+          console.warn('SignOut error:', err);
+        }
+      }
+    }
+
+    // Step 2: Clear ALL localStorage items (after signOut to prevent recreation)
     try {
+      // Clear Supabase auth tokens explicitly
+      const keysToRemove = Object.keys(localStorage).filter(key =>
+        key.startsWith('sb-') ||
+        key.includes('supabase') ||
+        key.startsWith('eventhive')
+      );
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Then clear everything else
       localStorage.clear();
+      console.log('localStorage cleared');
     } catch (err) {
       console.error('Error clearing localStorage:', err);
     }
 
-    // Clear all caches (for backward compatibility)
-    clearAllCaches();
-
-    // Fire signOut in background (don't await - just let it run)
-    if (typeof getSupabaseClient === 'function') {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        supabase.auth.signOut().catch(err => {
-          console.warn('Background signOut error (already logged out locally):', err);
-        });
-      }
+    // Step 3: Clear session storage too
+    try {
+      sessionStorage.clear();
+    } catch (err) {
+      console.warn('Error clearing sessionStorage:', err);
     }
+
+    // Step 4: Clear all caches (for backward compatibility)
+    clearAllCaches();
 
     // Show success message and redirect to homepage
     alert('Log out successful');

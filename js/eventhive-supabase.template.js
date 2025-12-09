@@ -122,6 +122,15 @@ function setupAuthStateListener() {
   authStateListenerInitialized = true;
   const processedUserIds = new Set(); // Track processed user IDs to prevent duplicates
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    // Handle SIGNED_OUT - reset all flags for fresh login
+    if (event === 'SIGNED_OUT') {
+      console.log('SIGNED_OUT event detected - resetting auth flags');
+      processedUserIds.clear();
+      lastAuthenticatedUserId = null;
+      isProcessingOAuthCallback = false;
+      return;
+    }
+
     if (event === 'SIGNED_IN' && session?.user?.email) {
       const userId = session?.user?.id;
       const email = session.user.email;

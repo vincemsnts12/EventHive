@@ -211,28 +211,48 @@ document.addEventListener('DOMContentLoaded', () => {
   // Mobile Logout Button
   const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
   if (mobileLogoutBtn) {
-    mobileLogoutBtn.addEventListener('click', (e) => {
+    mobileLogoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
 
-      // INSTANT: Clear ALL localStorage items FIRST (this is what actually logs out)
+      // Close mobile menu immediately
+      applyMobileMenuState(false, false);
+      closeMobileMenu();
+
+      // Step 1: Sign out from Supabase FIRST (await to ensure it completes)
+      if (typeof getSupabaseClient === 'function') {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          try {
+            await supabase.auth.signOut();
+            console.log('Supabase signOut completed');
+          } catch (err) {
+            console.warn('SignOut error:', err);
+          }
+        }
+      }
+
+      // Step 2: Clear ALL localStorage items (after signOut to prevent recreation)
       try {
+        // Clear Supabase auth tokens explicitly
+        const keysToRemove = Object.keys(localStorage).filter(key =>
+          key.startsWith('sb-') ||
+          key.includes('supabase') ||
+          key.startsWith('eventhive')
+        );
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+
+        // Then clear everything else
         localStorage.clear();
+        console.log('localStorage cleared');
       } catch (err) {
         console.error('Error clearing localStorage:', err);
       }
 
-      // Update menu state immediately
-      applyMobileMenuState(false, false);
-      closeMobileMenu();
-
-      // Fire signOut in background (don't await - just let it run)
-      if (typeof getSupabaseClient === 'function') {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          supabase.auth.signOut().catch(err => {
-            console.warn('Background signOut error (already logged out locally):', err);
-          });
-        }
+      // Step 3: Clear session storage too
+      try {
+        sessionStorage.clear();
+      } catch (err) {
+        console.warn('Error clearing sessionStorage:', err);
       }
 
       // Show success message and redirect to homepage
