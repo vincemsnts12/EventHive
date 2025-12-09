@@ -79,6 +79,23 @@ function getEventStartTime(event) {
   return null;
 }
 
+function formatTime12h(raw) {
+  if (!raw) return '';
+  // If already has AM/PM, just return trimmed
+  if (/am|pm/i.test(raw)) return raw.trim();
+  // Expect HH:MM or HH:MM:SS
+  const parts = raw.split(':');
+  if (parts.length < 2) return raw;
+  let [h, m] = parts;
+  let hour = parseInt(h, 10);
+  const minute = m.padStart(2, '0');
+  if (isNaN(hour)) return raw;
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute} ${suffix}`;
+}
+
 function updateDateControls(dateKey) {
   if (!dateDisplayInput || !clearDateBtn) return;
   if (dateKey) {
@@ -114,7 +131,8 @@ function buildEventCard(event) {
   // Use main college for event card (for filtering and display)
   const mainCollege = event.mainCollege || event.college || 'TUP';
   const collegeName = collegeNameMap[mainCollege] || mainCollege;
-  card.setAttribute('data-category', collegeName);
+  // Store code for filtering
+  card.setAttribute('data-category', mainCollege);
   const startDateKey = getEventDateKey(event);
   if (startDateKey) {
     card.setAttribute('data-start-date', startDateKey);
@@ -298,7 +316,7 @@ function buildEventCard(event) {
   if (startTime) {
     const timeBadge = document.createElement('div');
     timeBadge.className = 'event-time-badge';
-    timeBadge.textContent = startTime;
+    timeBadge.textContent = formatTime12h(startTime);
     timeBadge.style.display = 'none';
     card.appendChild(timeBadge);
   }
@@ -590,21 +608,32 @@ if (dropdownBtn) {
 }
 
 // --- HANDLE DROPDOWN SELECTION ---
+const collegeTextToCode = {
+  'College of Science': 'COS',
+  'College of Engineering': 'COE',
+  'College of Liberal Arts': 'CLA',
+  'College of Industrial Education': 'CIE',
+  'College of Industrial Technology': 'CIT',
+  'College of Architecture and Fine Arts': 'CAFA',
+  'TUP': 'TUP'
+};
+
 if (dropdownItems && dropdownItems.length > 0) {
   dropdownItems.forEach((item) => {
     item.addEventListener("click", (e) => {
       e.stopPropagation();
 
-      const college = item.textContent.trim();
+      const collegeLabel = item.textContent.trim();
+      const collegeCode = collegeTextToCode[collegeLabel] || collegeLabel;
 
-      // 1. Toggle Selection State
-      if (selectedColleges.includes(college)) {
-        selectedColleges = selectedColleges.filter((c) => c !== college);
+      // 1. Toggle Selection State (using codes)
+      if (selectedColleges.includes(collegeCode)) {
+        selectedColleges = selectedColleges.filter((c) => c !== collegeCode);
         item.classList.remove("selected");
         item.style.backgroundColor = ""; 
         item.style.color = ""; 
       } else {
-        selectedColleges.push(college);
+        selectedColleges.push(collegeCode);
         item.classList.add("selected");
         item.style.backgroundColor = "#d12b2e"; 
         item.style.color = "white";
