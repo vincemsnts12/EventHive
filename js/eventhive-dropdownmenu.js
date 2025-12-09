@@ -502,30 +502,28 @@ if (logoutBtn) {
       dropdownMenu.classList.remove('show');
     }
 
-    // Step 1: Sign out from Supabase FIRST (await to ensure it completes)
-    if (typeof getSupabaseClient === 'function') {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        try {
-          await supabase.auth.signOut();
+    // Step 1: Try to sign out from Supabase with timeout (don't let it hang)
+    try {
+      if (typeof getSupabaseClient === 'function') {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          // Use Promise.race with timeout to prevent hanging
+          const signOutPromise = supabase.auth.signOut();
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('SignOut timeout')), 3000)
+          );
+
+          await Promise.race([signOutPromise, timeoutPromise]);
           console.log('Supabase signOut completed');
-        } catch (err) {
-          console.warn('SignOut error:', err);
         }
       }
+    } catch (err) {
+      console.warn('SignOut error (continuing with logout):', err);
+      // Continue with logout even if signOut fails/times out
     }
 
-    // Step 2: Clear ALL localStorage items (after signOut to prevent recreation)
+    // Step 2: Clear ALL localStorage items
     try {
-      // Clear Supabase auth tokens explicitly
-      const keysToRemove = Object.keys(localStorage).filter(key =>
-        key.startsWith('sb-') ||
-        key.includes('supabase') ||
-        key.startsWith('eventhive')
-      );
-      keysToRemove.forEach(key => localStorage.removeItem(key));
-
-      // Then clear everything else
       localStorage.clear();
       console.log('localStorage cleared');
     } catch (err) {
