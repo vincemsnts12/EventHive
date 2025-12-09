@@ -87,51 +87,76 @@ document.addEventListener('DOMContentLoaded', function () {
    from accessing password update fields
    ========================================= */
 function initOAuthPasswordBlocking() {
-    // Get all password inputs in the password update section
-    const passwordInputs = document.querySelectorAll('.password-form-wrapper .pass-input');
+    const passwordFormWrapper = document.querySelector('.password-form-wrapper');
+    const lockOverlay = document.getElementById('passwordLockOverlay');
+    const forgotBtn = document.getElementById('lockForgotPasswordBtn');
 
-    if (passwordInputs.length === 0) return;
+    if (!passwordFormWrapper || !lockOverlay) return;
 
-    // Track if we've already shown the alert (to avoid spam)
-    let alertShown = false;
+    // Check if user has a password set
+    const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
+    const profileData = cachedProfile.profile || cachedProfile;
+    const hasPassword = profileData.has_password === true;
 
-    passwordInputs.forEach(input => {
-        input.addEventListener('focus', function (e) {
-            // Check if user has a password set
-            const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
-            const profileData = cachedProfile.profile || cachedProfile;
-            const hasPassword = profileData.has_password === true;
+    // Show lock overlay if user doesn't have a password
+    if (!hasPassword) {
+        lockOverlay.style.display = 'flex';
+        passwordFormWrapper.classList.add('locked');
+    } else {
+        lockOverlay.style.display = 'none';
+        passwordFormWrapper.classList.remove('locked');
+    }
 
-            // If user doesn't have a password set, block access
-            if (!hasPassword) {
-                // Blur the input immediately
-                e.target.blur();
+    // Handle forgot password button click
+    if (forgotBtn) {
+        forgotBtn.addEventListener('click', async function () {
+            // Get user email from cache
+            const authCache = JSON.parse(localStorage.getItem('eventhive_auth_cache') || '{}');
+            const userEmail = profileData.email || authCache.state?.email;
 
-                // Show alert only once per page load to avoid spam
-                if (!alertShown) {
-                    alertShown = true;
-                    alert('You signed up with Google and haven\'t set a password yet.\n\nPlease check your email for the "Set Your Password" link, or request a new one using "Forgot Password" on the login page.');
+            if (!userEmail) {
+                alert('Could not find your email address. Please try logging in again.');
+                return;
+            }
 
-                    // Reset after a short delay so they can be reminded again if they try again
-                    setTimeout(() => {
-                        alertShown = false;
-                    }, 3000);
+            // Show loading state
+            forgotBtn.disabled = true;
+            forgotBtn.innerHTML = 'Sending...';
+
+            try {
+                // Get Supabase client and send password reset email
+                if (typeof getSupabaseClient === 'function') {
+                    const supabase = getSupabaseClient();
+                    if (supabase) {
+                        const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+                            redirectTo: window.location.origin + '/eventhive-set-password.html'
+                        });
+
+                        if (error) {
+                            alert('Error sending email: ' + error.message);
+                        } else {
+                            alert('Password setup email sent to ' + userEmail + '!\n\nPlease check your inbox and click the link to set your password.');
+                        }
+                    }
+                } else {
+                    alert('Authentication service is not available. Please try again later.');
                 }
+            } catch (err) {
+                console.error('Error sending password reset:', err);
+                alert('An error occurred. Please try again.');
+            } finally {
+                // Restore button
+                forgotBtn.disabled = false;
+                forgotBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    Send Password Setup Email
+                `;
             }
         });
-
-        // Also block on click for extra safety
-        input.addEventListener('click', function (e) {
-            const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
-            const profileData = cachedProfile.profile || cachedProfile;
-            const hasPassword = profileData.has_password === true;
-
-            if (!hasPassword) {
-                e.preventDefault();
-                e.target.blur();
-            }
-        });
-    });
+    }
 }
 
 /* =========================================

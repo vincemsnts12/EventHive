@@ -350,6 +350,75 @@
   border-color: #B81E20;
 }
 
+/* Password Lock Overlay for OAuth users */
+.password-form-wrapper {
+  position: relative;
+}
+
+.password-lock-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  border-radius: 10px;
+  padding: 30px;
+  text-align: center;
+}
+
+.password-lock-overlay .lock-icon {
+  color: #B81E20;
+  margin-bottom: 15px;
+}
+
+.password-lock-overlay .lock-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.password-lock-overlay .lock-subtext {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 0 0 20px 0;
+  max-width: 300px;
+}
+
+.password-lock-overlay .lock-forgot-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #B81E20;
+  color: white;
+  border: 2px solid transparent;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.password-lock-overlay .lock-forgot-btn:hover {
+  background-color: white;
+  color: #B81E20;
+  border-color: #B81E20;
+}
+
+.password-form-wrapper.locked .form-group,
+.password-form-wrapper.locked .save-pass-btn {
+  filter: blur(3px);
+  pointer-events: none;
+}
+
 
 /* =========================================
    4. MODAL POPUP
