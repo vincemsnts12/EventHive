@@ -51,12 +51,18 @@
 
 .profile-picture {
   position: relative;
-  overflow: hidden;
-  /* Keep content within circle */
+  overflow: visible;
+  /* Allow trash button to show outside */
 }
 
-/* Make the profile overlay circular */
+/* Make the profile overlay circular and clip it */
 .profile-picture .upload-overlay {
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+/* Ensure the profile image stays circular */
+.profile-picture img {
   border-radius: 50%;
 }
 
@@ -94,16 +100,16 @@
   height: 14px;
 }
 
-/* Cover photo remove button - top right */
+/* Cover photo remove button - top right edge (half outside) */
 .cover-remove-btn {
-  top: 10px;
-  right: 10px;
+  top: -8px;
+  right: -8px;
 }
 
-/* Avatar remove button - bottom right of cover photo */
+/* Avatar remove button - bottom right of avatar border */
 .avatar-remove-btn {
-  bottom: 10px;
-  right: 10px;
+  bottom: 5px;
+  right: 5px;
   top: auto;
 }
 
