@@ -407,13 +407,25 @@ function separateEvents() {
 // --- UPDATE HEADER TEXT ---
 function updateHeader() {
   if (!headerTitle) return;
+
+  // Map codes to full names for header display
+  const codeToName = {
+    'COS': 'College of Science',
+    'COE': 'College of Engineering',
+    'CLA': 'College of Liberal Arts',
+    'CIE': 'College of Industrial Education',
+    'CIT': 'College of Industrial Technology',
+    'CAFA': 'College of Architecture and Fine Arts',
+    'TUP': 'Technological University of the Philippines'
+  };
   
   if (selectedDate) {
     headerTitle.textContent = formatHeadingFromKey(selectedDate);
   } else if (selectedColleges.length === 0) {
     headerTitle.textContent = "Up-and-Coming Events";
   } else if (selectedColleges.length === 1) {
-    headerTitle.textContent = selectedColleges[0];
+    const code = selectedColleges[0];
+    headerTitle.textContent = codeToName[code] || code;
   } else {
     headerTitle.textContent = "Filtered Events"; 
   }
