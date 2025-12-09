@@ -215,11 +215,21 @@
                     const supabaseUrl = window.__EH_SUPABASE_URL;
                     const supabaseKey = window.__EH_SUPABASE_ANON_KEY;
 
+                    // Verify all required values are available
                     if (!tokenToUse) {
                         throw new Error('No valid session. Please request a new password reset link.');
                     }
 
-                    console.log('Updating password via direct API...');
+                    if (!supabaseUrl || !supabaseKey) {
+                        console.error('Supabase config missing:', { hasUrl: !!supabaseUrl, hasKey: !!supabaseKey });
+                        throw new Error('Configuration error. Please refresh the page and try again.');
+                    }
+
+                    console.log('Updating password via direct API...', {
+                        hasToken: !!tokenToUse,
+                        tokenLength: tokenToUse?.length,
+                        url: supabaseUrl?.substring(0, 30) + '...'
+                    });
 
                     // Use direct fetch with timeout
                     const controller = new AbortController();

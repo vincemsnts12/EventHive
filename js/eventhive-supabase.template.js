@@ -135,6 +135,14 @@ function setupAuthStateListener() {
       const userId = session?.user?.id;
       const email = session.user.email;
 
+      // SKIP all processing on set-password page - let that page handle the session itself
+      // This prevents OAuth/signup logic from interfering with password reset
+      const isSetPasswordPage = window.location.pathname.includes('set-password');
+      if (isSetPasswordPage) {
+        console.log('On set-password page - skipping auth listener processing for password reset');
+        return;
+      }
+
       // Prevent duplicate processing if SIGNED_IN fires multiple times for the same user
       if (processedUserIds.has(userId)) {
         console.log('SIGNED_IN event already processed for this user, skipping');
