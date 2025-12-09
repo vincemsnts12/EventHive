@@ -63,12 +63,12 @@ function confirmMainChanges() {
   const removeAvatar = window.__EH_REMOVE_AVATAR === true;
   const removeCover = window.__EH_REMOVE_COVER === true;
 
-  // Add removal flags to update data
+  // Add removal flags to update data (use camelCase to match updateUserProfile expected format)
   if (removeAvatar) {
-    updateData.avatar_url = null;
+    updateData.avatarUrl = null;
   }
   if (removeCover) {
-    updateData.cover_photo_url = null;
+    updateData.coverPhotoUrl = null;
   }
 
   // Check if anything actually changed (including images and removals)
