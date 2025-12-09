@@ -45,18 +45,78 @@ function applyProfileToUI(profile, userEmail = null) {
     descriptionElement.textContent = profile.bio || 'No bio yet. Click "Edit Profile" to add one!';
   }
 
-  // Update profile picture
-  const profilePicElement = document.querySelector('.profile-picture img');
-  if (profilePicElement) {
-    profilePicElement.src = profile.avatar_url || 'images/prof_default.svg';
-    profilePicElement.alt = profile.username || 'Profile Picture';
+  // Update profile picture - show initials if no avatar
+  const profilePicImg = document.getElementById('profilePicImg') || document.querySelector('.profile-picture img');
+  const profileInitials = document.getElementById('profileInitials');
+
+  if (profile.avatar_url) {
+    // Show avatar image
+    if (profilePicImg) {
+      profilePicImg.src = profile.avatar_url;
+      profilePicImg.alt = profile.username || 'Profile Picture';
+      profilePicImg.style.display = 'block';
+    }
+    if (profileInitials) {
+      profileInitials.style.display = 'none';
+    }
+  } else {
+    // No avatar - show initials
+    if (profilePicImg) {
+      profilePicImg.style.display = 'none';
+    }
+    if (profileInitials) {
+      const displayName = profile.username || profile.email || userEmail || 'U';
+      const initials = getInitialsFromName(displayName);
+      const bgColor = stringToColorProfile(displayName);
+
+      profileInitials.textContent = initials;
+      profileInitials.style.backgroundColor = bgColor;
+      profileInitials.style.display = 'flex';
+    }
   }
 
-  // Update cover photo
-  const coverPhotoElement = document.querySelector('.cover-photo img');
-  if (coverPhotoElement && profile.cover_photo_url) {
-    coverPhotoElement.src = profile.cover_photo_url;
+  // Update cover photo - show placeholder if null
+  const coverPhotoImg = document.getElementById('coverPhotoImg') || document.querySelector('.cover-photo img');
+  const coverPhotoContainer = document.getElementById('profileCoverPhoto') || document.querySelector('.cover-photo');
+
+  if (profile.cover_photo_url) {
+    // Show cover photo
+    if (coverPhotoImg) {
+      coverPhotoImg.src = profile.cover_photo_url;
+      coverPhotoImg.style.display = 'block';
+    }
+    if (coverPhotoContainer) {
+      coverPhotoContainer.classList.remove('no-cover');
+    }
+  } else {
+    // No cover - show placeholder background
+    if (coverPhotoImg) {
+      coverPhotoImg.style.display = 'none';
+    }
+    if (coverPhotoContainer) {
+      coverPhotoContainer.classList.add('no-cover');
+    }
   }
+}
+
+// Helper function to generate initials
+function getInitialsFromName(name) {
+  if (!name) return 'U';
+  const parts = name.split(/[\s@]+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
+// Helper function to generate color from string
+function stringToColorProfile(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = hash % 360;
+  return `hsl(${hue}, 45%, 45%)`;
 }
 
 // Get cached profile data
