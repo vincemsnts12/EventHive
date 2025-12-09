@@ -1,9 +1,9 @@
 // ===== PASSWORD SETUP PAGE HANDLER =====
 // This handles setting password for users who click the password reset link
-// Self-contained - does not rely on eventhive-supabase.js to avoid token interference
+// Works with eventhive-supabase.js (which skips OAuth callback on this page)
 
 (function () {
-    // Capture hash immediately before any other script can clear it
+    // Capture hash immediately before any processing
     const originalHash = window.location.hash;
     const originalSearch = window.location.search;
 
@@ -21,11 +21,11 @@
         return params;
     }
 
-    // Store parsed tokens immediately
+    // Store parsed tokens immediately (before any other script can clear URL)
     const hashParams = parseHash(originalHash);
     const searchParams = new URLSearchParams(originalSearch);
 
-    console.log('Set-password: Captured URL on load:', {
+    console.log('Set-password: Captured URL tokens:', {
         hasAccessToken: !!hashParams.access_token,
         hasCode: searchParams.has('code'),
         tokenType: hashParams.type
@@ -41,7 +41,6 @@
         const submitBtn = document.getElementById('submitBtn');
 
         let formShown = false;
-        let supabaseClient = null;
 
         function showPasswordForm() {
             if (formShown) return;
@@ -83,48 +82,47 @@
 
         if (errorCode || errorDescription) {
             console.warn('Error in URL:', errorCode, errorDescription);
-            showInvalidLink('Link error: ' + (errorDescription || errorCode));
+            showInvalidLink('Link error');
             return;
         }
 
-        // Check for recovery tokens (captured at top of script)
+        // Check for recovery tokens
         const hasCode = searchParams.has('code');
         const accessToken = hashParams.access_token;
         const refreshToken = hashParams.refresh_token || '';
-        const tokenType = hashParams.type;
 
         if (!hasCode && !accessToken) {
             showInvalidLink('No recovery token found');
             return;
         }
 
-        console.log('Found tokens:', { hasCode, hasAccessToken: !!accessToken, tokenType });
+        console.log('Recovery tokens found, waiting for Supabase...');
 
-        // Wait for Supabase library to load
+        // Wait for Supabase client from eventhive-supabase.js
+        let supabaseClient = null;
         const maxWait = 5000;
         const startTime = Date.now();
-        while (typeof supabase === 'undefined' && Date.now() - startTime < maxWait) {
-            await new Promise(r => setTimeout(r, 100));
+
+        while (!supabaseClient && Date.now() - startTime < maxWait) {
+            // Try getSupabaseClient from eventhive-supabase.js
+            if (typeof getSupabaseClient === 'function') {
+                supabaseClient = getSupabaseClient();
+            }
+            // Also try window global
+            if (!supabaseClient && window.__EH_SUPABASE_CLIENT) {
+                supabaseClient = window.__EH_SUPABASE_CLIENT;
+            }
+            if (!supabaseClient) {
+                await new Promise(r => setTimeout(r, 100));
+            }
         }
 
-        if (typeof supabase === 'undefined') {
-            showInvalidLink('Supabase library not loaded');
+        if (!supabaseClient) {
+            showInvalidLink('Supabase not initialized');
             return;
         }
 
-        // Initialize Supabase client directly
-        // Get credentials from window globals or use defaults
-        const SUPABASE_URL = window.__EH_SUPABASE_URL || 'https://pskbgtfmfsvulqzxcsdb.supabase.co';
-        const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBza2JndGZtZnN2dWxxenhjc2RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI1Mzg3NTgsImV4cCI6MjA0ODExNDc1OH0.o3eHUaYS2gPycofBGdkuVxWMqOMBTYNioj6sS06e7Hs';
-
-        try {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('Supabase client created directly');
-        } catch (err) {
-            console.error('Failed to create Supabase client:', err);
-            showInvalidLink('Failed to initialize');
-            return;
-        }
+        console.log('Supabase client ready');
 
         // Set up auth state listener
         supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -135,9 +133,8 @@
             }
         });
 
-        // Handle tokens based on flow type
+        // Set session from tokens
         if (accessToken) {
-            // Legacy implicit flow - set session with access token from hash
             console.log('Setting session from hash access_token...');
 
             try {
@@ -148,30 +145,32 @@
 
                 if (error) {
                     console.error('setSession error:', error);
-                    // Check if it's an expired token error
-                    if (error.message && (error.message.includes('expired') || error.message.includes('invalid'))) {
-                        showInvalidLink('Token expired or invalid');
+                    if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+                        showInvalidLink('Token expired');
                         return;
                     }
                 } else if (data?.session) {
-                    console.log('Session established from hash tokens');
+                    console.log('Session established from tokens');
                     showPasswordForm();
                 }
             } catch (err) {
                 console.error('Error setting session:', err);
             }
         } else if (hasCode) {
-            // PKCE flow - exchange code for session
             const code = searchParams.get('code');
-            console.log('Exchanging PKCE code for session...');
+            console.log('Exchanging PKCE code...');
 
             try {
                 const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
 
                 if (error) {
                     console.error('Code exchange error:', error);
+                    if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+                        showInvalidLink('Code expired');
+                        return;
+                    }
                 } else if (data?.session) {
-                    console.log('Session established from PKCE code');
+                    console.log('Session established from code');
                     showPasswordForm();
                 }
             } catch (err) {
@@ -179,18 +178,18 @@
             }
         }
 
-        // Fallback: check for session after a delay
+        // Fallback: check for existing session
         setTimeout(async () => {
             if (formShown) return;
 
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
-                    console.log('Found session on delayed check');
+                    console.log('Found existing session');
                     showPasswordForm();
                 }
             } catch (err) {
-                console.warn('Delayed check error:', err);
+                console.warn('Session check error:', err);
             }
         }, 1500);
 
@@ -203,11 +202,9 @@
                     } else {
                         showInvalidLink('Session timeout');
                     }
-                }).catch(() => {
-                    showInvalidLink('Session check failed');
-                });
+                }).catch(() => showInvalidLink('Session failed'));
             }
-        }, 5000);
+        }, 6000);
 
         // Handle form submission
         if (passwordForm) {
@@ -247,7 +244,7 @@
 
                     if (error) throw error;
 
-                    console.log('Password updated successfully');
+                    console.log('Password updated');
 
                     // Update has_password flag
                     try {
@@ -276,7 +273,7 @@
 
                     let msg = 'Failed to set password.';
                     if (err.message?.includes('expired') || err.message?.includes('session')) {
-                        msg = 'Session expired. Please request a new password reset link.';
+                        msg = 'Session expired. Please request a new reset link.';
                     } else if (err.message) {
                         msg = err.message;
                     }

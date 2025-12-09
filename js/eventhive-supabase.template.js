@@ -753,23 +753,39 @@ async function handleEmailVerificationCallback() {
 // ===== INITIALIZE ON PAGE LOAD =====
 // Automatically initialize Supabase when the page loads
 document.addEventListener('DOMContentLoaded', async () => {
+  // Check if we're on the set-password page - if so, skip callback handling
+  // The set-password page handles tokens itself to avoid interference
+  const isSetPasswordPage = window.location.pathname.includes('set-password');
+
   if (typeof supabase !== 'undefined') {
     initSupabase();
     setupAuthStateListener();
-    // Handle OAuth callback if present
-    await handleOAuthCallback();
-    // Handle email verification callback if present
-    await handleEmailVerificationCallback();
+
+    // Only handle OAuth/email callbacks on other pages
+    if (!isSetPasswordPage) {
+      // Handle OAuth callback if present
+      await handleOAuthCallback();
+      // Handle email verification callback if present
+      await handleEmailVerificationCallback();
+    } else {
+      console.log('On set-password page - skipping OAuth callback handling');
+    }
   } else {
     // Retry after a short delay if Supabase library hasn't loaded yet
     setTimeout(async () => {
       if (typeof supabase !== 'undefined') {
         initSupabase();
         setupAuthStateListener();
-        // Handle OAuth callback if present
-        await handleOAuthCallback();
-        // Handle email verification callback if present
-        await handleEmailVerificationCallback();
+
+        // Only handle OAuth/email callbacks on other pages  
+        if (!isSetPasswordPage) {
+          // Handle OAuth callback if present
+          await handleOAuthCallback();
+          // Handle email verification callback if present
+          await handleEmailVerificationCallback();
+        } else {
+          console.log('On set-password page - skipping OAuth callback handling');
+        }
       }
     }, 100);
   }
