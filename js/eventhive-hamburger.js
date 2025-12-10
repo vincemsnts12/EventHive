@@ -214,6 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileLogoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
 
+      // Mark explicit logout in progress (prevents double-redirect from onAuthStateChange)
+      window.__EH_EXPLICIT_LOGOUT_IN_PROGRESS = true;
+
       // Close mobile menu immediately
       applyMobileMenuState(false, false);
       closeMobileMenu();

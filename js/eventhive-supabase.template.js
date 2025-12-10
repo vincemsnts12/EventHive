@@ -363,7 +363,12 @@ function setupAuthStateListener() {
         console.error('Error clearing localStorage on sign out:', e);
       }
 
-      // TODO: Update UI to reflect logged-out state
+      // SECURITY: Always redirect to homepage when signed out
+      // Skip redirect if already on homepage or if explicit logout just triggered
+      const isHomepage = window.location.pathname.includes('homepage') || window.location.pathname === '/';
+      if (!isHomepage && !window.__EH_EXPLICIT_LOGOUT_IN_PROGRESS) {
+        window.location.replace(window.location.origin + '/eventhive-homepage.html');
+      }
     } else if (event === 'TOKEN_REFRESHED') {
       console.log('Session token refreshed');
     } else if (event === 'USER_UPDATED') {

@@ -495,6 +495,9 @@ if (logoutBtn) {
   logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
 
+    // Mark explicit logout in progress (prevents double-redirect from onAuthStateChange)
+    window.__EH_EXPLICIT_LOGOUT_IN_PROGRESS = true;
+
     // Close dropdown immediately
     if (dropdownMenu) {
       dropdownMenu.classList.remove('show');
@@ -555,6 +558,13 @@ if (typeof getSupabaseClient === 'function') {
         clearAllCaches();
         if (dropdownMenu) {
           dropdownMenu.classList.remove('show');
+        }
+
+        // SECURITY: Always redirect to homepage when signed out
+        // Skip redirect if already on homepage or if explicit logout just triggered
+        const isHomepage = window.location.pathname.includes('homepage') || window.location.pathname === '/';
+        if (!isHomepage && !window.__EH_EXPLICIT_LOGOUT_IN_PROGRESS) {
+          window.location.replace(window.location.origin + '/eventhive-homepage.html');
         }
       } else {
         updateDropdownAuthState(true); // Force check on auth state change
