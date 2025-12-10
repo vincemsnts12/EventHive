@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Check if Supabase functions are available
       if (typeof signInWithGoogle === 'function') {
+        if (typeof showLoading === 'function') showLoading();
         await signInWithGoogle();
       } else {
         // Fallback message if Supabase is not configured
@@ -136,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Check if Supabase functions are available
       if (typeof signInWithGoogle === 'function') {
+        if (typeof showLoading === 'function') showLoading();
         await signInWithGoogle();
       } else {
         // Fallback message if Supabase is not configured
@@ -676,11 +678,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Disable submit button
+      // Disable submit button and show loading spinner
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Signing up...';
       }
+      if (typeof showLoading === 'function') showLoading();
 
       // Sign up with Supabase
       if (typeof getSupabaseClient === 'function') {
@@ -695,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
               .single();
 
             if (existingUser) {
+              if (typeof hideLoading === 'function') hideLoading();
               alert('Username Unavailable\n\nThe username "' + username + '" is already registered.\n\nPlease choose a different username.');
               if (submitBtn) {
                 submitBtn.disabled = false;
@@ -711,6 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
               .single();
 
             if (existingEmail) {
+              if (typeof hideLoading === 'function') hideLoading();
               alert('Email Already Registered\n\nThe email "' + email + '" is already associated with an account.\n\nPlease log in instead or use a different email.');
               if (submitBtn) {
                 submitBtn.disabled = false;
@@ -752,6 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
               }
 
               // Show clean message
+              if (typeof hideLoading === 'function') hideLoading();
               alert(errorMessage);
               // Re-enable submit button
               if (submitBtn) {
@@ -769,6 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('eventhive_just_signed_up_email', email);
               }
 
+              if (typeof hideLoading === 'function') hideLoading();
               signupModal.style.display = 'none';
               // Clear form
               emailInput.value = '';
@@ -785,6 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           } catch (err) {
             console.error('Signup error:', err);
+            if (typeof hideLoading === 'function') hideLoading();
             alert('An error occurred during signup. Please try again.');
             // Re-enable submit button
             if (submitBtn) {
@@ -793,6 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         } else {
+          if (typeof hideLoading === 'function') hideLoading();
           alert('Supabase is not configured. Please check your configuration.');
           if (submitBtn) {
             submitBtn.disabled = false;
@@ -800,6 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       } else {
+        if (typeof hideLoading === 'function') hideLoading();
         alert('Supabase functions not available. Please check your configuration.');
         if (submitBtn) {
           submitBtn.disabled = false;

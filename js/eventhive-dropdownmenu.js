@@ -498,6 +498,9 @@ if (logoutBtn) {
     // Mark explicit logout in progress (prevents double-redirect from onAuthStateChange)
     window.__EH_EXPLICIT_LOGOUT_IN_PROGRESS = true;
 
+    // Show loading spinner
+    if (typeof showLoading === 'function') showLoading();
+
     // Close dropdown immediately
     if (dropdownMenu) {
       dropdownMenu.classList.remove('show');
@@ -541,7 +544,8 @@ if (logoutBtn) {
     // Step 4: Clear all caches (for backward compatibility)
     clearAllCaches();
 
-    // Show success message and redirect to homepage
+    // Hide loading and show success message, then redirect to homepage
+    if (typeof hideLoading === 'function') hideLoading();
     alert('Log out successful');
     window.location.href = 'eventhive-homepage.html';
   });
