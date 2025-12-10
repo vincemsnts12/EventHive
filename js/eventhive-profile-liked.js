@@ -308,16 +308,14 @@
               }
             }
           });
-        } else if (isCommonLike) {
-          // Visitor view - common like: filled, read-only
-          likeBtn.className = 'heart-btn active';
-          likeBtn.innerHTML = filledHeartSVG;
-          likeBtn.style.cursor = 'default';
-          likeBtn.style.pointerEvents = 'none';
         } else {
-          // Visitor view - uncommon like: hollow (outline), clickable to like/unlike
-          likeBtn.className = 'heart-btn'; // Not active initially (hollow)
-          likeBtn.innerHTML = hollowHeartSVG;
+          // Visitor view - all likes are interactable
+          // Common like: filled initially (visitor also liked this)
+          // Uncommon like: hollow initially (only profile owner liked this)
+          const isCurrentlyLikedByVisitor = isCommonLike;
+
+          likeBtn.className = isCurrentlyLikedByVisitor ? 'heart-btn active' : 'heart-btn';
+          likeBtn.innerHTML = isCurrentlyLikedByVisitor ? filledHeartSVG : hollowHeartSVG;
 
           likeBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -333,7 +331,7 @@
               }
             }
 
-            // Toggle like in Supabase
+            // Toggle like in Supabase (only affects visitor's own likes)
             if (typeof toggleEventLike === 'function') {
               const result = await toggleEventLike(ev.id);
               if (result.success) {

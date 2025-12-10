@@ -498,8 +498,11 @@ async function handleOAuthCallback() {
         }
 
         console.log('OAuth callback validated for TUP user:', email);
-        // Clean up URL after successful OAuth
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // Clean up URL after successful OAuth - but preserve uid parameter for profile viewing
+        const currentUrl = new URL(window.location.href);
+        const uidParam = currentUrl.searchParams.get('uid');
+        const cleanPath = uidParam ? `${window.location.pathname}?uid=${uidParam}` : window.location.pathname;
+        window.history.replaceState({}, document.title, cleanPath);
       }
     } else {
       // Fallback: robust manual parsing & safe session set
