@@ -1,14 +1,28 @@
 /* =========================================
    1. Password Toggle Functionality
+   Only initialize if not already done by another script
    ========================================= */
 function initPasswordToggles() {
+    // Skip if already initialized by another script (e.g., eventhive-pop-up__log&sign.js)
+    if (window.__passwordTogglesInitialized) {
+        console.log('Password toggles already initialized by another script');
+        return;
+    }
+
     const passwordToggles = document.querySelectorAll('.password-toggle');
+    if (passwordToggles.length === 0) return;
+
     passwordToggles.forEach(toggle => {
+        // Skip if this toggle already has a click handler
+        if (toggle.dataset.initialized === 'true') return;
+
         const targetId = toggle.getAttribute('data-target');
         const input = document.getElementById(targetId);
         const showIcon = toggle.querySelector('.icon-show');
         const hideIcon = toggle.querySelector('.icon-hide');
+
         if (input) {
+            // Initialize icon visibility based on current input type
             if (input.type === 'text') {
                 if (showIcon) showIcon.style.display = 'none';
                 if (hideIcon) hideIcon.style.display = 'inline-block';
@@ -17,22 +31,35 @@ function initPasswordToggles() {
                 if (hideIcon) hideIcon.style.display = 'none';
             }
         }
+
         toggle.addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const tgt = document.getElementById(toggle.getAttribute('data-target'));
             if (tgt) {
                 const wasPassword = tgt.type === 'password';
                 tgt.type = wasPassword ? 'text' : 'password';
+
+                // Get fresh references to icons
+                const showI = toggle.querySelector('.icon-show');
+                const hideI = toggle.querySelector('.icon-hide');
+
                 if (wasPassword) {
-                    if (showIcon) showIcon.style.display = 'none';
-                    if (hideIcon) hideIcon.style.display = 'inline-block';
+                    if (showI) showI.style.display = 'none';
+                    if (hideI) hideI.style.display = 'inline-block';
                 } else {
-                    if (showIcon) showIcon.style.display = 'inline-block';
-                    if (hideIcon) hideIcon.style.display = 'none';
+                    if (showI) showI.style.display = 'inline-block';
+                    if (hideI) hideI.style.display = 'none';
                 }
             }
         });
+
+        // Mark as initialized
+        toggle.dataset.initialized = 'true';
     });
+
+    // Mark global initialization complete
+    window.__passwordTogglesInitialized = true;
 }
 
 /* =========================================
@@ -131,8 +158,6 @@ function initOAuthPasswordBlocking() {
                 emailToUse = profCache.profile?.email || profCache.email;
             } catch (e) { }
 
-            // eventhive_profile_cache is the standardized key, no need for fallback
-
             // Try to get from Supabase session directly
             if (!emailToUse && typeof getSupabaseClient === 'function') {
                 try {
@@ -153,6 +178,18 @@ function initOAuthPasswordBlocking() {
                 return;
             }
 
+            // Check rate limiting (server-side)
+            if (typeof checkForgotPasswordRateLimit === 'function') {
+                const rateLimit = await checkForgotPasswordRateLimit(emailToUse);
+                if (!rateLimit.allowed) {
+                    const waitMins = rateLimit.nextAllowedTime
+                        ? Math.ceil((rateLimit.nextAllowedTime.getTime() - Date.now()) / 60000)
+                        : 60;
+                    alert(`Too many password reset requests.\n\nPlease wait ${waitMins} minutes before trying again.`);
+                    return;
+                }
+            }
+
             // Show loading state
             forgotBtn.disabled = true;
             const originalHTML = forgotBtn.innerHTML;
@@ -171,6 +208,10 @@ function initOAuthPasswordBlocking() {
                             console.error('Password reset error:', error);
                             alert('Error sending email: ' + error.message);
                         } else {
+                            // Record the request for rate limiting (server-side)
+                            if (typeof recordForgotPasswordRequest === 'function') {
+                                await recordForgotPasswordRequest(emailToUse);
+                            }
                             alert('Password setup email sent to ' + emailToUse + '!\n\nPlease check your inbox and click the link to set your password.\n\nNote: The link expires in 1 hour.');
                         }
                     } else {

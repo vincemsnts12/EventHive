@@ -1,31 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   // ===== PASSWORD TOGGLE FUNCTIONALITY =====
-  const passwordToggles = document.querySelectorAll('.password-toggle');
-  passwordToggles.forEach(toggle => {
-    const targetId = toggle.getAttribute('data-target');
-    const input = document.getElementById(targetId);
-    // initialize icon visibility based on input type
-    const showIcon = toggle.querySelector('.icon-show');
-    const hideIcon = toggle.querySelector('.icon-hide');
-    if (input) {
-      if (input.type === 'text') {
-        if (showIcon) showIcon.style.display = 'none';
-        if (hideIcon) hideIcon.style.display = 'inline-block';
-      } else {
-        if (showIcon) showIcon.style.display = 'inline-block';
-        if (hideIcon) hideIcon.style.display = 'none';
-      }
-    }
+  // Set flag first so other scripts know toggles will be initialized
+  if (!window.__passwordTogglesInitialized) {
+    const passwordToggles = document.querySelectorAll('.password-toggle');
+    passwordToggles.forEach(toggle => {
+      // Skip if already initialized
+      if (toggle.dataset.initialized === 'true') return;
 
-    toggle.addEventListener('click', (e) => {
-      e.preventDefault();
-      const tgt = document.getElementById(toggle.getAttribute('data-target'));
-      if (tgt) {
-        const wasPassword = tgt.type === 'password';
-        tgt.type = wasPassword ? 'text' : 'password';
-        // swap SVG visibility
-        if (wasPassword) {
+      const targetId = toggle.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      // initialize icon visibility based on input type
+      const showIcon = toggle.querySelector('.icon-show');
+      const hideIcon = toggle.querySelector('.icon-hide');
+      if (input) {
+        if (input.type === 'text') {
           if (showIcon) showIcon.style.display = 'none';
           if (hideIcon) hideIcon.style.display = 'inline-block';
         } else {
@@ -33,8 +22,34 @@ document.addEventListener('DOMContentLoaded', () => {
           if (hideIcon) hideIcon.style.display = 'none';
         }
       }
+
+      toggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const tgt = document.getElementById(toggle.getAttribute('data-target'));
+        if (tgt) {
+          const wasPassword = tgt.type === 'password';
+          tgt.type = wasPassword ? 'text' : 'password';
+          // Get fresh references to icons
+          const showI = toggle.querySelector('.icon-show');
+          const hideI = toggle.querySelector('.icon-hide');
+          if (wasPassword) {
+            if (showI) showI.style.display = 'none';
+            if (hideI) hideI.style.display = 'inline-block';
+          } else {
+            if (showI) showI.style.display = 'inline-block';
+            if (hideI) hideI.style.display = 'none';
+          }
+        }
+      });
+
+      // Mark as initialized
+      toggle.dataset.initialized = 'true';
     });
-  });
+
+    // Mark global initialization complete
+    window.__passwordTogglesInitialized = true;
+  }
 
   // ===== ELEMENTS =====
   const loginModal = document.getElementById('loginModal');

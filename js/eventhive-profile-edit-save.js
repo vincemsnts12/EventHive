@@ -452,7 +452,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Check if user has a password set (for OAuth users who haven't set one yet)
       const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
-      const hasPassword = cachedProfile.has_password === true;
+      const profileData = cachedProfile.profile || cachedProfile;
+      const hasPassword = profileData.has_password === true;
 
       // If user doesn't have a password set, they must use "Set My Password" first
       if (!hasPassword) {
@@ -522,7 +523,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Get user info from localStorage (no blocking calls)
         const authCache = JSON.parse(localStorage.getItem('eventhive_auth_cache') || '{}');
         const profileCache = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
-        const userEmail = profileCache?.profile?.email || authCache?.email;
+        const profileData = profileCache.profile || profileCache;
+        const userEmail = profileData?.email || authCache?.email;
         const userId = authCache.userId || localStorage.getItem('eventhive_last_authenticated_user_id');
 
         // Get access token from localStorage
@@ -623,9 +625,13 @@ document.addEventListener('DOMContentLoaded', function () {
               body: JSON.stringify({ has_password: true })
             });
 
-            // Update local cache
+            // Update local cache (preserve cache structure)
             const cachedProfile = JSON.parse(localStorage.getItem('eventhive_profile_cache') || '{}');
-            cachedProfile.has_password = true;
+            if (cachedProfile.profile) {
+              cachedProfile.profile.has_password = true;
+            } else {
+              cachedProfile.has_password = true;
+            }
             localStorage.setItem('eventhive_profile_cache', JSON.stringify(cachedProfile));
           }
         } catch (flagErr) {
