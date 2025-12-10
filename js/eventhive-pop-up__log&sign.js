@@ -313,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Check if account is now locked
                 if (lockoutResult.locked) {
+                  if (typeof hideLoading === 'function') hideLoading();
                   startLockoutCountdown(lockoutResult.remainingSeconds, loginEmail);
                   if (submitBtn) submitBtn.disabled = true;
                   return;
@@ -333,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const attemptsMsg = lockoutResult.attemptsLeft > 0
                       ? `\n\n(${lockoutResult.attemptsLeft} attempts remaining before lockout)`
                       : '';
+                    if (typeof hideLoading === 'function') hideLoading();
                     alert('Invalid Credentials\n\nIf you signed up with Google, please:\n• Use "Continue with Google" to log in, OR\n• Click "Forgot Password?" to set a new password.' + attemptsMsg);
                     isGoogleUser = true;
                   }
@@ -344,13 +346,16 @@ document.addEventListener('DOMContentLoaded', () => {
                   const attemptsMsg = lockoutResult.attemptsLeft > 0
                     ? ` (${lockoutResult.attemptsLeft} attempts remaining)`
                     : '';
+                  if (typeof hideLoading === 'function') hideLoading();
                   alert('Login failed: Invalid email or password.' + attemptsMsg);
                 }
               } else if (errorMessage.toLowerCase().includes('email not confirmed') ||
                 errorMessage.toLowerCase().includes('email not verified') ||
                 errorMessage.toLowerCase().includes('confirm your email')) {
+                if (typeof hideLoading === 'function') hideLoading();
                 alert('Please verify before logging in. A verification has been sent to your TUP Email.');
               } else {
+                if (typeof hideLoading === 'function') hideLoading();
                 alert('Login failed: ' + errorMessage);
               }
 
@@ -363,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
               if (data?.user && !data.user.email_confirmed_at) {
                 // User is not verified - sign them out and show error
                 await supabase.auth.signOut();
+                if (typeof hideLoading === 'function') hideLoading();
                 alert('Please verify before logging in. A verification has been sent to your TUP Email.');
                 if (submitBtn) {
                   submitBtn.disabled = false;

@@ -395,7 +395,7 @@ function clearSecurityLogs() {
 /**
  * Session timeout duration (30 minutes in milliseconds)
  */
-const SESSION_TIMEOUT = 30 * 1000; // 30 minutes 60 *  
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes 
 
 /**
  * Last activity timestamp
