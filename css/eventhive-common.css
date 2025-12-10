@@ -284,6 +284,7 @@ body {
 }
 
 /* Explicitly style Dashboard button to match other menu items */
+/* NOTE: Do NOT set display here - it's controlled by JavaScript based on admin status */
 #mobileDashboardBtn {
   color: #FFFBF0 !important;
   text-decoration: none !important;
@@ -291,7 +292,7 @@ body {
   padding: 15px 20px !important;
   border-radius: 10px !important;
   transition: background-color 0.3s ease !important;
-  display: flex !important;
+  /* display is set by JS: block for admin, none for non-admin */
   align-items: center !important;
   gap: 18px !important;
   line-height: 1.5 !important;

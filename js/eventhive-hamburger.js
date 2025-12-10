@@ -46,7 +46,7 @@ function applyMobileMenuState(isLoggedIn, isAdmin) {
     // Show/hide Dashboard link based on admin status
     const mobileDashboardBtn = document.getElementById('mobileDashboardBtn');
     if (mobileDashboardBtn) {
-      mobileDashboardBtn.style.display = isAdmin ? 'block' : 'none';
+      mobileDashboardBtn.style.display = isAdmin ? 'flex' : 'none';
     }
   } else {
     guestLinks.style.display = 'block';
@@ -217,6 +217,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Mark explicit logout in progress (prevents double-redirect from onAuthStateChange)
       window.__EH_EXPLICIT_LOGOUT_IN_PROGRESS = true;
 
+      // Show loading spinner
+      if (typeof showLoading === 'function') showLoading();
+
       // Close mobile menu immediately
       applyMobileMenuState(false, false);
       closeMobileMenu();
@@ -256,7 +259,13 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('Error clearing sessionStorage:', err);
       }
 
-      // Show success message and redirect to homepage
+      // Step 4: Clear all caches (for backward compatibility)
+      if (typeof clearAllCaches === 'function') {
+        clearAllCaches();
+      }
+
+      // Hide loading and show success message, then redirect to homepage
+      if (typeof hideLoading === 'function') hideLoading();
       alert('Log out successful');
       window.location.href = 'eventhive-homepage.html';
     });
