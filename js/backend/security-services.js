@@ -319,47 +319,55 @@ function logSecurityEvent(eventType, metadata = {}, message = '') {
 
 /**
  * Send log to backend (Supabase security_logs table)
+ * Uses direct fetch API to work for both authenticated and anonymous users
  * @param {Object} logEntry - Log entry to send
  */
 async function sendLogToBackend(logEntry) {
-  // Send to Supabase security_logs table if available
-  if (typeof getSupabaseClient === 'function') {
-    try {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        // Get current user if available
-        const user = await getSafeUser();
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-        // Extract IP address and user agent from metadata if available
-        const metadata = logEntry.metadata || {};
-        const ipAddress = metadata.ip || null;
-        const userAgent = metadata.userAgent || logEntry.metadata?.userAgent || navigator.userAgent;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return; // Supabase not configured
+  }
 
-        // Prepare log entry for database
-        const dbLogEntry = {
-          event_type: logEntry.event,
-          metadata: {
-            ...metadata,
-            // Remove userAgent from metadata as it's stored separately
-            userAgent: undefined
-          },
-          message: logEntry.message || '',
-          user_id: user?.id || metadata.userId || null,
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          created_at: logEntry.timestamp || new Date().toISOString()
-        };
+  try {
+    // Extract metadata
+    const metadata = logEntry.metadata || {};
+    const userAgent = metadata.userAgent || navigator.userAgent;
 
-        // Insert into security_logs table
-        const { error } = await supabase
-          .from('security_logs')
-          .insert(dbLogEntry);
+    // Prepare log entry for database
+    const dbLogEntry = {
+      event_type: logEntry.event,
+      metadata: {
+        ...metadata,
+        userAgent: undefined // Remove as it's stored separately
+      },
+      message: logEntry.message || '',
+      user_id: metadata.userId || null,
+      ip_address: null, // Cannot get client-side
+      user_agent: userAgent,
+      created_at: logEntry.timestamp || new Date().toISOString()
+    };
 
-        // Silently fail - logging shouldn't break the app
-      }
-    } catch (e) {
-      // Silently fail - logging shouldn't break the app
-    }
+    // Use direct fetch API (works for anonymous users)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    await fetch(`${SUPABASE_URL}/rest/v1/security_logs`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(dbLogEntry),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+  } catch (e) {
+    // Silently fail - logging shouldn't break the app
+    console.debug('Security log send failed (non-critical):', e.message);
   }
 }
 
@@ -569,7 +577,7 @@ async function getLoginAttempts(email) {
     const lockTimeout = setTimeout(() => lockController.abort(), 5000);
 
     const lockResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/security_logs?event_type=eq.ACCOUNT_LOCKED&details->>email=eq.${encodeURIComponent(emailLower)}&created_at=gte.${encodeURIComponent(fiveMinutesAgo)}&order=created_at.desc&limit=1`,
+      `${SUPABASE_URL}/rest/v1/security_logs?event_type=eq.ACCOUNT_LOCKED&metadata->>email=eq.${encodeURIComponent(emailLower)}&created_at=gte.${encodeURIComponent(fiveMinutesAgo)}&order=created_at.desc&limit=1`,
       {
         method: 'GET',
         headers: {
@@ -605,7 +613,7 @@ async function getLoginAttempts(email) {
     const attemptsTimeout = setTimeout(() => attemptsController.abort(), 5000);
 
     const attemptsResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/security_logs?event_type=eq.FAILED_LOGIN&details->>email=eq.${encodeURIComponent(emailLower)}&created_at=gte.${encodeURIComponent(fiveMinutesAgo)}&select=id`,
+      `${SUPABASE_URL}/rest/v1/security_logs?event_type=eq.FAILED_LOGIN&metadata->>email=eq.${encodeURIComponent(emailLower)}&created_at=gte.${encodeURIComponent(fiveMinutesAgo)}&select=id`,
       {
         method: 'GET',
         headers: {
