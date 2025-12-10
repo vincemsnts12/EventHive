@@ -245,11 +245,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Disable submit button
+      // Disable submit button and show loading spinner
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Logging in...';
       }
+      if (typeof showLoading === 'function') showLoading();
 
       // Sign in with Supabase
       if (typeof getSupabaseClient === 'function') {
@@ -464,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 (signupEmailFlag && signupEmailFlag === loginEmail);
 
               // Now close modal and complete login (both auth and profile are loaded)
+              if (typeof hideLoading === 'function') hideLoading();
               loginModal.style.display = 'none';
               emailInput.value = '';
               passwordInput.value = '';
@@ -498,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           } catch (err) {
             console.error('Login error:', err);
+            if (typeof hideLoading === 'function') hideLoading();
             alert('An error occurred during login. Please try again.');
             if (submitBtn) {
               submitBtn.disabled = false;
