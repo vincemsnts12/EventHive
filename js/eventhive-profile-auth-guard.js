@@ -118,13 +118,46 @@
     const isAuthenticated = checkAuthStatus();
     const isViewingOthersProfile = urlUserId && urlUserId.length > 0;
 
-    // Check if viewing own profile via uid
-    const currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    // Check if viewing own profile via uid - check multiple sources for current user ID
+    let currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+
+    // If not found, try to get from Supabase auth token
+    if (!currentUserId) {
+        try {
+            const keys = Object.keys(localStorage);
+            for (const key of keys) {
+                if (key.startsWith('sb-') && key.includes('auth-token')) {
+                    const tokenData = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (tokenData.access_token) {
+                        // Decode JWT to get user ID
+                        const payload = JSON.parse(atob(tokenData.access_token.split('.')[1]));
+                        currentUserId = payload.sub;
+                        break;
+                    }
+                    if (tokenData.user && tokenData.user.id) {
+                        currentUserId = tokenData.user.id;
+                        break;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Error getting current user ID from auth token:', e);
+        }
+    }
+
+    console.log('Profile auth guard: URL user ID:', urlUserId);
+    console.log('Profile auth guard: Current user ID:', currentUserId);
+
     const isViewingOwnProfileViaUid = isViewingOthersProfile && urlUserId === currentUserId;
 
+    console.log('Profile auth guard: Is viewing own profile via uid:', isViewingOwnProfileViaUid);
+
     // Expose for profile-load.js
+    // If viewing own profile (either no uid, or uid matches current user), set viewing other to false
     window.__EH_VIEWING_OTHER_PROFILE = isViewingOthersProfile && !isViewingOwnProfileViaUid;
-    window.__EH_VIEW_USER_ID = urlUserId;
+    window.__EH_VIEW_USER_ID = isViewingOwnProfileViaUid ? null : urlUserId; // Clear uid if it's own profile
+
+    console.log('Profile auth guard: __EH_VIEWING_OTHER_PROFILE:', window.__EH_VIEWING_OTHER_PROFILE);
 
     if (!isAuthenticated) {
         if (isViewingOthersProfile) {
