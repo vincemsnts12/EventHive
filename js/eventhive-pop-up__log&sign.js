@@ -520,11 +520,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Check rate limiting
+      // Check rate limiting (server-side)
       if (typeof checkForgotPasswordRateLimit === 'function') {
-        const rateLimit = checkForgotPasswordRateLimit(email);
+        const rateLimit = await checkForgotPasswordRateLimit(email);
         if (!rateLimit.allowed) {
-          const waitMins = Math.ceil((rateLimit.nextAllowedTime - Date.now()) / 60000);
+          const waitMins = rateLimit.nextAllowedTime
+            ? Math.ceil((rateLimit.nextAllowedTime.getTime() - Date.now()) / 60000)
+            : 60;
           alert(`Too many password reset requests.\n\nPlease wait ${waitMins} minutes before trying again.`);
           return;
         }
@@ -546,9 +548,9 @@ document.addEventListener('DOMContentLoaded', () => {
               console.error('Password reset error:', error);
               alert('Error sending reset email: ' + error.message);
             } else {
-              // Record the request for rate limiting
+              // Record the request for rate limiting (server-side)
               if (typeof recordForgotPasswordRequest === 'function') {
-                recordForgotPasswordRequest(email);
+                await recordForgotPasswordRequest(email);
               }
 
               alert('Password reset email sent!\n\nPlease check your TUP email inbox (and spam folder) for the reset link.\n\nThe link expires in 1 hour.');

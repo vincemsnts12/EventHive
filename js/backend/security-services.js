@@ -747,40 +747,39 @@ function formatLockoutTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// ===== FORGOT PASSWORD RATE LIMITING =====
+// ===== FORGOT PASSWORD RATE LIMITING (SERVER-SIDE) =====
 
 /**
- * Check if forgot password request is allowed (rate limiting)
+ * Check if forgot password request is allowed (server-side rate limiting)
+ * Uses RPC function to query security_logs - cannot be bypassed by clearing localStorage
  * @param {string} email - User email
- * @returns {Object} - {allowed: boolean, remainingRequests: number, nextAllowedTime: number|null}
+ * @returns {Promise<Object>} - {allowed: boolean, remainingRequests: number, nextAllowedTime: Date|null}
  */
-function checkForgotPasswordRateLimit(email) {
-  try {
-    const key = `forgot_password_${email.toLowerCase()}`;
-    const data = JSON.parse(localStorage.getItem(key) || '{}');
-    const now = Date.now();
+async function checkForgotPasswordRateLimit(email) {
+  const supabase = window.getSupabase ? window.getSupabase() : null;
 
-    // Filter out requests older than 1 hour
-    const recentRequests = (data.requests || []).filter(
-      timestamp => now - timestamp < FORGOT_PASSWORD_WINDOW
+  if (!supabase) {
+    console.warn('Supabase not available for rate limit check');
+    return { allowed: true, remainingRequests: FORGOT_PASSWORD_MAX_REQUESTS, nextAllowedTime: null };
+  }
+
+  try {
+    const { data, error } = await window.withTimeout(
+      supabase.rpc('check_forgot_password_rate_limit', { p_email: email.toLowerCase() }),
+      10000,
+      'forgot password rate limit check'
     );
 
-    if (recentRequests.length >= FORGOT_PASSWORD_MAX_REQUESTS) {
-      // Find when the oldest request will expire
-      const oldestRequest = Math.min(...recentRequests);
-      const nextAllowedTime = oldestRequest + FORGOT_PASSWORD_WINDOW;
-
-      return {
-        allowed: false,
-        remainingRequests: 0,
-        nextAllowedTime: nextAllowedTime
-      };
+    if (error) {
+      console.warn('Rate limit check error:', error.message);
+      // Allow on error to not block legitimate users
+      return { allowed: true, remainingRequests: FORGOT_PASSWORD_MAX_REQUESTS, nextAllowedTime: null };
     }
 
     return {
-      allowed: true,
-      remainingRequests: FORGOT_PASSWORD_MAX_REQUESTS - recentRequests.length,
-      nextAllowedTime: null
+      allowed: data.allowed === true,
+      remainingRequests: data.remaining || 0,
+      nextAllowedTime: data.next_allowed_at ? new Date(data.next_allowed_at) : null
     };
   } catch (e) {
     console.error('Error checking forgot password rate limit:', e);
@@ -789,24 +788,35 @@ function checkForgotPasswordRateLimit(email) {
 }
 
 /**
- * Record a forgot password request
+ * Record a forgot password request (server-side)
+ * Uses RPC function to insert into security_logs
  * @param {string} email - User email
+ * @returns {Promise<boolean>} - Success status
  */
-function recordForgotPasswordRequest(email) {
+async function recordForgotPasswordRequest(email) {
+  const supabase = window.getSupabase ? window.getSupabase() : null;
+
+  if (!supabase) {
+    console.warn('Supabase not available for recording request');
+    return false;
+  }
+
   try {
-    const key = `forgot_password_${email.toLowerCase()}`;
-    const data = JSON.parse(localStorage.getItem(key) || '{}');
-    const now = Date.now();
-
-    // Filter out old requests and add new one
-    const recentRequests = (data.requests || []).filter(
-      timestamp => now - timestamp < FORGOT_PASSWORD_WINDOW
+    const { data, error } = await window.withTimeout(
+      supabase.rpc('record_forgot_password_request', { p_email: email.toLowerCase() }),
+      10000,
+      'record forgot password request'
     );
-    recentRequests.push(now);
 
-    localStorage.setItem(key, JSON.stringify({ requests: recentRequests }));
+    if (error) {
+      console.warn('Failed to record forgot password request:', error.message);
+      return false;
+    }
+
+    return data === true;
   } catch (e) {
     console.error('Error recording forgot password request:', e);
+    return false;
   }
 }
 

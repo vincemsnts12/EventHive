@@ -469,13 +469,19 @@ let authCheckInterval = setInterval(() => {
   }
 }, 60000); // Check every minute to see if 5 minutes have passed since login
 
-// Clear all caches
+// Clear all caches - use centralized function if available
 function clearAllCaches() {
-  try {
-    localStorage.removeItem(CACHE_KEY);
-    localStorage.removeItem('eventhive_profile_cache');
-  } catch (e) {
-    console.error('Error clearing caches:', e);
+  // Use centralized clearAuthState if available
+  if (typeof window.clearAuthState === 'function') {
+    window.clearAuthState();
+  } else {
+    // Fallback to local implementation
+    try {
+      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem('eventhive_profile_cache');
+    } catch (e) {
+      console.error('Error clearing caches:', e);
+    }
   }
   // Apply guest state after clearing cache
   applyDropdownState('guest');
