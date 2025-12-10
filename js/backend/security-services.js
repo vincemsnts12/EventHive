@@ -485,7 +485,7 @@ async function handleSessionTimeout() {
     }, 'Session timed out due to inactivity');
 
     // Show timeout message FIRST (user sees this immediately)
-    alert('Your session has timed out due to inactivity. Please log in again.');
+    alert('Your session has timed out due to inactivity. If you are logged in, please log in again.');
 
     // Clear all caches
     try {
