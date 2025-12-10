@@ -8,6 +8,113 @@
   // Show loading state
   listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Loading liked events...</div>';
 
+  // Create unlike confirmation modal (for visitor view)
+  function createUnlikeConfirmModal() {
+    // Check if modal already exists
+    if (document.getElementById('unlikeConfirmModal')) {
+      return document.getElementById('unlikeConfirmModal');
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'unlikeConfirmModal';
+    modal.className = 'modal-overlay';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 2000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(4px);
+    `;
+
+    modal.innerHTML = `
+      <div class="modal-box" style="
+        background: white;
+        padding: 30px 40px;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 420px;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        animation: fadeIn 0.3s ease-out;
+      ">
+        <div class="modal-header">
+          <h3 style="margin: 0 0 15px 0; color: #B81E20; font-size: 1.6rem; font-weight: 800;">Confirmation</h3>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 1.1rem; color: #555; margin-bottom: 30px;">You are about to remove this event from your list of liked events. Do you still wish to proceed?</p>
+        </div>
+        <div class="modal-actions" style="display: flex; justify-content: center; gap: 20px;">
+          <button id="cancelUnlikeBtn" style="
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            transition: 0.2s;
+            background: #f0f0f0;
+            color: #333;
+          ">No</button>
+          <button id="confirmUnlikeBtn" style="
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            transition: 0.2s;
+            background: #B81E20;
+            color: white;
+          ">Yes</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close when clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    return modal;
+  }
+
+  // Show unlike confirmation and return a promise
+  function showUnlikeConfirmation() {
+    return new Promise((resolve) => {
+      const modal = createUnlikeConfirmModal();
+      modal.style.display = 'flex';
+
+      const yesBtn = document.getElementById('confirmUnlikeBtn');
+      const noBtn = document.getElementById('cancelUnlikeBtn');
+
+      // Clone buttons to remove old listeners
+      const newYesBtn = yesBtn.cloneNode(true);
+      const newNoBtn = noBtn.cloneNode(true);
+      yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+      noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+
+      newYesBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        resolve(true);
+      });
+
+      newNoBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        resolve(false);
+      });
+    });
+  }
+
   // Wait for eventsData to be populated
   async function waitForEvents(maxWait = 5000) {
     const startTime = Date.now();
@@ -157,54 +264,96 @@
         const actions = document.createElement('div');
         actions.className = 'event-actions';
 
-        // Determine if heart button should be shown
-        // - Own profile: always show (clickable to unlike)
-        // - Visitor view: only show if visitor also liked this event (read-only)
+        // Determine heart button state
+        // - Own profile: filled, clickable to unlike (removes card)
+        // - Visitor view - common like: filled, read-only
+        // - Visitor view - uncommon like: hollow (outline), clickable to like/unlike
         const isCommonLike = isViewingOther && visitorLikedEventIds.includes(ev.id);
-        const showHeartButton = !isViewingOther || isCommonLike;
 
-        if (showHeartButton) {
-          const likeBtn = document.createElement('button');
-          likeBtn.title = 'heart-btn';
-          likeBtn.className = 'heart-btn active'; // Always active since these are liked events
-          likeBtn.innerHTML = '<svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg>';
+        const likeBtn = document.createElement('button');
+        likeBtn.title = 'heart-btn';
 
-          // Only allow unlike on own profile
-          if (!isViewingOther) {
-            likeBtn.addEventListener('click', async (e) => {
-              e.stopPropagation();
+        // SVG for filled heart
+        const filledHeartSVG = '<svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg>';
 
-              // Toggle like in Supabase
-              if (typeof toggleEventLike === 'function') {
-                const result = await toggleEventLike(ev.id);
-                if (result.success) {
-                  // If unliked, remove card from view
-                  if (!result.liked) {
-                    card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    card.style.opacity = '0';
-                    card.style.transform = 'scale(0.9)';
-                    setTimeout(() => {
-                      card.remove();
-                      // If no more liked events, show message
-                      if (listEl.children.length === 0) {
-                        listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No liked events yet. Like some events to see them here!</div>';
-                      }
-                    }, 300);
-                  }
-                } else {
-                  alert(`Error: ${result.error}`);
+        // SVG for hollow heart (outline only, no fill)
+        const hollowHeartSVG = '<svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 1C7.2 1 9.1 2.9 10 4.5C10.9 2.9 12.8 1 15 1C17.2 1 19 2.8 19 5.1C19 8.8 15.2 10.2 10.2 16.5C10.1 16.6 10 16.6 10 16.6C10 16.6 9.9 16.6 9.8 16.5C4.8 10.2 1 8.8 1 5.1C1 2.8 2.8 1 5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>';
+
+        if (!isViewingOther) {
+          // Own profile: filled heart, clickable to unlike (removes card)
+          likeBtn.className = 'heart-btn active';
+          likeBtn.innerHTML = filledHeartSVG;
+          likeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+
+            // Toggle like in Supabase
+            if (typeof toggleEventLike === 'function') {
+              const result = await toggleEventLike(ev.id);
+              if (result.success) {
+                // If unliked, remove card from view
+                if (!result.liked) {
+                  card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                  card.style.opacity = '0';
+                  card.style.transform = 'scale(0.9)';
+                  setTimeout(() => {
+                    card.remove();
+                    // If no more liked events, show message
+                    if (listEl.children.length === 0) {
+                      listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No liked events yet. Like some events to see them here!</div>';
+                    }
+                  }, 300);
                 }
+              } else {
+                alert(`Error: ${result.error}`);
               }
-            });
-          } else {
-            // Viewing other's profile - like button is read-only display (common like)
-            likeBtn.style.cursor = 'default';
-            likeBtn.style.pointerEvents = 'none';
-          }
+            }
+          });
+        } else if (isCommonLike) {
+          // Visitor view - common like: filled, read-only
+          likeBtn.className = 'heart-btn active';
+          likeBtn.innerHTML = filledHeartSVG;
+          likeBtn.style.cursor = 'default';
+          likeBtn.style.pointerEvents = 'none';
+        } else {
+          // Visitor view - uncommon like: hollow (outline), clickable to like/unlike
+          likeBtn.className = 'heart-btn'; // Not active initially (hollow)
+          likeBtn.innerHTML = hollowHeartSVG;
 
-          actions.appendChild(likeBtn);
+          likeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+
+            // Check if currently liked (filled heart = has 'active' class)
+            const isCurrentlyLiked = likeBtn.classList.contains('active');
+
+            // If trying to unlike, show confirmation first
+            if (isCurrentlyLiked) {
+              const confirmed = await showUnlikeConfirmation();
+              if (!confirmed) {
+                return; // User cancelled, don't unlike
+              }
+            }
+
+            // Toggle like in Supabase
+            if (typeof toggleEventLike === 'function') {
+              const result = await toggleEventLike(ev.id);
+              if (result.success) {
+                if (result.liked) {
+                  // Now liked - show filled heart
+                  likeBtn.classList.add('active');
+                  likeBtn.innerHTML = filledHeartSVG;
+                } else {
+                  // Now unliked - show hollow heart
+                  likeBtn.classList.remove('active');
+                  likeBtn.innerHTML = hollowHeartSVG;
+                }
+              } else {
+                alert(`Error: ${result.error}`);
+              }
+            }
+          });
         }
-        // If not showing heart (visitor didn't like this event), heart is simply not added
+
+        actions.appendChild(likeBtn);
 
         const collegeTag = document.createElement('span');
         collegeTag.className = 'college-tag';
