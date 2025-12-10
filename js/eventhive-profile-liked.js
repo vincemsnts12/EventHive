@@ -49,6 +49,7 @@
 
       // Get liked event IDs - either for current user or the profile being viewed
       let likedEventIds = [];
+      let visitorLikedEventIds = []; // Visitor's own likes (for showing common likes)
 
       if (isViewingOther && viewUserId) {
         // Viewing another user's profile - get their liked events
@@ -66,6 +67,15 @@
           console.warn('getLikedEventIdsByUserId function not available');
           listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Unable to load liked events.</div>';
           return;
+        }
+
+        // Also get the visitor's (current user's) liked events for comparison
+        if (typeof getUserLikedEventIds === 'function') {
+          const visitorResult = await getUserLikedEventIds();
+          if (visitorResult.success) {
+            visitorLikedEventIds = visitorResult.eventIds;
+            console.log('Visitor (current user) liked event IDs:', visitorLikedEventIds);
+          }
         }
       } else {
         // Viewing own profile - get current user's liked events
@@ -86,12 +96,13 @@
         }
       }
 
-      // Filter eventsData to only show liked events
+      // Filter eventsData to only show liked events that EXIST in eventsData
+      // (This filters out deleted/unapproved events automatically)
       const eventsArr = Object.entries(eventsData)
         .map(([id, ev]) => ({ id, ...ev }))
         .filter(ev => likedEventIds.includes(ev.id));
 
-      console.log('Filtered liked events:', eventsArr.length, 'out of', Object.keys(eventsData).length, 'total events');
+      console.log('Filtered liked events (existing only):', eventsArr.length, 'out of', likedEventIds.length, 'total likes');
 
       if (eventsArr.length === 0) {
         // Different message for viewing others vs own profile
@@ -146,43 +157,54 @@
         const actions = document.createElement('div');
         actions.className = 'event-actions';
 
-        const likeBtn = document.createElement('button');
-        likeBtn.title = 'heart-btn';
-        likeBtn.className = 'heart-btn active'; // Always active since these are liked events
-        likeBtn.innerHTML = '<svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg>';
+        // Determine if heart button should be shown
+        // - Own profile: always show (clickable to unlike)
+        // - Visitor view: only show if visitor also liked this event (read-only)
+        const isCommonLike = isViewingOther && visitorLikedEventIds.includes(ev.id);
+        const showHeartButton = !isViewingOther || isCommonLike;
 
-        // Only allow unlike on own profile
-        if (!isViewingOther) {
-          likeBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
+        if (showHeartButton) {
+          const likeBtn = document.createElement('button');
+          likeBtn.title = 'heart-btn';
+          likeBtn.className = 'heart-btn active'; // Always active since these are liked events
+          likeBtn.innerHTML = '<svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg>';
 
-            // Toggle like in Supabase
-            if (typeof toggleEventLike === 'function') {
-              const result = await toggleEventLike(ev.id);
-              if (result.success) {
-                // If unliked, remove card from view
-                if (!result.liked) {
-                  card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                  card.style.opacity = '0';
-                  card.style.transform = 'scale(0.9)';
-                  setTimeout(() => {
-                    card.remove();
-                    // If no more liked events, show message
-                    if (listEl.children.length === 0) {
-                      listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No liked events yet. Like some events to see them here!</div>';
-                    }
-                  }, 300);
+          // Only allow unlike on own profile
+          if (!isViewingOther) {
+            likeBtn.addEventListener('click', async (e) => {
+              e.stopPropagation();
+
+              // Toggle like in Supabase
+              if (typeof toggleEventLike === 'function') {
+                const result = await toggleEventLike(ev.id);
+                if (result.success) {
+                  // If unliked, remove card from view
+                  if (!result.liked) {
+                    card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.9)';
+                    setTimeout(() => {
+                      card.remove();
+                      // If no more liked events, show message
+                      if (listEl.children.length === 0) {
+                        listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No liked events yet. Like some events to see them here!</div>';
+                      }
+                    }, 300);
+                  }
+                } else {
+                  alert(`Error: ${result.error}`);
                 }
-              } else {
-                alert(`Error: ${result.error}`);
               }
-            }
-          });
-        } else {
-          // Viewing other's profile - like button is read-only display
-          likeBtn.style.cursor = 'default';
-          likeBtn.style.pointerEvents = 'none';
+            });
+          } else {
+            // Viewing other's profile - like button is read-only display (common like)
+            likeBtn.style.cursor = 'default';
+            likeBtn.style.pointerEvents = 'none';
+          }
+
+          actions.appendChild(likeBtn);
         }
+        // If not showing heart (visitor didn't like this event), heart is simply not added
 
         const collegeTag = document.createElement('span');
         collegeTag.className = 'college-tag';
