@@ -446,6 +446,78 @@ async function getUserLikedEventIds() {
   }
 }
 
+/**
+ * Get liked event IDs for a specific user (for viewing other's profile)
+ * @param {string} targetUserId - User ID to get liked events for
+ * @returns {Promise<{success: boolean, eventIds: string[], error?: string}>}
+ */
+async function getLikedEventIdsByUserId(targetUserId) {
+  if (!targetUserId || typeof targetUserId !== 'string' || targetUserId.trim().length === 0) {
+    return { success: false, eventIds: [], error: 'Invalid user ID' };
+  }
+
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, eventIds: [], error: 'Supabase configuration not available' };
+  }
+
+  // Get access token (required for authenticated request)
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, eventIds: [], error: 'Authentication required' };
+  }
+
+  try {
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 10000);
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/event_likes?user_id=eq.${targetUserId}&select=event_id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        signal: fetchController.signal
+      }
+    );
+
+    clearTimeout(fetchTimeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error getting user liked events by ID:', response.status, errorText);
+      return { success: false, eventIds: [], error: `HTTP ${response.status}` };
+    }
+
+    const data = await response.json();
+    const eventIds = Array.isArray(data) ? data.map(row => row.event_id) : [];
+    return { success: true, eventIds };
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      return { success: false, eventIds: [], error: 'Request timed out' };
+    }
+    console.error('Unexpected error getting liked events by user ID:', error);
+    return { success: false, eventIds: [], error: error.message };
+  }
+}
+
 // ===== COMMENTS SERVICES =====
 
 /**
