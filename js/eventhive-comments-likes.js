@@ -57,7 +57,7 @@ function renderComment(comment, currentUserId = null) {
     }
   }
 
-  const profileUrl = `eventhive-profile.html?username=${encodeURIComponent(comment.user.username)}`;
+  const profileUrl = `eventhive-profile.html?uid=${comment.userId}`;
   // Only show delete button if user is authenticated AND it's their own comment
   const isOwnComment = currentUserId && comment.userId === currentUserId;
 

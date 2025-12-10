@@ -1,16 +1,16 @@
 // ===== PROFILE PAGE AUTH GUARD =====
 // Handles authentication for profile pages
-// - Own profile (no ?username param): Requires auth, redirects guests to homepage
-// - Other's profile (?username=xxx param): Requires auth, shows login popup for guests
+// - Own profile (no ?uid param): Requires auth, redirects guests to homepage
+// - Other's profile (?uid=xxx param): Requires auth, shows login popup for guests
 // Must be loaded early in the script order
 
 (function () {
     'use strict';
 
-    // Get username from URL parameter (if any)
-    function getUrlUsername() {
+    // Get uid from URL parameter (if any)
+    function getUrlUserId() {
         const params = new URLSearchParams(window.location.search);
-        return params.get('username');
+        return params.get('uid');
     }
 
     // Check auth status from localStorage (synchronous, fast)
@@ -114,13 +114,17 @@
     }
 
     // Execute check
-    const urlUsername = getUrlUsername();
+    const urlUserId = getUrlUserId();
     const isAuthenticated = checkAuthStatus();
-    const isViewingOthersProfile = urlUsername && urlUsername.length > 0;
+    const isViewingOthersProfile = urlUserId && urlUserId.length > 0;
+
+    // Check if viewing own profile via uid
+    const currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
+    const isViewingOwnProfileViaUid = isViewingOthersProfile && urlUserId === currentUserId;
 
     // Expose for profile-load.js
-    window.__EH_VIEWING_OTHER_PROFILE = isViewingOthersProfile;
-    window.__EH_VIEW_USERNAME = urlUsername;
+    window.__EH_VIEWING_OTHER_PROFILE = isViewingOthersProfile && !isViewingOwnProfileViaUid;
+    window.__EH_VIEW_USER_ID = urlUserId;
 
     if (!isAuthenticated) {
         if (isViewingOthersProfile) {

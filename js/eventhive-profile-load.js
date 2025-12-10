@@ -147,10 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Check if we're viewing someone else's profile via URL parameter
   const isViewingOther = window.__EH_VIEWING_OTHER_PROFILE || false;
-  const viewUsername = window.__EH_VIEW_USERNAME || null;
+  const viewUserId = window.__EH_VIEW_USER_ID || null;
 
   // Hide Edit Profile button if viewing someone else's profile
-  if (isViewingOther && viewUsername) {
+  if (isViewingOther && viewUserId) {
     const editProfileBtn = document.querySelector('.edit-profile-btn');
     if (editProfileBtn) {
       editProfileBtn.style.display = 'none';
@@ -167,9 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  if (isViewingOther && viewUsername) {
-    // Loading someone else's profile
-    console.log('Loading profile for username:', viewUsername);
+  if (isViewingOther && viewUserId) {
+    // Loading someone else's profile by user ID
+    console.log('Loading profile for user ID:', viewUserId);
 
     // Show loading state
     showDefaultProfile();
@@ -178,12 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
       usernameElement.textContent = 'Loading...';
     }
 
-    // Load profile by username
-    if (typeof getProfileByUsername === 'function') {
-      getProfileByUsername(viewUsername).then(result => {
+    // Load profile by user ID (use existing getUserProfile with userId param)
+    if (typeof getUserProfile === 'function') {
+      getUserProfile(viewUserId).then(result => {
         if (result.success && result.profile) {
           applyProfileToUI(result.profile, result.profile.email);
-          console.log('Profile loaded for:', viewUsername);
+          console.log('Profile loaded for user ID:', viewUserId);
 
           // Update bio text for viewing others
           const descriptionElement = document.querySelector('.description-box p');
@@ -192,16 +192,16 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } else {
           // User not found
-          console.warn('User not found:', viewUsername);
-          showUserNotFound(viewUsername);
+          console.warn('User not found:', viewUserId);
+          showUserNotFound(viewUserId);
         }
       }).catch(error => {
         console.error('Error loading profile:', error);
-        showUserNotFound(viewUsername);
+        showUserNotFound(viewUserId);
       });
     } else {
-      console.error('getProfileByUsername function not available');
-      showUserNotFound(viewUsername);
+      console.error('getUserProfile function not available');
+      showUserNotFound(viewUserId);
     }
   } else {
     // Loading own profile (existing behavior)
