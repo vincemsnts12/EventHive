@@ -213,7 +213,6 @@
           collegeTag.classList.add(ev.collegeColor);
         }
 
-        actions.appendChild(likeBtn);
         actions.appendChild(collegeTag);
 
         footer.appendChild(title);
