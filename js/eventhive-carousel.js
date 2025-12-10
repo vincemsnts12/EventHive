@@ -36,7 +36,7 @@ function buildHeroData() {
     if (desc.length > maxLength) {
       desc = desc.substring(0, maxLength).trim() + '...';
     }
-    
+
     return {
       img: (ev.images && ev.images.length ? ev.images[0] : 'images/tup.png'),
       title: ev.title || '',
@@ -55,14 +55,14 @@ function initSlides() {
     const title = slide.querySelector('.hero-title');
     const desc = slide.querySelector('.hero-desc');
     const btn = slide.querySelector('.hero-btn');
-    
+
     if (heroDataCache[i]) {
       bg.style.backgroundImage = `url(${heroDataCache[i].img})`;
       title.textContent = heroDataCache[i].title;
       desc.textContent = heroDataCache[i].desc;
       btn.textContent = heroDataCache[i].btnText;
       btn.href = "eventhive-events.html";
-      btn.onclick = function() {
+      btn.onclick = function () {
         localStorage.setItem('selectedEventId', heroDataCache[i].eventId);
       };
     }
@@ -73,11 +73,11 @@ function initSlides() {
 function goToSlide(n) {
   const len = heroDataCache.length || slides.length || 1;
   index = (n + len) % len;
-  
+
   // Move the track
   const translateX = -index * 20; // 20% per slide (100% / 5 slides)
   slidesTrack.style.transform = `translateX(${translateX}%)`;
-  
+
   // Update dots
   dots.forEach(dot => dot.classList.remove('active'));
   if (dots[index]) {
@@ -92,15 +92,22 @@ function resetAutoSlideTimer() {
 }
 
 // Navigation buttons (reset timer on manual navigation)
-document.querySelector('.prev').addEventListener('click', () => {
-  goToSlide(index - 1);
-  resetAutoSlideTimer();
-});
+const prevBtn = document.querySelector('.prev');
+const nextBtn = document.querySelector('.next');
 
-document.querySelector('.next').addEventListener('click', () => {
-  goToSlide(index + 1);
-  resetAutoSlideTimer();
-});
+if (prevBtn) {
+  prevBtn.addEventListener('click', () => {
+    goToSlide(index - 1);
+    resetAutoSlideTimer();
+  });
+}
+
+if (nextBtn) {
+  nextBtn.addEventListener('click', () => {
+    goToSlide(index + 1);
+    resetAutoSlideTimer();
+  });
+}
 
 // Dots click (reset timer on manual navigation)
 dots.forEach((dot, i) => dot.addEventListener('click', () => {
@@ -117,7 +124,7 @@ if (typeof eventsData !== 'undefined' && Object.keys(eventsData).length > 0) {
 } else {
   // Wait for events to be loaded - homepage-init.js will call initSlides() and goToSlide(0)
   // Export functions for external initialization
-  window.initCarousel = function() {
+  window.initCarousel = function () {
     initSlides();
     goToSlide(0);
   };
@@ -127,39 +134,39 @@ if (typeof eventsData !== 'undefined' && Object.keys(eventsData).length > 0) {
 function renderTopEvents() {
   if (!topEventsContainer) return;
   topEventsContainer.innerHTML = '';
-  
+
   // Get today's date range (12:00 AM to 11:59 PM) in local timezone
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0); // 12:00 AM local time
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999); // 11:59 PM local time
-  
+
   // Filter events that fall within today (start_date or end_date is within today, or event spans today)
   const todayEvents = eventsArray().filter(ev => {
     if (!ev.startDate || !ev.endDate) return false;
-    
+
     // Convert to Date objects (handles both Date objects and ISO strings)
     const startDate = new Date(ev.startDate);
     const endDate = new Date(ev.endDate);
-    
+
     // Normalize dates to local time (ignore time components for date comparison)
     const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
     const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
     const todayDateOnly = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate());
-    
+
     // Event is within today if:
     // 1. Event starts today (startDate is today)
     // 2. Event ends today (endDate is today)
     // 3. Event spans today (starts before or on today AND ends after or on today)
     return (startDateOnly.getTime() === todayDateOnly.getTime()) ||
-           (endDateOnly.getTime() === todayDateOnly.getTime()) ||
-           (startDateOnly <= todayDateOnly && endDateOnly >= todayDateOnly);
+      (endDateOnly.getTime() === todayDateOnly.getTime()) ||
+      (startDateOnly <= todayDateOnly && endDateOnly >= todayDateOnly);
   });
-  
+
   // Sort by likes (descending) and take top 3
   const topThree = todayEvents
     .sort((a, b) => (b.likes || 0) - (a.likes || 0))
     .slice(0, 3);
-  
+
   // Create 3 card slots (will hide empty ones)
   for (let i = 0; i < 3; i++) {
     const ev = topThree[i];
@@ -171,7 +178,7 @@ function renderTopEvents() {
       topEventsContainer.appendChild(emptyCard);
       continue;
     }
-    
+
     const rank = i + 1; // 1, 2, or 3
     const card = document.createElement('div');
     card.className = 'event-card';
@@ -183,13 +190,13 @@ function renderTopEvents() {
       localStorage.setItem('selectedEventId', ev.id);
       window.location.href = 'eventhive-events.html';
     });
-    
+
     // Add rank number (large overlapping number)
     const rankNumber = document.createElement('div');
     rankNumber.className = 'event-rank-number';
     rankNumber.textContent = rank;
     card.appendChild(rankNumber);
-    
+
     // Add top like count display (display-only, at the top)
     const topLikeCount = document.createElement('div');
     topLikeCount.className = 'event-top-like-count';
@@ -201,14 +208,14 @@ function renderTopEvents() {
       <span class="top-like-count-value">${likeCountValue}</span>
     `;
     card.appendChild(topLikeCount);
-    
+
     const imageWrap = document.createElement('div');
     imageWrap.className = 'event-image';
     const img = document.createElement('img');
     let thumbnailUrl = 'images/tup.png';
     if (ev.images && ev.images.length > 0) {
-      const thumbnailIndex = (ev.thumbnailIndex !== undefined && ev.thumbnailIndex < ev.images.length) 
-        ? ev.thumbnailIndex 
+      const thumbnailIndex = (ev.thumbnailIndex !== undefined && ev.thumbnailIndex < ev.images.length)
+        ? ev.thumbnailIndex
         : 0;
       thumbnailUrl = ev.images[thumbnailIndex];
     } else if (ev.universityLogo) {
@@ -220,28 +227,28 @@ function renderTopEvents() {
     img.style.objectPosition = 'center';
     img.style.width = '100%';
     img.style.height = '100%';
-    img.onerror = function() {
+    img.onerror = function () {
       this.src = 'images/tup.png';
     };
     imageWrap.appendChild(img);
-    
+
     // Footer overlays on image (no separate red footer)
     const footer = document.createElement('div');
     footer.className = 'event-footer';
-    
+
     const title = document.createElement('span');
     title.className = 'event-title';
     title.textContent = ev.title || '';
-    
+
     const actions = document.createElement('div');
     actions.className = 'event-actions';
-    
+
     const likeBtn = document.createElement('button');
     likeBtn.title = 'heart-btn';
     likeBtn.className = 'heart-btn';
     likeBtn.setAttribute('data-event-id', ev.id);
     likeBtn.innerHTML = `<svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 0C7.7625 0 10 2.30414 10 5.14658C10 2.30414 12.2375 0 15 0C17.7625 0 20 2.30414 20 5.14658C20 9.43058 15.9575 10.9417 10.49 17.7609C10.4298 17.8358 10.3548 17.896 10.2701 17.9373C10.1855 17.9786 10.0933 18 10 18C9.90668 18 9.81449 17.9786 9.72986 17.9373C9.64523 17.896 9.5702 17.8358 9.51 17.7609C4.0425 10.9417 0 9.43058 0 5.14658C0 2.30414 2.2375 0 5 0Z"/></svg>`;
-    
+
     // Initialize button state (check if user has liked this event)
     if (typeof hasUserLikedEvent === 'function') {
       hasUserLikedEvent(ev.id).then(result => {
@@ -252,17 +259,17 @@ function renderTopEvents() {
         console.error('Error checking like state:', err);
       });
     }
-    
+
     // Setup click handler to actually like/unlike the event
     likeBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       e.preventDefault();
-      
+
       // Prevent multiple clicks while processing
       if (likeBtn.disabled) {
         return;
       }
-      
+
       // Check if user is authenticated BEFORE disabling button
       let userId = null;
       try {
@@ -284,17 +291,17 @@ function renderTopEvents() {
       } catch (err) {
         // Ignore errors - user is not authenticated
       }
-      
+
       if (!userId) {
         alert('Please log in to like events.');
         return;
       }
-      
+
       // Disable button only after authentication check passes
       likeBtn.disabled = true;
-      
+
       try {
-        
+
         // Check if handleLikeClick function is available
         if (typeof handleLikeClick === 'function') {
           await handleLikeClick(ev.id, likeBtn);
@@ -313,12 +320,12 @@ function renderTopEvents() {
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('Like operation timed out after 20 seconds')), 20000);
           });
-          
+
           const result = await Promise.race([
             toggleEventLike(ev.id),
             timeoutPromise
           ]);
-          
+
           if (result.success) {
             if (result.liked) {
               likeBtn.classList.add('active');
@@ -362,7 +369,7 @@ function renderTopEvents() {
         likeBtn.disabled = false;
       }
     });
-    
+
     const collegeTag = document.createElement('span');
     collegeTag.className = 'college-tag';
     // Use main college abbreviation (matching homepage format) - reuse mainCollege from line 138
@@ -378,17 +385,17 @@ function renderTopEvents() {
       'TUP': 'TUP System-wide'
     };
     collegeTag.title = collegeNameMap[mainCollege] || mainCollege;
-    
+
     actions.appendChild(likeBtn);
     actions.appendChild(collegeTag);
-    
+
     footer.appendChild(title);
     footer.appendChild(actions);
-    
+
     // Footer is now inside imageWrap, overlaying the image
     imageWrap.appendChild(footer);
     card.appendChild(imageWrap);
-    
+
     topEventsContainer.appendChild(card);
   }
 }
