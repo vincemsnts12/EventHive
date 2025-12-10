@@ -637,9 +637,17 @@ async function handleOAuthCallback() {
     console.error('Error handling OAuth callback:', err);
   }
 
-  // Clean up any leftover query parameters
+  // Clean up any leftover OAuth query parameters (but preserve uid for profile viewing)
   if (window.location.search) {
-    window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+    const searchParams = new URLSearchParams(window.location.search);
+    const uidParam = searchParams.get('uid');
+    // Only clean if there are OAuth-related params (code, error, state, etc.)
+    // If only uid param exists, don't clean anything
+    const hasOAuthParams = searchParams.has('code') || searchParams.has('error') || searchParams.has('state') || searchParams.has('access_token');
+    if (hasOAuthParams) {
+      const cleanPath = uidParam ? `${window.location.pathname}?uid=${uidParam}` : window.location.pathname;
+      window.history.replaceState({}, document.title, cleanPath + window.location.hash);
+    }
   }
 
   // Delay flag clear to ensure SIGNED_IN event fires while flag is still true
