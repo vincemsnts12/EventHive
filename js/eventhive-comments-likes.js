@@ -58,6 +58,7 @@ function renderComment(comment, currentUserId = null) {
   }
 
   const profileUrl = `eventhive-profile.html?uid=${comment.userId}`;
+  const isGuest = !currentUserId;
   // Only show delete button if user is authenticated AND it's their own comment
   const isOwnComment = currentUserId && comment.userId === currentUserId;
 
@@ -72,14 +73,18 @@ function renderComment(comment, currentUserId = null) {
     </button>
   ` : '';
 
+  // For guests, use # as href to prevent navigation, add data attribute for the real URL
+  const avatarHref = isGuest ? '#' : profileUrl;
+  const authorHref = isGuest ? '#' : profileUrl;
+
   commentItem.innerHTML = `
-    <a href="${profileUrl}" class="comment-avatar">
+    <a href="${avatarHref}" class="comment-avatar" data-profile-url="${profileUrl}" data-user-id="${comment.userId}">
       <img src="${comment.user.avatarUrl || 'images/prof_default.svg'}" alt="${comment.user.username}">
     </a>
     <div class="comment-content">
       <div class="comment-header">
         <div class="comment-header-left">
-          <a href="${profileUrl}" class="comment-author">${comment.user.username}</a>
+          <a href="${authorHref}" class="comment-author" data-profile-url="${profileUrl}" data-user-id="${comment.userId}">${comment.user.username}</a>
           <span class="comment-timestamp">${formatRelativeTime(comment.createdAt)}</span>
         </div>
         ${deleteButtonHtml}
@@ -87,6 +92,69 @@ function renderComment(comment, currentUserId = null) {
       <p class="comment-text">${escapeHtml(comment.content)}</p>
     </div>
   `;
+
+  // Add click handlers for profile links (handle guest authentication)
+  const avatarLink = commentItem.querySelector('.comment-avatar');
+  const authorLink = commentItem.querySelector('.comment-author');
+
+  function handleProfileClick(e) {
+    const targetUrl = e.currentTarget.getAttribute('data-profile-url');
+
+    // Check if user is currently authenticated
+    let isAuthenticated = false;
+    try {
+      const authCache = JSON.parse(localStorage.getItem('eventhive_auth_cache') || '{}');
+      isAuthenticated = authCache.state?.isLoggedIn === true;
+
+      if (!isAuthenticated) {
+        const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+        isAuthenticated = userId && userId.length > 0;
+      }
+
+      if (!isAuthenticated) {
+        const keys = Object.keys(localStorage);
+        for (const key of keys) {
+          if (key.startsWith('sb-') && key.includes('auth-token')) {
+            const tokenData = JSON.parse(localStorage.getItem(key) || '{}');
+            if (tokenData.access_token) {
+              isAuthenticated = true;
+              break;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      isAuthenticated = false;
+    }
+
+    if (isAuthenticated) {
+      // Authenticated user - navigate to profile
+      window.location.href = targetUrl;
+    } else {
+      // Guest - prevent navigation, show login popup on current page
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Store the intended profile URL for redirect after login
+      sessionStorage.setItem('eventhive_pending_profile_url', window.location.origin + '/' + targetUrl);
+
+      // Show login popup
+      const loginModal = document.getElementById('loginModal');
+      if (loginModal) {
+        loginModal.style.display = 'flex';
+        console.log('Showing login popup for guest profile access. Redirect after login:', targetUrl);
+      } else {
+        alert('Please log in to view profiles.');
+      }
+    }
+  }
+
+  if (avatarLink) {
+    avatarLink.addEventListener('click', handleProfileClick);
+  }
+  if (authorLink) {
+    authorLink.addEventListener('click', handleProfileClick);
+  }
 
   // Add delete handler if it's the user's own comment
   if (isOwnComment) {

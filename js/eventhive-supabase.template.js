@@ -348,6 +348,18 @@ function setupAuthStateListener() {
         }
       }
 
+      // Check for pending profile URL (guest clicked profile before logging in)
+      const pendingProfileUrl = sessionStorage.getItem('eventhive_pending_profile_url');
+      if (pendingProfileUrl) {
+        console.log('Redirecting to pending profile URL:', pendingProfileUrl);
+        sessionStorage.removeItem('eventhive_pending_profile_url');
+        // Use setTimeout to ensure auth state is fully updated before redirect
+        setTimeout(() => {
+          window.location.href = pendingProfileUrl;
+        }, 100);
+        return; // Skip normal UI update, we're redirecting
+      }
+
       // TODO: Update UI to reflect logged-in state (e.g., show username in dropdown, enable dashboard link)
     } else if (event === 'SIGNED_OUT') {
       console.log('User signed out');

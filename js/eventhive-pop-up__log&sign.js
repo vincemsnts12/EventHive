@@ -486,6 +486,15 @@ document.addEventListener('DOMContentLoaded', () => {
               if (typeof logSecurityEvent === 'function') {
                 logSecurityEvent('SUCCESSFUL_LOGIN', { email: email }, 'User logged in successfully');
               }
+
+              // Check for pending profile URL (guest clicked profile before logging in)
+              const pendingProfileUrl = sessionStorage.getItem('eventhive_pending_profile_url');
+              if (pendingProfileUrl) {
+                console.log('Redirecting to pending profile URL:', pendingProfileUrl);
+                sessionStorage.removeItem('eventhive_pending_profile_url');
+                window.location.href = pendingProfileUrl;
+                return; // Skip further processing, we're redirecting
+              }
             }
           } catch (err) {
             console.error('Login error:', err);
