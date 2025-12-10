@@ -145,86 +145,147 @@ document.addEventListener('DOMContentLoaded', () => {
     initSupabase();
   }
 
-  // Try to load from cache first (instant, synchronous)
-  const cachedProfile = getCachedProfile();
-  if (cachedProfile) {
-    // Apply cached profile immediately (no delay, no async)
-    applyProfileToUI(cachedProfile);
-    console.log('Profile data loaded from cache');
-  } else {
-    // No cache - show default immediately
-    showDefaultProfile();
+  // Check if we're viewing someone else's profile via URL parameter
+  const isViewingOther = window.__EH_VIEWING_OTHER_PROFILE || false;
+  const viewUsername = window.__EH_VIEW_USERNAME || null;
+
+  // Hide Edit Profile button if viewing someone else's profile
+  if (isViewingOther && viewUsername) {
+    const editProfileBtn = document.querySelector('.edit-profile-btn');
+    if (editProfileBtn) {
+      editProfileBtn.style.display = 'none';
+    }
+
+    // Update page title to show whose profile
+    const pageTitle = document.querySelector('.profile-content h2') || document.querySelector('.username');
+    // We'll update this after loading the profile
   }
 
-  // Load profile data from Supabase (in background, async - doesn't block)
-  // This updates the UI when done, but doesn't cause delay
-  if (typeof getUserProfile === 'function') {
-    getUserProfile().then(async result => {
-      if (result.success && result.profile) {
-        const profile = result.profile;
+  // If auth is required (guest trying to view other profile), don't load anything yet
+  if (window.__EH_PROFILE_AUTH_REQUIRED) {
+    showDefaultProfile();
+    return;
+  }
 
-        // Get email from localStorage (profiles table doesn't have email column)
-        let userEmail = null;
-        try {
-          // Try to get email from auth token in localStorage
-          const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
-            key.startsWith('sb-') && key.includes('auth-token')
-          );
-          if (supabaseAuthKeys.length > 0) {
-            const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
-            userEmail = authData?.user?.email;
+  if (isViewingOther && viewUsername) {
+    // Loading someone else's profile
+    console.log('Loading profile for username:', viewUsername);
 
-            // If not in user object, try to decode from JWT
-            if (!userEmail && authData?.access_token) {
-              try {
-                const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
-                userEmail = payload.email;
-              } catch (e) {
-                // Ignore decode errors
+    // Show loading state
+    showDefaultProfile();
+    const usernameElement = document.querySelector('.username');
+    if (usernameElement) {
+      usernameElement.textContent = 'Loading...';
+    }
+
+    // Load profile by username
+    if (typeof getProfileByUsername === 'function') {
+      getProfileByUsername(viewUsername).then(result => {
+        if (result.success && result.profile) {
+          applyProfileToUI(result.profile, result.profile.email);
+          console.log('Profile loaded for:', viewUsername);
+
+          // Update bio text for viewing others
+          const descriptionElement = document.querySelector('.description-box p');
+          if (descriptionElement && !result.profile.bio) {
+            descriptionElement.textContent = 'No bio available.';
+          }
+        } else {
+          // User not found
+          console.warn('User not found:', viewUsername);
+          showUserNotFound(viewUsername);
+        }
+      }).catch(error => {
+        console.error('Error loading profile:', error);
+        showUserNotFound(viewUsername);
+      });
+    } else {
+      console.error('getProfileByUsername function not available');
+      showUserNotFound(viewUsername);
+    }
+  } else {
+    // Loading own profile (existing behavior)
+    // Try to load from cache first (instant, synchronous)
+    const cachedProfile = getCachedProfile();
+    if (cachedProfile) {
+      // Apply cached profile immediately (no delay, no async)
+      applyProfileToUI(cachedProfile);
+      console.log('Profile data loaded from cache');
+    } else {
+      // No cache - show default immediately
+      showDefaultProfile();
+    }
+
+    // Load profile data from Supabase (in background, async - doesn't block)
+    // This updates the UI when done, but doesn't cause delay
+    if (typeof getUserProfile === 'function') {
+      getUserProfile().then(async result => {
+        if (result.success && result.profile) {
+          const profile = result.profile;
+
+          // Get email from localStorage (profiles table doesn't have email column)
+          let userEmail = null;
+          try {
+            // Try to get email from auth token in localStorage
+            const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+              key.startsWith('sb-') && key.includes('auth-token')
+            );
+            if (supabaseAuthKeys.length > 0) {
+              const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+              userEmail = authData?.user?.email;
+
+              // If not in user object, try to decode from JWT
+              if (!userEmail && authData?.access_token) {
+                try {
+                  const payload = JSON.parse(atob(authData.access_token.split('.')[1]));
+                  userEmail = payload.email;
+                } catch (e) {
+                  // Ignore decode errors
+                }
               }
             }
+          } catch (e) {
+            console.warn('Error getting email from localStorage:', e);
           }
-        } catch (e) {
-          console.warn('Error getting email from localStorage:', e);
+
+          // Update UI with fresh data (pass email as second param)
+          applyProfileToUI(profile, userEmail);
+
+          // Update cache - include email in cached profile
+          try {
+            const profileWithEmail = {
+              ...profile,
+              email: userEmail || profile.email
+            };
+            const profileCache = {
+              timestamp: Date.now(),
+              profile: profileWithEmail
+            };
+            localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
+          } catch (e) {
+            console.error('Error caching profile:', e);
+          }
+
+          console.log('Profile data loaded from Supabase');
+        } else {
+          console.warn('Failed to load profile:', result.error);
+          // Only show default if we didn't have cache
+          if (!cachedProfile) {
+            showDefaultProfile();
+          }
         }
-
-        // Update UI with fresh data (pass email as second param)
-        applyProfileToUI(profile, userEmail);
-
-        // Update cache - include email in cached profile
-        try {
-          const profileWithEmail = {
-            ...profile,
-            email: userEmail || profile.email
-          };
-          const profileCache = {
-            timestamp: Date.now(),
-            profile: profileWithEmail
-          };
-          localStorage.setItem('eventhive_profile_cache', JSON.stringify(profileCache));
-        } catch (e) {
-          console.error('Error caching profile:', e);
-        }
-
-        console.log('Profile data loaded from Supabase');
-      } else {
-        console.warn('Failed to load profile:', result.error);
+      }).catch(error => {
+        console.error('Error loading profile:', error);
         // Only show default if we didn't have cache
         if (!cachedProfile) {
           showDefaultProfile();
         }
-      }
-    }).catch(error => {
-      console.error('Error loading profile:', error);
-      // Only show default if we didn't have cache
+      });
+    } else {
+      // Supabase not available - only show default if no cache
       if (!cachedProfile) {
         showDefaultProfile();
       }
-    });
-  } else {
-    // Supabase not available - only show default if no cache
-    if (!cachedProfile) {
-      showDefaultProfile();
     }
   }
 });
@@ -248,3 +309,35 @@ function showDefaultProfile() {
   }
 }
 
+// Show "User not found" message
+function showUserNotFound(username) {
+  const usernameElement = document.querySelector('.username');
+  const emailElement = document.querySelector('.email');
+  const descriptionElement = document.querySelector('.description-box p');
+  const profilePicImg = document.getElementById('profilePicImg') || document.querySelector('.profile-picture img');
+  const profileInitials = document.getElementById('profileInitials');
+
+  if (usernameElement) {
+    usernameElement.textContent = 'User Not Found';
+  }
+
+  if (emailElement) {
+    emailElement.textContent = '';
+  }
+
+  if (descriptionElement) {
+    descriptionElement.textContent = `The user "${username}" does not exist or the profile is not available.`;
+  }
+
+  // Hide profile picture
+  if (profilePicImg) {
+    profilePicImg.style.display = 'none';
+  }
+
+  // Show question mark or empty initials
+  if (profileInitials) {
+    profileInitials.textContent = '?';
+    profileInitials.style.backgroundColor = '#ccc';
+    profileInitials.style.display = 'flex';
+  }
+}

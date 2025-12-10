@@ -944,6 +944,105 @@ async function getUserProfile(userId = null) {
 }
 
 /**
+ * Get user profile by username (for public profile viewing)
+ * @param {string} username - Username to look up
+ * @returns {Promise<{success: boolean, profile?: Object, error?: string}>}
+ */
+async function getProfileByUsername(username) {
+  // Input validation
+  if (!username || typeof username !== 'string' || username.trim().length === 0) {
+    return { success: false, error: 'Invalid username' };
+  }
+
+  const trimmedUsername = username.trim().toLowerCase();
+
+  // Validate username format (same as validateUsername in security-services.js)
+  if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(trimmedUsername)) {
+    return { success: false, error: 'Invalid username format' };
+  }
+
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+
+  // Get access token (required for RPC call)
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication required to view profiles' };
+  }
+
+  try {
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => {
+      console.error('getProfileByUsername: Request timed out after 10 seconds');
+      fetchController.abort();
+    }, 10000);
+
+    // Use RPC function for secure lookup (includes email from auth.users)
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/get_profile_by_username`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ p_username: trimmedUsername }),
+        signal: fetchController.signal
+      }
+    );
+
+    clearTimeout(fetchTimeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error getting profile by username:', response.status, errorText);
+
+      // Check if it's an auth error
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: 'Authentication required to view profiles' };
+      }
+
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+    }
+
+    const data = await response.json();
+
+    // RPC returns array of rows
+    const profile = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+    if (!profile) {
+      return { success: false, error: 'User not found' };
+    }
+
+    return { success: true, profile };
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('getProfileByUsername: Request timed out');
+      return { success: false, error: 'Request timed out after 10 seconds' };
+    }
+    console.error('Unexpected error getting profile by username:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Update user profile
  * @param {Object} profileData - Profile data to update
  * @returns {Promise<{success: boolean, profile?: Object, error?: string}>}

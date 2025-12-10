@@ -1,10 +1,17 @@
 // ===== PROFILE PAGE AUTH GUARD =====
-// Ensures only authenticated users can access profile pages
-// Redirects guests to homepage with login prompt
+// Handles authentication for profile pages
+// - Own profile (no ?username param): Requires auth, redirects guests to homepage
+// - Other's profile (?username=xxx param): Requires auth, shows login popup for guests
 // Must be loaded early in the script order
 
 (function () {
     'use strict';
+
+    // Get username from URL parameter (if any)
+    function getUrlUsername() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('username');
+    }
 
     // Check auth status from localStorage (synchronous, fast)
     function checkAuthStatus() {
@@ -49,46 +56,101 @@
         window.location.replace(homepage);
     }
 
-    // Execute check immediately
-    const isAuthenticated = checkAuthStatus();
+    // Show login popup (for viewing other's profile as guest)
+    function showLoginPopup() {
+        function tryShowPopup() {
+            const loginModal = document.getElementById('loginModal');
+            if (loginModal) {
+                loginModal.style.display = 'flex';
 
-    if (!isAuthenticated) {
-        console.log('Profile auth guard: User not authenticated - redirecting to homepage');
-        redirectToHomepage();
+                // Store the pending profile URL for redirect after login
+                sessionStorage.setItem('eventhive_pending_profile_url', window.location.href);
 
-        // Stop script execution
-        throw new Error('Profile access denied - not authenticated');
+                console.log('Profile auth guard: Showing login popup for guest');
+                return true;
+            }
+            return false;
+        }
+
+        // Try immediately
+        if (!tryShowPopup()) {
+            // Wait for DOMContentLoaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', tryShowPopup);
+            } else {
+                setTimeout(tryShowPopup, 100);
+                setTimeout(tryShowPopup, 500);
+            }
+        }
     }
 
-    console.log('Profile auth guard: User authenticated');
+    // Monitor login modal close (guest didn't login)
+    function monitorModalClose() {
+        document.addEventListener('DOMContentLoaded', function () {
+            const loginModal = document.getElementById('loginModal');
+            if (loginModal) {
+                // Create observer to detect when modal is hidden
+                const observer = new MutationObserver(function (mutations) {
+                    mutations.forEach(function (mutation) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                            const display = loginModal.style.display;
+                            if (display === 'none' || display === '') {
+                                // Modal was closed - check if we're still not logged in
+                                const pendingUrl = sessionStorage.getItem('eventhive_pending_profile_url');
+                                if (pendingUrl && !checkAuthStatus()) {
+                                    // User closed popup without logging in
+                                    sessionStorage.removeItem('eventhive_pending_profile_url');
+                                    alert('Please log in to view profiles.');
+                                    window.location.replace(window.location.origin + '/eventhive-homepage.html');
+                                }
+                            }
+                        }
+                    });
+                });
 
-    // Also verify with async Supabase check after page loads (belt and suspenders)
-    document.addEventListener('DOMContentLoaded', async function () {
-        // Double-check with Supabase session
-        if (typeof getSupabaseClient === 'function') {
-            try {
-                const supabase = getSupabaseClient();
-                if (supabase) {
-                    // Use timeout to prevent hanging
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Session check timeout')), 5000)
-                    );
-
-                    const sessionPromise = supabase.auth.getSession();
-                    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-
-                    if (!session || !session.user) {
-                        // No valid session - redirect
-                        console.warn('Profile auth guard: No valid Supabase session - redirecting');
-                        redirectToHomepage();
-                    }
-                }
-            } catch (err) {
-                if (err.message !== 'Session check timeout') {
-                    console.error('Profile auth guard: Error checking session:', err);
-                }
-                // On timeout, trust the localStorage check already done
+                observer.observe(loginModal, { attributes: true, attributeFilter: ['style'] });
             }
+        });
+    }
+
+    // Execute check
+    const urlUsername = getUrlUsername();
+    const isAuthenticated = checkAuthStatus();
+    const isViewingOthersProfile = urlUsername && urlUsername.length > 0;
+
+    // Expose for profile-load.js
+    window.__EH_VIEWING_OTHER_PROFILE = isViewingOthersProfile;
+    window.__EH_VIEW_USERNAME = urlUsername;
+
+    if (!isAuthenticated) {
+        if (isViewingOthersProfile) {
+            // Guest trying to view someone else's profile - show login popup
+            console.log('Profile auth guard: Guest viewing other profile - showing login popup');
+            showLoginPopup();
+            monitorModalClose();
+
+            // Mark that we need auth but don't block page load
+            window.__EH_PROFILE_AUTH_REQUIRED = true;
+        } else {
+            // Guest trying to view own profile - redirect to homepage
+            console.log('Profile auth guard: Guest viewing own profile - redirecting');
+            redirectToHomepage();
+            throw new Error('Profile access denied - not authenticated');
+        }
+    } else {
+        console.log('Profile auth guard: User authenticated');
+        window.__EH_PROFILE_AUTH_REQUIRED = false;
+
+        // Clear any pending profile URL
+        sessionStorage.removeItem('eventhive_pending_profile_url');
+    }
+
+    // Check for pending profile redirect after successful login
+    document.addEventListener('DOMContentLoaded', function () {
+        const pendingUrl = sessionStorage.getItem('eventhive_pending_profile_url');
+        if (pendingUrl && checkAuthStatus()) {
+            // User logged in - clear and stay on page (already at the right URL)
+            sessionStorage.removeItem('eventhive_pending_profile_url');
         }
     });
 })();
