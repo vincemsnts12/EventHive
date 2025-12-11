@@ -591,7 +591,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (error) {
               console.error('Password reset error:', error);
-              alert('Error sending reset email: ' + error.message);
+              const errorMsg = (error.message || '').toLowerCase();
+              if (errorMsg.includes('rate limit') || errorMsg.includes('too many')) {
+                alert('Too Many Requests\n\nPlease wait a few minutes before requesting another password reset email.');
+              } else if (errorMsg.includes('not found') || errorMsg.includes('no user')) {
+                alert('Email Not Found\n\nNo account is associated with this email address.\n\nPlease check your email or sign up for a new account.');
+              } else {
+                alert('Error Sending Email\n\nWe couldn\'t send the password reset email.\n\nPlease try again later or contact support if the problem persists.');
+              }
             } else {
               // Record the request for rate limiting (server-side)
               if (typeof recordForgotPasswordRequest === 'function') {

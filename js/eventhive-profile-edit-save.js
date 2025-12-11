@@ -600,12 +600,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!updateResponse.ok) {
           const errorData = await updateResponse.json().catch(() => ({}));
-          const errorMsg = errorData.message || errorData.error_description || 'Failed to update password';
+          const errorMsg = (errorData.message || errorData.error_description || errorData.msg || '').toLowerCase();
 
-          if (errorMsg.includes('reauthentication') || errorMsg.includes('reauth')) {
-            alert('For security, please use "Forgot Password" to reset your password, or re-login and try again.');
+          // Check for same password error
+          if (errorMsg.includes('same as') ||
+            errorMsg.includes('different from') ||
+            errorMsg.includes('same password') ||
+            errorMsg.includes('previous password') ||
+            errorData.code === 'same_password') {
+            alert('Same Password Detected\n\nYour new password cannot be the same as your current password.\n\nPlease choose a different password.');
+          } else if (errorMsg.includes('reauthentication') || errorMsg.includes('reauth')) {
+            alert('Session Expired\n\nFor security, please use "Forgot Password" to reset your password, or log out and log back in to try again.');
+          } else if (errorMsg.includes('weak') || errorMsg.includes('too short') || errorMsg.includes('minimum')) {
+            alert('Weak Password\n\nYour password does not meet the minimum requirements.\n\nPlease choose a stronger password with at least 8 characters, including uppercase, lowercase, numbers, and symbols.');
           } else {
-            alert('Failed to update password: ' + errorMsg);
+            alert('Password Update Failed\n\n' + (errorData.message || errorData.error_description || 'An error occurred. Please try again.'));
           }
           return;
         }
