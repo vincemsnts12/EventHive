@@ -415,11 +415,12 @@ document.addEventListener('DOMContentLoaded', () => {
               if (saveFunction) {
                 saveFunction(isLoggedIn, isAdmin);
               } else {
-                // Fallback: save directly
+                // Fallback: save directly in FLAT format (matches auth-utils.js)
                 try {
                   const cache = {
-                    timestamp: Date.now(), // Login time - 5-minute timer starts here
-                    state: { isLoggedIn, isAdmin }
+                    isLoggedIn: isLoggedIn,
+                    isAdmin: isAdmin,
+                    timestamp: Date.now() // Login time - 5-minute timer starts here
                   };
                   localStorage.setItem('eventhive_auth_cache', JSON.stringify(cache));
                 } catch (e) {

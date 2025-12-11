@@ -338,13 +338,15 @@ function applyDropdownState(state) {
   }
 })();
 
-// Save auth state to localStorage
+// Save auth state to localStorage in FLAT format
 // Made globally accessible for login script
+// FLAT format: {isLoggedIn, isAdmin, timestamp} (matches auth-utils.js)
 function saveCachedAuthState(isLoggedIn, isAdmin) {
   try {
     const cache = {
-      timestamp: Date.now(), // Login time - 5-minute timer starts from here
-      state: { isLoggedIn, isAdmin }
+      isLoggedIn: isLoggedIn,
+      isAdmin: isAdmin,
+      timestamp: Date.now() // Login time - 5-minute timer starts from here
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 
