@@ -278,12 +278,13 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('DOMContentLoaded', () => {
   // Apply cached state immediately if available
   const cached = getCachedAuthState();
-  if (cached !== null) {
+  // Check for valid cache object with expected properties
+  if (cached !== null && typeof cached === 'object' && typeof cached.isLoggedIn !== 'undefined') {
     // Use cached state immediately - ABSOLUTE DEFAULT for next 5 minutes
     // NO async checks - cache is valid for 5 minutes from login
     applyMobileMenuState(cached.isLoggedIn, cached.isAdmin);
   } else {
-    // No cache - default to guest state
+    // No cache or malformed cache - default to guest state
     applyMobileMenuState(false, false);
   }
 });

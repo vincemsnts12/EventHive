@@ -22,7 +22,14 @@ function getCachedAuthState() {
 
       // Return cache if it's less than 5 minutes old (timer starts from login)
       if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
-        return parsed.state;
+        // auth-utils.js saves flat format: {isLoggedIn, isAdmin, userId, timestamp}
+        // Return parsed directly if it has isLoggedIn (new flat format)
+        // Or return parsed.state for backwards compatibility (old nested format)
+        if (typeof parsed.isLoggedIn !== 'undefined') {
+          return parsed; // New flat format from auth-utils.js
+        } else if (parsed.state && typeof parsed.state.isLoggedIn !== 'undefined') {
+          return parsed.state; // Old nested format
+        }
       }
     }
   } catch (e) {
@@ -420,7 +427,8 @@ profileIcon.addEventListener('click', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
   // Apply cached state immediately if available (base default on cache)
   const cached = getCachedAuthState();
-  if (cached !== null) {
+  // Check for valid cache object with expected properties
+  if (cached !== null && typeof cached === 'object' && typeof cached.isLoggedIn !== 'undefined') {
     // Use cached state immediately - ABSOLUTE DEFAULT for next 5 minutes
     // NO async checks - cache is valid for 5 minutes from login
     // This is the state from initial login check - use it absolutely
