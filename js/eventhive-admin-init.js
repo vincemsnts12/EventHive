@@ -20,17 +20,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ===== ACCESS CONTROL: Admin-only page =====
-  // Uses SERVER-SIDE RPC check - cannot be bypassed by modifying localStorage
-  console.log('Checking admin access via server-side RPC...');
+  // Uses SERVER-SIDE RPC check with cache fallback for reliability
+  console.log('Checking admin access...');
 
   let hasAdminAccess = false;
 
-  // Wait for auth state to stabilize (OAuth callback might be processing)
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Check cache first for fast UI response
+  const cachedAuth = typeof window.getCachedAuthState === 'function' ? window.getCachedAuthState() : null;
+  const cachedIsAdmin = cachedAuth && cachedAuth.isLoggedIn && cachedAuth.isAdmin;
+  console.log('Cached admin status:', cachedIsAdmin ? 'admin' : 'not admin or no cache');
 
-  // Use centralized server-side admin check (from auth-utils.js)
+  // Brief wait for auth state to stabilize (OAuth callback)
+  await new Promise(resolve => setTimeout(resolve, 200));
+
+  // Try server-side RPC check first (authoritative)
   if (typeof window.checkIsAdmin === 'function') {
     try {
+      console.log('Attempting server-side admin RPC...');
       hasAdminAccess = await window.checkIsAdmin();
       console.log('Server-side admin check result:', hasAdminAccess);
 
@@ -40,17 +46,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof window.updateAuthCache === 'function') {
           window.updateAuthCache(authState);
         }
-        // IMPORTANT: Refresh dropdown/hamburger UI after cache is updated
-        // Use longer setTimeout to ensure DOM elements are fully ready
+        // Refresh dropdown/hamburger UI after cache is updated
         setTimeout(() => {
-          // Try window functions first
           if (typeof window.applyAuthStateToUI === 'function') {
             window.applyAuthStateToUI(authState.isLoggedIn, authState.isAdmin);
           }
           if (typeof window.applyMobileMenuState === 'function') {
             window.applyMobileMenuState(authState.isLoggedIn, authState.isAdmin);
           }
-          // FALLBACK: Direct DOM manipulation for desktop dropdown
+          // Direct DOM manipulation fallback
           const guestDiv = document.getElementById('dropdownState-guest');
           const userDiv = document.getElementById('dropdownState-user');
           const adminDiv = document.getElementById('dropdownState-admin');
@@ -64,11 +68,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           } else {
             if (guestDiv) guestDiv.style.display = 'block';
           }
-        }, 500);
+        }, 300);
       }
     } catch (error) {
-      console.error('Error checking admin status:', error);
-      hasAdminAccess = false;
+      console.warn('RPC admin check failed:', error.message);
+      // FALLBACK: Use cached admin status if RPC fails
+      if (cachedIsAdmin) {
+        console.log('Using cached admin status as fallback');
+        hasAdminAccess = true;
+      } else {
+        hasAdminAccess = false;
+      }
     }
   } else {
     // Fallback to old method if auth-utils not loaded
@@ -79,9 +89,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         hasAdminAccess = adminCheck.success && adminCheck.isAdmin === true;
       } catch (error) {
         console.error('Fallback admin check failed:', error);
+        // Use cache as last resort
+        if (cachedIsAdmin) {
+          console.log('Using cached admin status as final fallback');
+          hasAdminAccess = true;
+        }
       }
+    } else if (cachedIsAdmin) {
+      console.log('No admin check methods available, using cache');
+      hasAdminAccess = true;
     }
   }
+
 
   // Redirect if not admin
   if (!hasAdminAccess) {
