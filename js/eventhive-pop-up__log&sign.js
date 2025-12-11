@@ -505,6 +505,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.href = pendingProfileUrl;
                 return; // Skip further processing, we're redirecting
               }
+
+              // Reload comments if on events page (so flag/delete buttons update)
+              if (typeof loadEventComments === 'function' && typeof getSelectedEventId === 'function') {
+                const selectedEventId = getSelectedEventId();
+                if (selectedEventId) {
+                  console.log('Reloading comments after login...');
+                  await loadEventComments(selectedEventId);
+                }
+              }
             }
           } catch (err) {
             console.error('Login error:', err);
