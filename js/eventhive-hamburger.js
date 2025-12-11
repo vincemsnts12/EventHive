@@ -22,7 +22,14 @@ function getCachedAuthState() {
 
       // Return cache if it's less than 5 minutes old (timer starts from login)
       if (timeSinceLogin < AUTH_CHECK_INTERVAL_HAMBURGER) {
-        return parsed.state;
+        // Handle FLAT format: {isLoggedIn, isAdmin, timestamp}
+        if (typeof parsed.isLoggedIn !== 'undefined') {
+          return parsed; // Return flat format directly
+        }
+        // Handle NESTED format: {timestamp, state: {isLoggedIn, isAdmin}}
+        else if (parsed.state && typeof parsed.state.isLoggedIn !== 'undefined') {
+          return parsed.state;
+        }
       }
     }
   } catch (e) {
@@ -65,11 +72,12 @@ function updateMobileMenuAuthState() {
   // Get login state from cache (same as desktop dropdown)
   const cached = getCachedAuthState();
 
-  if (cached !== null) {
+  // Ensure cache is valid AND has required properties
+  if (cached !== null && typeof cached === 'object' && typeof cached.isLoggedIn !== 'undefined') {
     // Use cached state immediately - NO async operations
     applyMobileMenuState(cached.isLoggedIn, cached.isAdmin);
   } else {
-    // No cache - default to guest state
+    // No cache or invalid cache - default to guest state
     applyMobileMenuState(false, false);
   }
 }
