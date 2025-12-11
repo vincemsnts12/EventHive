@@ -545,9 +545,9 @@ async function getEventComments(eventId) {
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
 
-    // Fetch comments (including is_hidden for flagged comments)
+    // Fetch comments (flag_count added, is_hidden removed)
     const commentsResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/comments?event_id=eq.${eventId}&order=created_at.asc&select=id,content,created_at,updated_at,user_id,is_hidden`,
+      `${SUPABASE_URL}/rest/v1/comments?event_id=eq.${eventId}&order=created_at.asc&select=id,content,created_at,updated_at,user_id,flag_count`,
       {
         method: 'GET',
         headers: {
@@ -613,7 +613,7 @@ async function getEventComments(eventId) {
         createdAt: comment.created_at,
         updatedAt: comment.updated_at,
         userId: comment.user_id,
-        is_hidden: comment.is_hidden || false,
+        flagCount: comment.flag_count || 0,
         user: {
           id: profile?.id || comment.user_id,
           username: profile?.username || 'Unknown',
@@ -1925,56 +1925,45 @@ async function getCommentsWithFlagInfo(commentIds) {
 
 
 /**
- * Get all flagged/hidden comments (admin only)
+ * Get all flagged comments (admin only)
+ * SIMPLIFIED: Now uses flag_count column directly, no is_hidden check
  * @returns {Promise<{success: boolean, comments: Array, error?: string}>}
  */
 async function getFlaggedComments() {
-  // Check if user is admin
-  const adminCheck = await checkIfUserIsAdmin();
-  if (!adminCheck.success || !adminCheck.isAdmin) {
-    return { success: false, comments: [], error: 'Admin access required' };
-  }
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, comments: [], error: 'Supabase client not available' };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, comments: [], error: 'Supabase not configured' };
   }
 
   try {
-    // Get hidden comments with their flag counts
-    const { data: comments, error } = await supabase
-      .from('comments')
-      .select(`
-        id,
-        content,
-        created_at,
-        is_hidden,
-        hidden_reason,
-        user_id,
-        event_id,
-        profiles:user_id (username, avatar_url),
-        events:event_id (title)
-      `)
-      .eq('is_hidden', true)
-      .order('created_at', { ascending: false });
+    // Direct fetch: comments with flag_count >= 3
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
-    if (error) {
-      console.error('Error getting flagged comments:', error);
-      return { success: false, comments: [], error: error.message };
-    }
-
-    // Get flag counts for each comment
-    const commentsWithFlags = await Promise.all(
-      (comments || []).map(async (comment) => {
-        const flagResult = await getCommentFlagCount(comment.id);
-        return {
-          ...comment,
-          flag_count: flagResult.count
-        };
-      })
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/comments?flag_count=gte.3&select=id,content,created_at,user_id,event_id,flag_count,profiles(username),events(title)&order=flag_count.desc,created_at.desc`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      }
     );
 
-    return { success: true, comments: commentsWithFlags };
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error getting flagged comments:', response.status, errorText);
+      return { success: false, comments: [], error: `HTTP ${response.status}` };
+    }
+
+    const comments = await response.json();
+    return { success: true, comments: comments || [] };
   } catch (error) {
     console.error('Unexpected error getting flagged comments:', error);
     return { success: false, comments: [], error: error.message };
@@ -1982,58 +1971,67 @@ async function getFlaggedComments() {
 }
 
 /**
- * Restore a hidden comment (admin only)
- * @param {string} commentId - Comment ID to restore
+ * Clear flags for a comment (admin only)
+ * Use this instead of "restore" - resets flag_count to 0
+ * @param {string} commentId - Comment ID to clear flags for
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-async function restoreComment(commentId) {
-  // Check if user is admin
-  const adminCheck = await checkIfUserIsAdmin();
-  if (!adminCheck.success || !adminCheck.isAdmin) {
-    return { success: false, error: 'Admin access required' };
-  }
+async function clearCommentFlags(commentId) {
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client not available' };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase not configured' };
   }
 
   try {
-    const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
-
-    // Restore the comment
-    const { error } = await supabase
-      .from('comments')
-      .update({ is_hidden: false, hidden_reason: null })
-      .eq('id', commentId);
-
-    if (error) {
-      console.error('Error restoring comment:', error);
-      return { success: false, error: error.message };
+    // Get auth token
+    let accessToken = null;
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      (key.includes('supabase') && key.includes('auth-token')) ||
+      (key.startsWith('sb-') && key.includes('auth-token'))
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
     }
 
-    // Clear all flags for this comment
-    await supabase
-      .from('comment_flags')
-      .delete()
-      .eq('comment_id', commentId);
+    if (!accessToken) {
+      return { success: false, error: 'Authentication required' };
+    }
 
-    // Log the action
-    await supabase
-      .from('comment_flag_logs')
-      .insert({
-        comment_id: commentId,
-        action: 'restored',
-        performed_by: userId,
-        details: { restored_at: new Date().toISOString() }
-      });
+    // Delete all flags for this comment (trigger will reset flag_count)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/comment_flags?comment_id=eq.${commentId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { success: false, error: `Clear flags failed: ${response.status} - ${errorText}` };
+    }
 
     return { success: true };
   } catch (error) {
-    console.error('Unexpected error restoring comment:', error);
+    console.error('Error clearing comment flags:', error);
     return { success: false, error: error.message };
   }
 }
+
 
 /**
  * Delete a comment permanently (admin only)
