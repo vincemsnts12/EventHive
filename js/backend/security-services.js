@@ -487,6 +487,9 @@ async function handleSessionTimeout() {
     // Show timeout message FIRST (user sees this immediately)
     alert('Your session has timed out due to inactivity. If you are logged in, please log in again.');
 
+    // Show loading overlay with message while processing
+    showSessionTimeoutLoading();
+
     // Clear all caches
     try {
       localStorage.removeItem('eventhive_auth_cache');
@@ -534,6 +537,45 @@ async function handleSessionTimeout() {
   } finally {
     window.__EH_SESSION_TIMEOUT_IN_PROGRESS = false;
   }
+}
+
+/**
+ * Show a loading overlay specifically for session timeout
+ */
+function showSessionTimeoutLoading() {
+  // Use existing loading overlay if available
+  if (typeof showLoading === 'function') {
+    showLoading();
+    return;
+  }
+
+  // Fallback: Create a simple loading overlay (spinner only)
+  const overlay = document.createElement('div');
+  overlay.id = 'sessionTimeoutOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+  `;
+  overlay.innerHTML = `
+    <div style="
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: #B81E20;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    "></div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+  `;
+  document.body.appendChild(overlay);
 }
 
 /**
