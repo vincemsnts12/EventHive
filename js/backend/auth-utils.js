@@ -75,26 +75,67 @@ window.getCurrentUserId = async function getCurrentUserId() {
 };
 
 // ===== CHECK IS ADMIN (SERVER-SIDE) =====
-// Calls the is_admin() RPC function - cannot be bypassed
+// Uses direct fetch to avoid Supabase client timeout issues
 window.checkIsAdmin = async function checkIsAdmin() {
-  const supabase = window.getSupabase();
-  if (!supabase) return false;
-
   try {
-    const { data, error } = await window.withTimeout(
-      supabase.rpc('is_admin'),
-      AUTH_TIMEOUT,
-      'is_admin RPC'
-    );
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
-      console.warn('Admin check error:', error.message);
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.warn('Supabase not configured for admin check');
       return false;
     }
 
+    // Get auth token from localStorage
+    let accessToken = null;
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      (key.includes('supabase') && key.includes('auth-token')) ||
+      (key.startsWith('sb-') && key.includes('auth-token'))
+    );
+    if (supabaseAuthKeys.length > 0) {
+      try {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+        accessToken = authData?.access_token;
+      } catch (e) {
+        console.warn('Error parsing auth token:', e);
+      }
+    }
+
+    if (!accessToken) {
+      console.warn('No access token for admin check');
+      return false;
+    }
+
+    // Use AbortController for timeout (5 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: '{}',
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.warn('Admin check failed with status:', response.status);
+      return false;
+    }
+
+    const data = await response.json();
     return data === true;
   } catch (err) {
-    console.warn('Admin check failed:', err.message);
+    if (err.name === 'AbortError') {
+      console.warn('Admin check timed out after 5s');
+    } else {
+      console.warn('Admin check failed:', err.message);
+    }
     return false;
   }
 };
