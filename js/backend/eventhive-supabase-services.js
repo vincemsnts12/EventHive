@@ -1541,28 +1541,59 @@ async function flagComment(commentId, reason = '') {
     return { success: false, error: 'You must be logged in to flag comments' };
   }
 
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client not available' };
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase config not available' };
+  }
+
+  // Get auth token for authenticated insert
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      (key.includes('supabase') && key.includes('auth-token')) ||
+      (key.startsWith('sb-') && key.includes('auth-token'))
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting auth token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication required' };
   }
 
   try {
-    // Insert flag (the database trigger will handle auto-hiding)
-    const { error } = await supabase
-      .from('comment_flags')
-      .insert({
-        comment_id: commentId,
-        user_id: userId,
-        reason: reason || null
-      });
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/comment_flags`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          comment_id: commentId,
+          user_id: userId,
+          reason: reason || null
+        })
+      }
+    );
 
-    if (error) {
-      // Check if already flagged
-      if (error.code === '23505') { // Unique violation
+    if (!response.ok) {
+      const errorText = await response.text();
+      // Check if already flagged (unique constraint violation)
+      if (response.status === 409 || errorText.includes('duplicate') || errorText.includes('unique')) {
         return { success: false, error: 'You have already flagged this comment' };
       }
-      console.error('Error flagging comment:', error);
-      return { success: false, error: error.message };
+      console.error('Error flagging comment:', response.status, errorText);
+      return { success: false, error: `Failed to flag comment: ${response.status}` };
     }
 
     return { success: true };
@@ -1583,21 +1614,49 @@ async function unflagComment(commentId) {
     return { success: false, error: 'You must be logged in' };
   }
 
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase client not available' };
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase config not available' };
+  }
+
+  // Get auth token for authenticated delete
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      (key.includes('supabase') && key.includes('auth-token')) ||
+      (key.startsWith('sb-') && key.includes('auth-token'))
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting auth token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication required' };
   }
 
   try {
-    const { error } = await supabase
-      .from('comment_flags')
-      .delete()
-      .eq('comment_id', commentId)
-      .eq('user_id', userId);
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/comment_flags?comment_id=eq.${commentId}&user_id=eq.${userId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    if (error) {
-      console.error('Error removing flag:', error);
-      return { success: false, error: error.message };
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error removing flag:', response.status, errorText);
+      return { success: false, error: `Failed to remove flag: ${response.status}` };
     }
 
     return { success: true };
