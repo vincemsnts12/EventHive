@@ -246,11 +246,25 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
           const svgElement = flagBtn.querySelector('svg');
           const originalFill = svgElement ? svgElement.getAttribute('fill') : 'none';
 
+          // Get and update flag count
+          const flagCountSpan = flagBtn.querySelector('.flag-count');
+          const originalCount = flagCountSpan ? parseInt(flagCountSpan.textContent) || 0 : 0;
+          const newCount = Math.max(0, originalCount - 1);
+
           // Apply unflagged state immediately
           flagBtn.dataset.userFlagged = 'false';
           flagBtn.title = 'Report comment';
           flagBtn.classList.remove('user-flagged', 'comment-flag-btn--flagged');
           if (svgElement) svgElement.setAttribute('fill', 'none');
+
+          // Update count display
+          if (flagCountSpan) {
+            if (newCount > 0) {
+              flagCountSpan.textContent = newCount;
+            } else {
+              flagCountSpan.remove();
+            }
+          }
 
           try {
             const result = await unflagComment(comment.id);
@@ -265,6 +279,16 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
               if (originalClass) flagBtn.classList.add('comment-flag-btn--flagged');
               flagBtn.classList.add('user-flagged');
               if (svgElement) svgElement.setAttribute('fill', originalFill);
+              // Restore count
+              if (originalCount > 0) {
+                let countEl = flagBtn.querySelector('.flag-count');
+                if (!countEl) {
+                  countEl = document.createElement('span');
+                  countEl.className = 'flag-count';
+                  flagBtn.appendChild(countEl);
+                }
+                countEl.textContent = originalCount;
+              }
               alert(result.error || 'Error removing report. Please try again.');
             }
           } catch (err) {
@@ -274,6 +298,16 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
             if (originalClass) flagBtn.classList.add('comment-flag-btn--flagged');
             flagBtn.classList.add('user-flagged');
             if (svgElement) svgElement.setAttribute('fill', originalFill);
+            // Restore count
+            if (originalCount > 0) {
+              let countEl = flagBtn.querySelector('.flag-count');
+              if (!countEl) {
+                countEl = document.createElement('span');
+                countEl.className = 'flag-count';
+                flagBtn.appendChild(countEl);
+              }
+              countEl.textContent = originalCount;
+            }
             console.error('Error unflagging comment:', err);
             alert('Error removing report: ' + err.message);
           }
@@ -294,11 +328,24 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
           const svgElement = flagBtn.querySelector('svg');
           const originalFill = svgElement ? svgElement.getAttribute('fill') : 'none';
 
+          // Get and update flag count
+          let flagCountSpan = flagBtn.querySelector('.flag-count');
+          const originalCount = flagCountSpan ? parseInt(flagCountSpan.textContent) || 0 : 0;
+          const newCount = originalCount + 1;
+
           // Apply flagged state immediately
           flagBtn.dataset.userFlagged = 'true';
           flagBtn.title = 'You reported this comment (click to remove report)';
           flagBtn.classList.add('user-flagged', 'comment-flag-btn--flagged');
           if (svgElement) svgElement.setAttribute('fill', '#f59e0b');
+
+          // Update count display
+          if (!flagCountSpan) {
+            flagCountSpan = document.createElement('span');
+            flagCountSpan.className = 'flag-count';
+            flagBtn.appendChild(flagCountSpan);
+          }
+          flagCountSpan.textContent = newCount;
 
           try {
             const result = await flagComment(comment.id, 'User reported');
@@ -312,6 +359,13 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
               flagBtn.title = originalTitle;
               flagBtn.classList.remove('user-flagged', 'comment-flag-btn--flagged');
               if (svgElement) svgElement.setAttribute('fill', originalFill);
+              // Restore count
+              const countEl = flagBtn.querySelector('.flag-count');
+              if (originalCount > 0 && countEl) {
+                countEl.textContent = originalCount;
+              } else if (countEl) {
+                countEl.remove();
+              }
               alert(result.error || 'Error reporting comment. Please try again.');
             }
           } catch (err) {
@@ -320,6 +374,13 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
             flagBtn.title = originalTitle;
             flagBtn.classList.remove('user-flagged', 'comment-flag-btn--flagged');
             if (svgElement) svgElement.setAttribute('fill', originalFill);
+            // Restore count
+            const countEl = flagBtn.querySelector('.flag-count');
+            if (originalCount > 0 && countEl) {
+              countEl.textContent = originalCount;
+            } else if (countEl) {
+              countEl.remove();
+            }
             console.error('Error flagging comment:', err);
             alert('Error reporting comment: ' + err.message);
           }
