@@ -2543,12 +2543,12 @@ async function loadFlaggedComments() {
     }
 
     // Direct fetch from comments table with flag_count >= 3
-    // No RPC needed - admin-init.js already verified we're admin
+    // Simple query without joins - PostgREST embedded resources can fail without proper FK setup
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/comments?flag_count=gte.3&select=id,content,user_id,event_id,flag_count,created_at,profiles(username),events(title)&order=flag_count.desc,created_at.desc`,
+      `${SUPABASE_URL}/rest/v1/comments?flag_count=gte.3&select=id,content,user_id,event_id,flag_count,created_at&order=flag_count.desc,created_at.desc`,
       {
         method: 'GET',
         headers: {
@@ -2563,13 +2563,10 @@ async function loadFlaggedComments() {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      // If flag_count column doesn't exist yet, hide section gracefully
-      if (response.status === 400) {
-        console.warn('flag_count column may not exist yet. Run the migration SQL.');
-        if (loadingDiv) loadingDiv.textContent = 'Migration required - run SQL';
-        return;
-      }
-      throw new Error(`Failed to fetch flagged comments: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Flagged comments fetch error:', response.status, errorText);
+      if (loadingDiv) loadingDiv.textContent = `Error: ${response.status}`;
+      return;
     }
 
     const comments = await response.json();
@@ -2581,6 +2578,49 @@ async function loadFlaggedComments() {
       if (emptyDiv) emptyDiv.style.display = 'block';
       if (section) section.style.display = 'block';
       return;
+    }
+
+    // Fetch usernames and event titles in batch (parallel)
+    const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
+    const eventIds = [...new Set(comments.map(c => c.event_id).filter(Boolean))];
+
+    const profilesMap = {};
+    const eventsMap = {};
+
+    // Fetch profiles
+    if (userIds.length > 0) {
+      try {
+        const userIdsParam = userIds.map(id => `"${id}"`).join(',');
+        const profilesRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/profiles?id=in.(${userIdsParam})&select=id,username`,
+          {
+            method: 'GET',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }
+          }
+        );
+        if (profilesRes.ok) {
+          const profiles = await profilesRes.json();
+          profiles.forEach(p => { profilesMap[p.id] = p.username; });
+        }
+      } catch (e) { console.warn('Failed to fetch profiles:', e); }
+    }
+
+    // Fetch events
+    if (eventIds.length > 0) {
+      try {
+        const eventIdsParam = eventIds.map(id => `"${id}"`).join(',');
+        const eventsRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/events?id=in.(${eventIdsParam})&select=id,title`,
+          {
+            method: 'GET',
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }
+          }
+        );
+        if (eventsRes.ok) {
+          const events = await eventsRes.json();
+          events.forEach(e => { eventsMap[e.id] = e.title; });
+        }
+      } catch (e) { console.warn('Failed to fetch events:', e); }
     }
 
     // Show section and table
@@ -2596,9 +2636,9 @@ async function loadFlaggedComments() {
         ? comment.content.substring(0, 100) + '...'
         : (comment.content || '[No content]');
 
-      // Get username and event title from joined tables
-      const authorUsername = comment.profiles?.username || 'Unknown';
-      const eventTitle = comment.events?.title || 'Unknown Event';
+      // Get username and event title from separate fetches
+      const authorUsername = profilesMap[comment.user_id] || 'Unknown';
+      const eventTitle = eventsMap[comment.event_id] || 'Unknown Event';
 
       row.innerHTML = `
         <td class="flagged-comment-text" title="${escapeHtml(comment.content || '')}">${escapeHtml(truncatedText)}</td>
@@ -2640,12 +2680,13 @@ async function loadFlaggedComments() {
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.3; margin-bottom: 10px;">
           <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <p>Could not load flagged comments. Please run the migration SQL.</p>
+        <p>Could not load flagged comments.</p>
       `;
       emptyDiv.style.display = 'block';
     }
   }
 }
+
 
 
 // Helper function to escape HTML
