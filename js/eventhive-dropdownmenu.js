@@ -499,9 +499,10 @@ function clearAllCaches() {
   resetProfileIconToDefault();
 }
 
-// Desktop Logout Button Handler
-const logoutBtn = document.getElementById('navLogoutBtn');
-if (logoutBtn) {
+// Desktop Logout Button Handler - bind to ALL logout buttons
+// Note: There are multiple navLogoutBtn elements (in user and admin states)
+const logoutBtns = document.querySelectorAll('#navLogoutBtn, [id="navLogoutBtn"]');
+logoutBtns.forEach(logoutBtn => {
   logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
 
@@ -559,7 +560,7 @@ if (logoutBtn) {
     alert('Log out successful');
     window.location.href = 'eventhive-homepage.html';
   });
-}
+});
 
 // Listen for auth state changes (when user logs in/out)
 // Force check when auth state changes (bypasses 5-minute cache)

@@ -28,25 +28,25 @@ function getGuestSupabaseClient() {
   if (guestSupabaseClient) {
     return guestSupabaseClient;
   }
-  
+
   // Get Supabase URL and key from window (exposed by eventhive-supabase.js)
   const SUPABASE_URL = window.__EH_SUPABASE_URL;
   const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-  
+
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.error('Supabase URL or key not available');
     return null;
   }
-  
+
   // Try to get Supabase library from global scope
-  const supabaseLib = (typeof window !== 'undefined' && window.supabase) ? window.supabase : 
-                      (typeof supabase !== 'undefined' ? supabase : null);
-  
+  const supabaseLib = (typeof window !== 'undefined' && window.supabase) ? window.supabase :
+    (typeof supabase !== 'undefined' ? supabase : null);
+
   if (!supabaseLib || typeof supabaseLib.createClient !== 'function') {
     console.error('Supabase library not available');
     return null;
   }
-  
+
   // Create a guest client (no session, no auth) - reuse same instance
   // Use a unique storage key to completely isolate from authenticated client
   guestSupabaseClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -57,7 +57,7 @@ function getGuestSupabaseClient() {
       storageKey: 'eventhive-guest-client' // Unique storage key to avoid conflicts
     }
   });
-  
+
   return guestSupabaseClient;
 }
 
@@ -70,7 +70,7 @@ async function getEvents(options = {}) {
   // Use direct fetch() API for faster performance
   // No authentication needed - guests can fetch events
   // Authorization checks happen AFTER fetching, not during the query
-  
+
   const SUPABASE_URL = window.__EH_SUPABASE_URL;
   const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
@@ -90,10 +90,10 @@ async function getEvents(options = {}) {
     console.log('Using direct fetch API for event fetch (no authentication required)');
     console.log('Fetching events from database with options:', options);
     console.log('Query starting at:', new Date().toISOString());
-    
+
     // Build PostgREST query URL
     let url = `${SUPABASE_URL}/rest/v1/events?select=id,title,description,location,start_date,end_date,start_time,end_time,status,is_featured,college_code,colleges,organization_name,organizations,university_logo_url,created_by,created_at,updated_at,approved_at,approved_by`;
-    
+
     // Apply filters
     if (options.status) {
       url += `&status=eq.${encodeURIComponent(options.status)}`;
@@ -104,10 +104,10 @@ async function getEvents(options = {}) {
     if (options.collegeCode) {
       url += `&college_code=eq.${encodeURIComponent(options.collegeCode)}`;
     }
-    
+
     // Order by start_date ascending
     url += `&order=start_date.asc`;
-    
+
     // Apply limit/offset
     if (options.limit) {
       url += `&limit=${options.limit}`;
@@ -115,11 +115,11 @@ async function getEvents(options = {}) {
     if (options.offset !== undefined) {
       url += `&offset=${options.offset}`;
     }
-    
+
     // Use direct fetch with timeout protection
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     const startTime = Date.now();
     let response;
     try {
@@ -131,7 +131,7 @@ async function getEvents(options = {}) {
         },
         signal: fetchController.signal
       });
-      
+
       clearTimeout(fetchTimeout);
       const duration = Date.now() - startTime;
       console.log(`Query completed in ${duration}ms`);
@@ -144,14 +144,14 @@ async function getEvents(options = {}) {
       }
       throw fetchError;
     }
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error getting events:', response.status, errorText);
       logSecurityEvent('DATABASE_ERROR', { error: errorText }, 'Error getting events');
       return { success: false, events: [], error: `HTTP ${response.status}: ${errorText}` };
     }
-    
+
     const data = await response.json();
     console.log('Query result:', { dataCount: data?.length || 0, error: undefined });
 
@@ -169,7 +169,7 @@ async function getEvents(options = {}) {
       try {
         // Get images for this event (includes thumbnailIndex) with timeout
         const imagesPromise = getEventImages(dbEvent.id);
-        const imagesTimeout = new Promise((resolve) => 
+        const imagesTimeout = new Promise((resolve) =>
           setTimeout(() => resolve({ success: false, images: [], thumbnailIndex: 0 }), 5000)
         );
         const imagesResult = await Promise.race([imagesPromise, imagesTimeout]);
@@ -178,7 +178,7 @@ async function getEvents(options = {}) {
 
         // Get like count with timeout
         const likesPromise = getEventLikeCount(dbEvent.id);
-        const likesTimeout = new Promise((resolve) => 
+        const likesTimeout = new Promise((resolve) =>
           setTimeout(() => resolve({ success: false, count: 0 }), 5000)
         );
         const likesResult = await Promise.race([likesPromise, likesTimeout]);
@@ -252,12 +252,12 @@ async function getEvents(options = {}) {
         }
       }
     }));
-    
+
     // Add overall timeout for the entire transformation process (15 seconds)
-    const transformTimeout = new Promise((_, reject) => 
+    const transformTimeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Event transformation timed out after 15 seconds')), 15000)
     );
-    
+
     let events;
     try {
       events = await Promise.race([transformPromise, transformTimeout]);
@@ -363,18 +363,18 @@ async function getPublishedEvents() {
   try {
     // Get events that are not pending (approved events)
     console.log('Fetching published events from database...');
-    
+
     const queryPromise = supabase
       .from('events')
       .select('*')
       .neq('status', 'Pending')
       .order('start_date', { ascending: true });
-    
+
     // Add timeout protection for the query (15 seconds)
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Published events query timed out after 15 seconds')), 15000)
     );
-    
+
     let queryResult;
     try {
       queryResult = await Promise.race([queryPromise, timeoutPromise]);
@@ -385,7 +385,7 @@ async function getPublishedEvents() {
       }
       throw timeoutError;
     }
-    
+
     const { data, error } = queryResult;
     console.log('Published events query result:', { dataCount: data?.length || 0, error: error?.message });
 
@@ -407,7 +407,7 @@ async function getPublishedEvents() {
       try {
         // Get images for this event (includes thumbnailIndex) with timeout
         const imagesPromise = getEventImages(dbEvent.id);
-        const imagesTimeout = new Promise((resolve) => 
+        const imagesTimeout = new Promise((resolve) =>
           setTimeout(() => resolve({ success: false, images: [], thumbnailIndex: 0 }), 5000)
         );
         const imagesResult = await Promise.race([imagesPromise, imagesTimeout]);
@@ -416,7 +416,7 @@ async function getPublishedEvents() {
 
         // Get like count with timeout
         const likesPromise = getEventLikeCount(dbEvent.id);
-        const likesTimeout = new Promise((resolve) => 
+        const likesTimeout = new Promise((resolve) =>
           setTimeout(() => resolve({ success: false, count: 0 }), 5000)
         );
         const likesResult = await Promise.race([likesPromise, likesTimeout]);
@@ -488,12 +488,12 @@ async function getPublishedEvents() {
         }
       }
     }));
-    
+
     // Add overall timeout for the entire transformation process (15 seconds)
-    const transformTimeout = new Promise((_, reject) => 
+    const transformTimeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Published event transformation timed out after 15 seconds')), 15000)
     );
-    
+
     let events;
     try {
       events = await Promise.race([transformPromise, transformTimeout]);
@@ -519,11 +519,12 @@ async function getPublishedEvents() {
 // Helper function to check admin status from cache (5-minute window)
 // Returns { isAdmin: boolean, cacheValid: boolean }
 // If cache is valid, trusts it completely without database checks
+// Handles BOTH flat format {isLoggedIn, isAdmin} and nested format {state: {isLoggedIn, isAdmin}}
 function checkAdminFromCache() {
   const adminCheckStart = Date.now();
   let isAdmin = false;
   let cacheValid = false;
-  
+
   try {
     const cached = localStorage.getItem('eventhive_auth_cache');
     if (cached) {
@@ -531,21 +532,29 @@ function checkAdminFromCache() {
       const now = Date.now();
       const timeSinceLogin = now - parsed.timestamp;
       const AUTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
-      
+
       // Use cache if it's less than 5 minutes old
       if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
-        if (parsed.state) {
-          isAdmin = parsed.state.isAdmin === true;
-          cacheValid = true;
+        // Handle FLAT format (from auth-utils.js): {isLoggedIn, isAdmin, userId, timestamp}
+        if (typeof parsed.isLoggedIn !== 'undefined') {
+          isAdmin = parsed.isAdmin === true;
+          cacheValid = parsed.isLoggedIn === true; // Only valid if logged in
           const adminCheckDuration = Date.now() - adminCheckStart;
-          console.log(`Admin check from cache completed in ${adminCheckDuration}ms:`, { isAdmin, cacheValid });
+          console.log(`Admin check from cache (flat format) completed in ${adminCheckDuration}ms:`, { isAdmin, cacheValid });
+        }
+        // Handle NESTED format (legacy): {timestamp, state: {isLoggedIn, isAdmin}}
+        else if (parsed.state && typeof parsed.state.isLoggedIn !== 'undefined') {
+          isAdmin = parsed.state.isAdmin === true;
+          cacheValid = parsed.state.isLoggedIn === true;
+          const adminCheckDuration = Date.now() - adminCheckStart;
+          console.log(`Admin check from cache (nested format) completed in ${adminCheckDuration}ms:`, { isAdmin, cacheValid });
         }
       }
     }
   } catch (e) {
     console.error('Error reading auth cache:', e);
   }
-  
+
   return { isAdmin, cacheValid };
 }
 
@@ -569,7 +578,7 @@ async function createEvent(eventData) {
   const userCheckStart = Date.now();
   let user = null;
   let userId = null;
-  
+
   try {
     // First, try eventhive_last_authenticated_user_id (stored by eventhive-supabase.js)
     userId = localStorage.getItem('eventhive_last_authenticated_user_id');
@@ -580,11 +589,11 @@ async function createEvent(eventData) {
     } else {
       // Fallback: Try to get user ID from Supabase auth token in localStorage
       console.log('No user ID in eventhive_last_authenticated_user_id, trying to parse auth token...');
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
-        (key.includes('supabase') && key.includes('auth-token')) || 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+        (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
       );
-      
+
       if (supabaseAuthKeys.length > 0) {
         const authKey = supabaseAuthKeys[0];
         const authData = localStorage.getItem(authKey);
@@ -622,40 +631,40 @@ async function createEvent(eventData) {
     console.error('Error getting user from localStorage:', error);
     user = null;
   }
-  
+
   if (!user || !user.id) {
     console.error('User check failed - no user ID found in localStorage');
     return { success: false, error: 'User not authenticated. Please log in again.' };
   }
   console.log('User authenticated:', user.id);
-  
+
   // Check if user is admin BEFORE attempting INSERT (fail fast)
   // First check localStorage cache (fast, no database query)
   console.log('Checking if user is admin (checking cache first)...');
   const adminCheckStart = Date.now();
   let { isAdmin, cacheValid } = checkAdminFromCache();
-  
+
   // Trust cache completely - NO database checks during operations
   // Auth/admin status is only checked on login and cached for 5 minutes
   // If cache is expired, refresh it in background but don't block
   if (!cacheValid) {
     console.log('Cache expired or missing - refreshing in background (non-blocking)...');
-    
+
     // Refresh cache in background (non-blocking)
     if (typeof updateDropdownAuthState === 'function') {
       updateDropdownAuthState(true).catch(err => {
         console.error('Error refreshing auth cache:', err);
       });
     }
-    
+
     // If cache is missing/expired, reject the operation
     // User must log in again to refresh the cache
     console.log('Cache expired - operation rejected. Please refresh the page or log in again.');
     return { success: false, error: 'Authentication cache expired. Please refresh the page or log in again.' };
   }
-  
+
   // Cache is valid - trust it completely, no database checks
-  
+
   if (!isAdmin) {
     logSecurityEvent('SUSPICIOUS_ACTIVITY', { userId: user.id }, 'Non-admin attempted to create event');
     return { success: false, error: 'Only admins can create events' };
@@ -695,7 +704,7 @@ async function createEvent(eventData) {
       description: filteredDescription,
       location: location
     });
-    
+
     // Validate that dates were successfully parsed (required by database)
     // If parsing failed, provide default dates (today 9 AM - 5 PM) as fallback
     if (!dbEvent.start_date || !dbEvent.end_date) {
@@ -705,19 +714,19 @@ async function createEvent(eventData) {
       startDate.setHours(9, 0, 0, 0);
       const endDate = new Date(today);
       endDate.setHours(17, 0, 0, 0);
-      
+
       dbEvent.start_date = formatDateForDatabase(startDate);
       dbEvent.end_date = formatDateForDatabase(endDate);
-      
+
       logSecurityEvent('INVALID_INPUT', { userId: user.id, field: 'date' }, 'Failed to parse event dates, using defaults');
     }
-    
+
     // Set created_by
     dbEvent.created_by = user.id;
-    
+
     // Set status to Pending by default
     dbEvent.status = 'Pending';
-    
+
     // TEMPORARY: Omit colleges field to avoid RLS/timeout issues during INSERT
     // The college_code field will be set, and colleges can be updated later if needed
     // This allows events to be created successfully even if the colleges column has issues
@@ -725,16 +734,16 @@ async function createEvent(eventData) {
       console.log('Omitting colleges field from INSERT to avoid timeout issues. Will use college_code only.');
       delete dbEvent.colleges;
     }
-    
+
     // Remove any undefined values to avoid issues
     Object.keys(dbEvent).forEach(key => {
       if (dbEvent[key] === undefined) {
         delete dbEvent[key];
       }
     });
-    
-    console.log('Inserting event with data:', { 
-      ...dbEvent, 
+
+    console.log('Inserting event with data:', {
+      ...dbEvent,
       description: dbEvent.description ? '[truncated]' : undefined,
       colleges: dbEvent.colleges ? (Array.isArray(dbEvent.colleges) ? JSON.stringify(dbEvent.colleges) : dbEvent.colleges) : 'not included'
     });
@@ -749,23 +758,23 @@ async function createEvent(eventData) {
     const insertStartTime = Date.now();
     let eventId = null;
     let insertError = null;
-    
+
     console.log('Attempting direct fetch INSERT (bypassing Supabase client)...');
-    
+
     // Use direct fetch API to bypass Supabase client connection issues
     // This makes a raw REST API call to PostgREST
     const SUPABASE_URL = window.__EH_SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-    
+
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       console.error('Supabase URL or key not available for direct fetch');
       return { success: false, error: 'Supabase configuration not available' };
     }
-    
+
     // Get the access token from localStorage for authentication
     let accessToken = null;
     try {
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') && key.includes('auth-token')
       );
       if (supabaseAuthKeys.length > 0) {
@@ -775,14 +784,14 @@ async function createEvent(eventData) {
     } catch (e) {
       console.error('Error getting access token:', e);
     }
-    
+
     if (!accessToken) {
       console.error('No access token found for authenticated INSERT');
       return { success: false, error: 'Authentication token not found. Please log in again.' };
     }
-    
+
     console.log('Access token obtained, making direct fetch request...');
-    
+
     const insertBody = {
       title: dbEvent.title,
       description: dbEvent.description,
@@ -798,10 +807,10 @@ async function createEvent(eventData) {
       university_logo_url: dbEvent.university_logo_url || null,
       created_by: user.id
     };
-    
+
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/events?select=id`, {
         method: 'POST',
@@ -814,11 +823,11 @@ async function createEvent(eventData) {
         body: JSON.stringify(insertBody),
         signal: fetchController.signal
       });
-      
+
       clearTimeout(fetchTimeout);
       const insertDuration = Date.now() - insertStartTime;
       console.log(`Direct fetch completed in ${insertDuration}ms, status: ${response.status}`);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Direct fetch error:', response.status, errorText);
@@ -844,18 +853,18 @@ async function createEvent(eventData) {
         insertError = { message: error.message || 'Database insert failed' };
       }
     }
-    
+
     // If both methods failed, return error
     if (insertError && !eventId) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, error: insertError.message }, 'Error creating event');
       console.error('Error creating event:', insertError);
       return { success: false, error: insertError.message || 'Failed to create event' };
     }
-    
+
     // Function returned the event ID - fetch the full event by ID
     let insertedEvent = null;
     const fetchStartTime = Date.now();
-    
+
     if (eventId) {
       console.log('Fetching created event by ID:', eventId);
       const guestClient = getGuestSupabaseClient();
@@ -865,7 +874,7 @@ async function createEvent(eventData) {
           .select('*')
           .eq('id', eventId)
           .single();
-        
+
         if (fetchResult.data && !fetchResult.error) {
           insertedEvent = fetchResult.data;
           const fetchDuration = Date.now() - fetchStartTime;
@@ -875,12 +884,12 @@ async function createEvent(eventData) {
         }
       }
     }
-    
+
     if (!insertedEvent) {
       console.error('Event was created (ID:', eventId, ') but could not be fetched');
       return { success: false, error: 'Event was created but could not be retrieved. Please refresh the page to see the new event.' };
     }
-    
+
     console.log('Event inserted successfully:', insertedEvent.id);
 
     // Handle images if provided (images should already be uploaded URLs)
@@ -898,7 +907,7 @@ async function createEvent(eventData) {
     // Just return the basic event structure to avoid slow getEventById call
     // The admin dashboard will refresh and load the full event if needed
     const newEvent = eventFromDatabase(insertedEvent, [], 0, 0);
-    
+
     return {
       success: true,
       event: newEvent
@@ -937,7 +946,7 @@ async function updateEvent(eventId, eventData) {
   // Check if user is admin (trust cache completely - no database checks)
   console.log('Checking if user is admin (checking cache)...');
   let { isAdmin, cacheValid } = checkAdminFromCache();
-  
+
   if (!cacheValid) {
     console.log('Cache expired or missing - refreshing in background (non-blocking)...');
     if (typeof updateDropdownAuthState === 'function') {
@@ -947,7 +956,7 @@ async function updateEvent(eventId, eventData) {
     }
     return { success: false, error: 'Authentication cache expired. Please refresh the page or log in again.' };
   }
-  
+
   if (!isAdmin) {
     logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to update event');
     return { success: false, error: 'Only admins can update events' };
@@ -961,7 +970,7 @@ async function updateEvent(eventId, eventData) {
   } else {
     // Fallback: parse from JWT token
     try {
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') && key.includes('auth-token')
       );
       if (supabaseAuthKeys.length > 0) {
@@ -980,7 +989,7 @@ async function updateEvent(eventId, eventData) {
 
   // Validate and sanitize inputs
   const validatedData = { ...eventData };
-  
+
   if (eventData.title !== undefined) {
     const title = validateEventTitle(eventData.title);
     if (!title) {
@@ -1012,12 +1021,12 @@ async function updateEvent(eventId, eventData) {
   try {
     // Transform to database format
     const dbEvent = eventToDatabase(validatedData);
-    
+
     // Remove id, created_at, created_by (don't update these)
     delete dbEvent.id;
     delete dbEvent.created_at;
     delete dbEvent.created_by;
-    
+
     // Update updated_at
     dbEvent.updated_at = new Date().toISOString();
 
@@ -1027,9 +1036,9 @@ async function updateEvent(eventId, eventData) {
         delete dbEvent[key];
       }
     });
-    
-    console.log('Updating event:', eventId, 'with data:', { 
-      ...dbEvent, 
+
+    console.log('Updating event:', eventId, 'with data:', {
+      ...dbEvent,
       description: dbEvent.description ? '[truncated]' : undefined,
       colleges: dbEvent.colleges ? `[${dbEvent.colleges.length} colleges]` : 'not included'
     });
@@ -1050,7 +1059,7 @@ async function updateEvent(eventId, eventData) {
         delete dbEvent.colleges;
       }
     }
-    
+
     // Ensure organizations is a proper JSON array (not stringified)
     if (dbEvent.organizations && !Array.isArray(dbEvent.organizations)) {
       console.warn('organizations is not an array, converting:', dbEvent.organizations);
@@ -1067,36 +1076,36 @@ async function updateEvent(eventId, eventData) {
         delete dbEvent.organizations;
       }
     }
-    
+
     // Strategy: Use database function to bypass RLS (faster, no RLS evaluation overhead)
     // The function still validates admin status but bypasses RLS policy evaluation
     console.log('updateEvent: Starting UPDATE operation at:', new Date().toISOString());
     console.log('updateEvent: Event ID:', eventId);
-    console.log('updateEvent: Update data:', { 
-      ...dbEvent, 
+    console.log('updateEvent: Update data:', {
+      ...dbEvent,
       description: dbEvent.description ? '[truncated]' : undefined,
       colleges: dbEvent.colleges ? (Array.isArray(dbEvent.colleges) ? `[${dbEvent.colleges.length} colleges]` : dbEvent.colleges) : 'not included'
     });
-    
+
     const updateStartTime = Date.now();
     let updateError = null;
     let updateSucceeded = false;
-    
+
     // Use direct fetch API to bypass Supabase client connection issues
     console.log('updateEvent: Using direct fetch UPDATE (bypassing Supabase client)...');
-    
+
     const SUPABASE_URL = window.__EH_SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-    
+
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       console.error('updateEvent: Supabase URL or key not available');
       return { success: false, error: 'Supabase configuration not available' };
     }
-    
+
     // Get access token from localStorage
     let accessToken = null;
     try {
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') && key.includes('auth-token')
       );
       if (supabaseAuthKeys.length > 0) {
@@ -1106,17 +1115,17 @@ async function updateEvent(eventId, eventData) {
     } catch (e) {
       console.error('updateEvent: Error getting access token:', e);
     }
-    
+
     if (!accessToken) {
       console.error('updateEvent: No access token found');
       return { success: false, error: 'Authentication token not found. Please log in again.' };
     }
-    
+
     console.log('updateEvent: Access token obtained, making direct fetch PATCH request...');
-    
+
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
         method: 'PATCH',
@@ -1129,21 +1138,21 @@ async function updateEvent(eventId, eventData) {
         body: JSON.stringify(dbEvent),
         signal: fetchController.signal
       });
-      
+
       clearTimeout(fetchTimeout);
       const updateDuration = Date.now() - updateStartTime;
       console.log(`updateEvent: Direct fetch PATCH completed in ${updateDuration}ms, status: ${response.status}`);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('updateEvent: Direct fetch PATCH error:', response.status, errorText);
-        
+
         // If error is about colleges column, retry without it
         if (errorText.includes('colleges') || errorText.includes('PGRST')) {
           console.log('updateEvent: Retrying without colleges column...');
           const retryDbEvent = { ...dbEvent };
           delete retryDbEvent.colleges;
-          
+
           const retryResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
             method: 'PATCH',
             headers: {
@@ -1154,7 +1163,7 @@ async function updateEvent(eventId, eventData) {
             },
             body: JSON.stringify(retryDbEvent)
           });
-          
+
           if (!retryResponse.ok) {
             const retryErrorText = await retryResponse.text();
             updateError = { message: `HTTP ${retryResponse.status}: ${retryErrorText}` };
@@ -1180,18 +1189,18 @@ async function updateEvent(eventId, eventData) {
         updateError = { message: error.message || 'Event update failed' };
       }
     }
-    
+
     if (updateError || !updateSucceeded) {
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: updateError?.message }, 'Error updating event');
       console.error('updateEvent: Error updating event:', updateError);
       return { success: false, error: updateError?.message || 'Failed to update event' };
     }
-    
+
     // --- Fetch the updated event using guest client to avoid RLS issues ---
     console.log('updateEvent: UPDATE succeeded, fetching updated event by ID:', eventId);
     const fetchStartTime = Date.now();
     let updatedEvent = null;
-    
+
     console.log('updateEvent: Getting guest client...');
     const guestClient = getGuestSupabaseClient();
     if (!guestClient) {
@@ -1199,28 +1208,28 @@ async function updateEvent(eventId, eventData) {
       return { success: false, error: 'Could not fetch updated event (guest client unavailable)' };
     }
     console.log('updateEvent: Guest client obtained');
-    
+
     const fetchPromise = guestClient
       .from('events')
       .select('*')
       .eq('id', eventId)
       .maybeSingle();
-    
-    const fetchTimeoutPromise = new Promise((_, reject) => 
+
+    const fetchTimeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Fetch updated event timed out after 5 seconds')), 5000)
     );
-    
+
     try {
       console.log('updateEvent: Awaiting fetch query (with 5s timeout)...');
       const fetchResult = await Promise.race([fetchPromise, fetchTimeoutPromise]);
       const fetchDuration = Date.now() - fetchStartTime;
       console.log(`updateEvent: Fetch query completed in ${fetchDuration}ms`);
-      console.log('updateEvent: Fetch result:', { 
-        hasData: !!fetchResult?.data, 
-        hasError: !!fetchResult?.error, 
-        error: fetchResult?.error?.message 
+      console.log('updateEvent: Fetch result:', {
+        hasData: !!fetchResult?.data,
+        hasError: !!fetchResult?.error,
+        error: fetchResult?.error?.message
       });
-      
+
       if (fetchResult.data && !fetchResult.error) {
         updatedEvent = fetchResult.data;
         console.log(`updateEvent: Updated event fetched successfully in ${fetchDuration}ms`);
@@ -1236,12 +1245,12 @@ async function updateEvent(eventId, eventData) {
       }
       return { success: false, error: fetchError.message || 'Failed to fetch updated event' };
     }
-    
+
     if (!updatedEvent) {
       console.error('updateEvent: Update succeeded but could not fetch event for ID:', eventId);
       return { success: false, error: 'Event was updated but could not be retrieved. Please refresh the page.' };
     }
-    
+
     console.log('updateEvent: Event updated successfully:', updatedEvent.id);
 
     // Only update images if explicitly requested with saveImages flag
@@ -1307,7 +1316,7 @@ async function deleteEvent(eventId) {
   // Check if user is admin (trust cache completely - no database checks)
   console.log('Checking if user is admin (checking cache)...');
   let { isAdmin, cacheValid } = checkAdminFromCache();
-  
+
   if (!cacheValid) {
     console.log('Cache expired or missing - refreshing in background (non-blocking)...');
     if (typeof updateDropdownAuthState === 'function') {
@@ -1317,7 +1326,7 @@ async function deleteEvent(eventId) {
     }
     return { success: false, error: 'Authentication cache expired. Please refresh the page or log in again.' };
   }
-  
+
   if (!isAdmin) {
     logSecurityEvent('SUSPICIOUS_ACTIVITY', { eventId }, 'Non-admin attempted to delete event');
     return { success: false, error: 'Only admins can delete events' };
@@ -1341,19 +1350,19 @@ async function deleteEvent(eventId) {
   try {
     // Use direct fetch API to bypass Supabase client connection issues
     console.log('deleteEvent: Using direct fetch DELETE (bypassing Supabase client)...');
-    
+
     const SUPABASE_URL = window.__EH_SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-    
+
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       console.error('deleteEvent: Supabase URL or key not available');
       return { success: false, error: 'Supabase configuration not available' };
     }
-    
+
     // Get access token from localStorage
     let accessToken = null;
     try {
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') && key.includes('auth-token')
       );
       if (supabaseAuthKeys.length > 0) {
@@ -1363,18 +1372,18 @@ async function deleteEvent(eventId) {
     } catch (e) {
       console.error('deleteEvent: Error getting access token:', e);
     }
-    
+
     if (!accessToken) {
       console.error('deleteEvent: No access token found');
       return { success: false, error: 'Authentication token not found. Please log in again.' };
     }
-    
+
     console.log('deleteEvent: Access token obtained, making direct fetch DELETE request...');
-    
+
     const deleteStartTime = Date.now();
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     const response = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
       method: 'DELETE',
       headers: {
@@ -1383,18 +1392,18 @@ async function deleteEvent(eventId) {
       },
       signal: fetchController.signal
     });
-    
+
     clearTimeout(fetchTimeout);
     const deleteDuration = Date.now() - deleteStartTime;
     console.log(`deleteEvent: Direct fetch DELETE completed in ${deleteDuration}ms, status: ${response.status}`);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('deleteEvent: Direct fetch DELETE error:', response.status, errorText);
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: `HTTP ${response.status}: ${errorText}` }, 'Error deleting event');
       return { success: false, error: `HTTP ${response.status}: ${errorText}` };
     }
-    
+
     console.log('deleteEvent: Event deleted successfully via direct fetch');
     logSecurityEvent('EVENT_DELETED', { userId: user.id, eventId }, 'Event deleted successfully');
     return { success: true };
@@ -1458,24 +1467,24 @@ async function approveEvent(eventId) {
     }
 
     const event = eventResult.event;
-    
+
     // Recalculate status (will be Upcoming, Ongoing, or Concluded)
     const newStatus = calculateEventStatus(event.startDate, event.endDate, null);
 
     // Use direct fetch API for the update
     console.log('approveEvent: Using direct fetch PATCH (bypassing Supabase client)...');
-    
+
     const SUPABASE_URL = window.__EH_SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-    
+
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       return { success: false, error: 'Supabase configuration not available' };
     }
-    
+
     // Get access token from localStorage
     let accessToken = null;
     try {
-      const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+      const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') && key.includes('auth-token')
       );
       if (supabaseAuthKeys.length > 0) {
@@ -1485,22 +1494,22 @@ async function approveEvent(eventId) {
     } catch (e) {
       console.error('approveEvent: Error getting access token:', e);
     }
-    
+
     if (!accessToken) {
       return { success: false, error: 'Authentication token not found. Please log in again.' };
     }
-    
+
     const approveStartTime = Date.now();
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
-    
+
     const updateData = {
       status: newStatus,
       approved_at: new Date().toISOString(),
       approved_by: user.id,
       updated_at: new Date().toISOString()
     };
-    
+
     const response = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
       method: 'PATCH',
       headers: {
@@ -1512,11 +1521,11 @@ async function approveEvent(eventId) {
       body: JSON.stringify(updateData),
       signal: fetchController.signal
     });
-    
+
     clearTimeout(fetchTimeout);
     const approveDuration = Date.now() - approveStartTime;
     console.log(`approveEvent: Direct fetch PATCH completed in ${approveDuration}ms, status: ${response.status}`);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       logSecurityEvent('DATABASE_ERROR', { userId: user.id, eventId, error: `HTTP ${response.status}: ${errorText}` }, 'Error approving event');
@@ -1554,7 +1563,7 @@ async function rejectEvent(eventId) {
   // Get user ID from localStorage (avoids hanging authenticated client)
   const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
   logSecurityEvent('EVENT_REJECTED', { userId, eventId }, 'Event rejected by admin');
-  
+
   // Rejecting is the same as deleting for pending events
   return deleteEvent(eventId);
 }
@@ -1592,11 +1601,11 @@ async function getEventImages(eventId) {
 
     // Transform to array of URLs
     const images = (data || []).map(img => img.image_url);
-    
+
     // Find thumbnail index (image with display_order = 0)
     const thumbnailRow = (data || []).find(img => img.display_order === 0);
-    const thumbnailIndex = thumbnailRow 
-      ? images.indexOf(thumbnailRow.image_url) 
+    const thumbnailIndex = thumbnailRow
+      ? images.indexOf(thumbnailRow.image_url)
       : 0;
 
     return { success: true, images, thumbnailIndex };
@@ -1633,15 +1642,15 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
   // Use direct fetch API to bypass Supabase client
   const SUPABASE_URL = window.__EH_SUPABASE_URL;
   const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
-  
+
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return { success: false, error: 'Supabase configuration not available' };
   }
-  
+
   // Get access token from localStorage
   let accessToken = null;
   try {
-    const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
       key.startsWith('sb-') && key.includes('auth-token')
     );
     if (supabaseAuthKeys.length > 0) {
@@ -1651,7 +1660,7 @@ async function saveEventImages(eventId, imageUrls, thumbnailIndex = 0) {
   } catch (e) {
     console.error('saveEventImages: Error getting access token:', e);
   }
-  
+
   if (!accessToken) {
     return { success: false, error: 'Authentication token not found. Please log in again.' };
   }
