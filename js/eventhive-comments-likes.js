@@ -355,13 +355,19 @@ async function loadEventComments(eventId) {
     console.log('No authenticated user found (guest mode)');
   }
 
-  // Get flag info for all comments (batch query)
+  // Get flag info for all comments (batch query) - wrapped in try-catch to be defensive
   let flagInfo = {};
   if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function') {
-    const commentIds = result.comments.map(c => c.id);
-    const flagResult = await getCommentsWithFlagInfo(commentIds);
-    if (flagResult.success) {
-      flagInfo = flagResult.flagInfo;
+    try {
+      const commentIds = result.comments.map(c => c.id);
+      const flagResult = await getCommentsWithFlagInfo(commentIds);
+      if (flagResult && flagResult.success) {
+        flagInfo = flagResult.flagInfo || {};
+      }
+    } catch (flagError) {
+      // Log error but don't break comment loading
+      console.warn('Could not load flag info (non-critical):', flagError);
+      // Continue with empty flagInfo - comments will still render
     }
   }
 

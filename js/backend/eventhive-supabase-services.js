@@ -1698,8 +1698,14 @@ async function getCommentsWithFlagInfo(commentIds) {
       .in('comment_id', commentIds);
 
     if (error) {
+      // If table doesn't exist or permission denied, return empty flagInfo gracefully
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('comment_flags table not found - skipping flag info');
+        return { success: true, flagInfo: {} };
+      }
       console.error('Error getting flag info:', error);
-      return { success: false, flagInfo: {}, error: error.message };
+      // Return success with empty data instead of failing
+      return { success: true, flagInfo: {} };
     }
 
     // Build flag info map
@@ -1722,7 +1728,8 @@ async function getCommentsWithFlagInfo(commentIds) {
     return { success: true, flagInfo };
   } catch (error) {
     console.error('Unexpected error getting flag info:', error);
-    return { success: false, flagInfo: {}, error: error.message };
+    // Return success with empty data to not break comment loading
+    return { success: true, flagInfo: {} };
   }
 }
 
