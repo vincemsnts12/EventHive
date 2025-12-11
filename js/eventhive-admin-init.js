@@ -41,13 +41,30 @@ document.addEventListener('DOMContentLoaded', async () => {
           window.updateAuthCache(authState);
         }
         // IMPORTANT: Refresh dropdown/hamburger UI after cache is updated
-        // This fixes timing issue where UI renders before cache is populated
-        if (typeof window.applyAuthStateToUI === 'function') {
-          window.applyAuthStateToUI(authState.isLoggedIn, authState.isAdmin);
-        }
-        if (typeof window.applyMobileMenuState === 'function') {
-          window.applyMobileMenuState(authState.isLoggedIn, authState.isAdmin);
-        }
+        // Use longer setTimeout to ensure DOM elements are fully ready
+        setTimeout(() => {
+          // Try window functions first
+          if (typeof window.applyAuthStateToUI === 'function') {
+            window.applyAuthStateToUI(authState.isLoggedIn, authState.isAdmin);
+          }
+          if (typeof window.applyMobileMenuState === 'function') {
+            window.applyMobileMenuState(authState.isLoggedIn, authState.isAdmin);
+          }
+          // FALLBACK: Direct DOM manipulation for desktop dropdown
+          const guestDiv = document.getElementById('dropdownState-guest');
+          const userDiv = document.getElementById('dropdownState-user');
+          const adminDiv = document.getElementById('dropdownState-admin');
+          if (guestDiv) guestDiv.style.display = 'none';
+          if (userDiv) userDiv.style.display = 'none';
+          if (adminDiv) adminDiv.style.display = 'none';
+          if (authState.isLoggedIn && authState.isAdmin) {
+            if (adminDiv) adminDiv.style.display = 'block';
+          } else if (authState.isLoggedIn) {
+            if (userDiv) userDiv.style.display = 'block';
+          } else {
+            if (guestDiv) guestDiv.style.display = 'block';
+          }
+        }, 500);
       }
     } catch (error) {
       console.error('Error checking admin status:', error);
