@@ -111,6 +111,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log('Admin access verified via server-side RPC');
 
+  // IMMEDIATELY set dropdown to admin state - don't wait for events to load
+  // This prevents the guest state from showing while events are loading
+  window.__dropdownStateLockedByAdmin = true;
+  const guestDiv = document.getElementById('dropdownState-guest');
+  const userDiv = document.getElementById('dropdownState-user');
+  const adminDiv = document.getElementById('dropdownState-admin');
+  if (guestDiv) guestDiv.style.display = 'none';
+  if (userDiv) userDiv.style.display = 'none';
+  if (adminDiv) adminDiv.style.display = 'block';
+  console.log('Dropdown state set to admin immediately (locked)');
+
+  // Also update the cache to ensure flat format with admin=true
+  try {
+    const cache = {
+      isLoggedIn: true,
+      isAdmin: true,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('eventhive_auth_cache', JSON.stringify(cache));
+    console.log('Auth cache updated to admin');
+  } catch (e) {
+    console.warn('Failed to update auth cache:', e);
+  }
+
   // Wait for Supabase to fully initialize and establish connection
   // For authenticated users, database queries can timeout due to RLS, so we just check if client exists
   // Don't test with a query - that will timeout for authenticated users too
