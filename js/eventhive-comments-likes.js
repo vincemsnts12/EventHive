@@ -239,20 +239,31 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
             return;
           }
 
+          // OPTIMISTIC UI: Update immediately
+          const originalState = flagBtn.dataset.userFlagged;
+          const originalTitle = flagBtn.title;
+          flagBtn.dataset.userFlagged = 'false';
+          flagBtn.title = 'Report comment';
+          flagBtn.classList.remove('user-flagged');
+
           try {
             const result = await unflagComment(comment.id);
             console.log('Unflag result:', result);
             if (result.success) {
-              alert('Your report has been removed.');
-              // Reload comments to update UI
-              const eventId = getSelectedEventId();
-              if (eventId) {
-                await loadEventComments(eventId);
-              }
+              // Success - UI already updated, just show confirmation
+              console.log('Report removed successfully');
             } else {
+              // REVERT on error
+              flagBtn.dataset.userFlagged = originalState;
+              flagBtn.title = originalTitle;
+              flagBtn.classList.add('user-flagged');
               alert(result.error || 'Error removing report. Please try again.');
             }
           } catch (err) {
+            // REVERT on error
+            flagBtn.dataset.userFlagged = originalState;
+            flagBtn.title = originalTitle;
+            flagBtn.classList.add('user-flagged');
             console.error('Error unflagging comment:', err);
             alert('Error removing report: ' + err.message);
           }
@@ -266,20 +277,31 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
             return;
           }
 
+          // OPTIMISTIC UI: Update immediately
+          const originalState = flagBtn.dataset.userFlagged;
+          const originalTitle = flagBtn.title;
+          flagBtn.dataset.userFlagged = 'true';
+          flagBtn.title = 'Remove report';
+          flagBtn.classList.add('user-flagged');
+
           try {
             const result = await flagComment(comment.id, 'User reported');
             console.log('Flag result:', result);
             if (result.success) {
-              alert('Thank you for your report. We will review this comment.');
-              // Reload comments to update UI
-              const eventId = getSelectedEventId();
-              if (eventId) {
-                await loadEventComments(eventId);
-              }
+              // Success - UI already updated, just show confirmation
+              console.log('Comment reported successfully');
             } else {
+              // REVERT on error
+              flagBtn.dataset.userFlagged = originalState;
+              flagBtn.title = originalTitle;
+              flagBtn.classList.remove('user-flagged');
               alert(result.error || 'Error reporting comment. Please try again.');
             }
           } catch (err) {
+            // REVERT on error
+            flagBtn.dataset.userFlagged = originalState;
+            flagBtn.title = originalTitle;
+            flagBtn.classList.remove('user-flagged');
             console.error('Error flagging comment:', err);
             alert('Error reporting comment: ' + err.message);
           }
