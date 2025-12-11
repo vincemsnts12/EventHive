@@ -20,86 +20,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ===== ACCESS CONTROL: Admin-only page =====
-  // Uses SERVER-SIDE RPC check with cache fallback for reliability
+  // Priority: Cache (fast) > RPC (authoritative but slower)
   console.log('Checking admin access...');
 
   let hasAdminAccess = false;
 
-  // Check cache first for fast UI response
+  // Check cache first for fast access
   const cachedAuth = typeof window.getCachedAuthState === 'function' ? window.getCachedAuthState() : null;
   const cachedIsAdmin = cachedAuth && cachedAuth.isLoggedIn && cachedAuth.isAdmin;
   console.log('Cached admin status:', cachedIsAdmin ? 'admin' : 'not admin or no cache');
 
-  // Brief wait for auth state to stabilize (OAuth callback)
-  await new Promise(resolve => setTimeout(resolve, 200));
+  // If cache says admin, trust it and proceed immediately (no waiting)
+  // The cache is updated on every login and is only 5 minutes old max
+  if (cachedIsAdmin) {
+    hasAdminAccess = true;
+    console.log('Using cached admin status (fast path)');
+  } else {
+    // No valid cache - must verify via RPC (slower but authoritative)
+    // Brief wait for auth state to stabilize (OAuth callback)
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-  // Try server-side RPC check first (authoritative)
-  if (typeof window.checkIsAdmin === 'function') {
-    try {
-      console.log('Attempting server-side admin RPC...');
-      hasAdminAccess = await window.checkIsAdmin();
-      console.log('Server-side admin check result:', hasAdminAccess);
-
-      // Update cache with the authoritative result
-      if (typeof window.getAuthState === 'function') {
-        const authState = await window.getAuthState();
-        if (typeof window.updateAuthCache === 'function') {
-          window.updateAuthCache(authState);
-        }
-        // Refresh dropdown/hamburger UI after cache is updated
-        setTimeout(() => {
-          if (typeof window.applyAuthStateToUI === 'function') {
-            window.applyAuthStateToUI(authState.isLoggedIn, authState.isAdmin);
-          }
-          if (typeof window.applyMobileMenuState === 'function') {
-            window.applyMobileMenuState(authState.isLoggedIn, authState.isAdmin);
-          }
-          // Direct DOM manipulation fallback
-          const guestDiv = document.getElementById('dropdownState-guest');
-          const userDiv = document.getElementById('dropdownState-user');
-          const adminDiv = document.getElementById('dropdownState-admin');
-          if (guestDiv) guestDiv.style.display = 'none';
-          if (userDiv) userDiv.style.display = 'none';
-          if (adminDiv) adminDiv.style.display = 'none';
-          if (authState.isLoggedIn && authState.isAdmin) {
-            if (adminDiv) adminDiv.style.display = 'block';
-          } else if (authState.isLoggedIn) {
-            if (userDiv) userDiv.style.display = 'block';
-          } else {
-            if (guestDiv) guestDiv.style.display = 'block';
-          }
-        }, 300);
-      }
-    } catch (error) {
-      console.warn('RPC admin check failed:', error.message);
-      // FALLBACK: Use cached admin status if RPC fails
-      if (cachedIsAdmin) {
-        console.log('Using cached admin status as fallback');
-        hasAdminAccess = true;
-      } else {
+    if (typeof window.checkIsAdmin === 'function') {
+      try {
+        console.log('Attempting server-side admin RPC...');
+        hasAdminAccess = await window.checkIsAdmin();
+        console.log('Server-side admin check result:', hasAdminAccess);
+      } catch (error) {
+        console.warn('RPC admin check failed:', error.message);
         hasAdminAccess = false;
       }
-    }
-  } else {
-    // Fallback to old method if auth-utils not loaded
-    console.warn('checkIsAdmin not available, falling back to API check');
-    if (typeof checkIfUserIsAdmin === 'function') {
+    } else if (typeof checkIfUserIsAdmin === 'function') {
+      // Fallback to old method
       try {
         const adminCheck = await checkIfUserIsAdmin();
         hasAdminAccess = adminCheck.success && adminCheck.isAdmin === true;
       } catch (error) {
         console.error('Fallback admin check failed:', error);
-        // Use cache as last resort
-        if (cachedIsAdmin) {
-          console.log('Using cached admin status as final fallback');
-          hasAdminAccess = true;
-        }
+        hasAdminAccess = false;
       }
-    } else if (cachedIsAdmin) {
-      console.log('No admin check methods available, using cache');
-      hasAdminAccess = true;
     }
   }
+
 
 
   // Redirect if not admin
