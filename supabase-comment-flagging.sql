@@ -56,6 +56,11 @@ CREATE INDEX IF NOT EXISTS idx_comment_flag_logs_action ON comment_flag_logs(act
 -- Enable RLS
 ALTER TABLE comment_flags ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies first (makes script idempotent)
+DROP POLICY IF EXISTS "Anyone can view comment flags" ON comment_flags;
+DROP POLICY IF EXISTS "Authenticated users can flag comments" ON comment_flags;
+DROP POLICY IF EXISTS "Users can remove their own flags" ON comment_flags;
+
 -- Anyone can view flag counts (for display purposes)
 CREATE POLICY "Anyone can view comment flags"
 ON comment_flags FOR SELECT
@@ -77,6 +82,10 @@ USING (auth.uid() = user_id);
 
 -- Enable RLS
 ALTER TABLE comment_flag_logs ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies first (makes script idempotent)
+DROP POLICY IF EXISTS "Admins can view flag logs" ON comment_flag_logs;
+DROP POLICY IF EXISTS "Authenticated users can insert flag logs" ON comment_flag_logs;
 
 -- Only admins can view flag logs
 CREATE POLICY "Admins can view flag logs"
