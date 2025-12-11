@@ -545,9 +545,9 @@ async function getEventComments(eventId) {
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
 
-    // Fetch comments
+    // Fetch comments (including is_hidden for flagged comments)
     const commentsResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/comments?event_id=eq.${eventId}&order=created_at.asc&select=id,content,created_at,updated_at,user_id`,
+      `${SUPABASE_URL}/rest/v1/comments?event_id=eq.${eventId}&order=created_at.asc&select=id,content,created_at,updated_at,user_id,is_hidden`,
       {
         method: 'GET',
         headers: {
@@ -613,6 +613,7 @@ async function getEventComments(eventId) {
         createdAt: comment.created_at,
         updatedAt: comment.updated_at,
         userId: comment.user_id,
+        is_hidden: comment.is_hidden || false,
         user: {
           id: profile?.id || comment.user_id,
           username: profile?.username || 'Unknown',
@@ -1526,3 +1527,306 @@ async function deleteOrganization(orgId) {
 }
 
 
+// ===== COMMENT FLAGGING SERVICES =====
+
+/**
+ * Flag a comment for inappropriate content
+ * @param {string} commentId - Comment ID to flag
+ * @param {string} reason - Optional reason for flagging
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function flagComment(commentId, reason = '') {
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!userId) {
+    return { success: false, error: 'You must be logged in to flag comments' };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase client not available' };
+  }
+
+  try {
+    // Insert flag (the database trigger will handle auto-hiding)
+    const { error } = await supabase
+      .from('comment_flags')
+      .insert({
+        comment_id: commentId,
+        user_id: userId,
+        reason: reason || null
+      });
+
+    if (error) {
+      // Check if already flagged
+      if (error.code === '23505') { // Unique violation
+        return { success: false, error: 'You have already flagged this comment' };
+      }
+      console.error('Error flagging comment:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error flagging comment:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Remove user's flag from a comment
+ * @param {string} commentId - Comment ID to unflag
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function unflagComment(commentId) {
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!userId) {
+    return { success: false, error: 'You must be logged in' };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase client not available' };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('comment_flags')
+      .delete()
+      .eq('comment_id', commentId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error removing flag:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error removing flag:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Check if current user has flagged a comment
+ * @param {string} commentId - Comment ID to check
+ * @returns {Promise<{success: boolean, hasFlagged: boolean, error?: string}>}
+ */
+async function hasUserFlaggedComment(commentId) {
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  if (!userId) {
+    return { success: true, hasFlagged: false };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, hasFlagged: false, error: 'Supabase client not available' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('comment_flags')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error checking flag status:', error);
+      return { success: false, hasFlagged: false, error: error.message };
+    }
+
+    return { success: true, hasFlagged: !!data };
+  } catch (error) {
+    console.error('Unexpected error checking flag status:', error);
+    return { success: false, hasFlagged: false, error: error.message };
+  }
+}
+
+/**
+ * Get flag count for a comment
+ * @param {string} commentId - Comment ID
+ * @returns {Promise<{success: boolean, count: number, error?: string}>}
+ */
+async function getCommentFlagCount(commentId) {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, count: 0, error: 'Supabase client not available' };
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from('comment_flags')
+      .select('*', { count: 'exact', head: true })
+      .eq('comment_id', commentId);
+
+    if (error) {
+      console.error('Error getting flag count:', error);
+      return { success: false, count: 0, error: error.message };
+    }
+
+    return { success: true, count: count || 0 };
+  } catch (error) {
+    console.error('Unexpected error getting flag count:', error);
+    return { success: false, count: 0, error: error.message };
+  }
+}
+
+/**
+ * Get all flagged/hidden comments (admin only)
+ * @returns {Promise<{success: boolean, comments: Array, error?: string}>}
+ */
+async function getFlaggedComments() {
+  // Check if user is admin
+  const adminCheck = await checkIfUserIsAdmin();
+  if (!adminCheck.success || !adminCheck.isAdmin) {
+    return { success: false, comments: [], error: 'Admin access required' };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, comments: [], error: 'Supabase client not available' };
+  }
+
+  try {
+    // Get hidden comments with their flag counts
+    const { data: comments, error } = await supabase
+      .from('comments')
+      .select(`
+        id,
+        content,
+        created_at,
+        is_hidden,
+        hidden_reason,
+        user_id,
+        event_id,
+        profiles:user_id (username, avatar_url),
+        events:event_id (title)
+      `)
+      .eq('is_hidden', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting flagged comments:', error);
+      return { success: false, comments: [], error: error.message };
+    }
+
+    // Get flag counts for each comment
+    const commentsWithFlags = await Promise.all(
+      (comments || []).map(async (comment) => {
+        const flagResult = await getCommentFlagCount(comment.id);
+        return {
+          ...comment,
+          flag_count: flagResult.count
+        };
+      })
+    );
+
+    return { success: true, comments: commentsWithFlags };
+  } catch (error) {
+    console.error('Unexpected error getting flagged comments:', error);
+    return { success: false, comments: [], error: error.message };
+  }
+}
+
+/**
+ * Restore a hidden comment (admin only)
+ * @param {string} commentId - Comment ID to restore
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function restoreComment(commentId) {
+  // Check if user is admin
+  const adminCheck = await checkIfUserIsAdmin();
+  if (!adminCheck.success || !adminCheck.isAdmin) {
+    return { success: false, error: 'Admin access required' };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase client not available' };
+  }
+
+  try {
+    const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+
+    // Restore the comment
+    const { error } = await supabase
+      .from('comments')
+      .update({ is_hidden: false, hidden_reason: null })
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Error restoring comment:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Clear all flags for this comment
+    await supabase
+      .from('comment_flags')
+      .delete()
+      .eq('comment_id', commentId);
+
+    // Log the action
+    await supabase
+      .from('comment_flag_logs')
+      .insert({
+        comment_id: commentId,
+        action: 'restored',
+        performed_by: userId,
+        details: { restored_at: new Date().toISOString() }
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error restoring comment:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete a comment permanently (admin only)
+ * @param {string} commentId - Comment ID to delete
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function deleteCommentAsAdmin(commentId) {
+  // Check if user is admin
+  const adminCheck = await checkIfUserIsAdmin();
+  if (!adminCheck.success || !adminCheck.isAdmin) {
+    return { success: false, error: 'Admin access required' };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return { success: false, error: 'Supabase client not available' };
+  }
+
+  try {
+    const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+
+    // Log before deleting (since comment will be gone)
+    await supabase
+      .from('comment_flag_logs')
+      .insert({
+        comment_id: commentId,
+        action: 'deleted',
+        performed_by: userId,
+        details: { deleted_at: new Date().toISOString() }
+      });
+
+    // Delete the comment (flags will cascade delete)
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Error deleting comment:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error deleting comment:', error);
+    return { success: false, error: error.message };
+  }
+}

@@ -61,17 +61,55 @@ function renderComment(comment, currentUserId = null) {
   const isGuest = !currentUserId;
   // Only show delete button if user is authenticated AND it's their own comment
   const isOwnComment = currentUserId && comment.userId === currentUserId;
+  // Check if comment is hidden
+  const isHidden = comment.is_hidden || comment.isHidden;
 
-  // Build delete button HTML if it's the user's own comment
-  const deleteButtonHtml = isOwnComment ? `
-    <button class="comment-delete-btn" data-comment-id="${comment.id}" title="Delete comment">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <line x1="10" y1="11" x2="10" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="14" y1="11" x2="14" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-  ` : '';
+  // If hidden, show hidden message instead of normal content
+  if (isHidden) {
+    commentItem.classList.add('comment-item--hidden');
+    commentItem.innerHTML = `
+      <div class="comment-hidden-message">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span>Comment has been automatically hidden because it appears to contain language that may violate our community guidelines (profanity/inappropriate content).</span>
+      </div>
+    `;
+    return commentItem;
+  }
+
+  // Build action button HTML - delete for own, flag for others
+  let actionButtonHtml = '';
+  if (isOwnComment) {
+    // Delete button for own comments
+    actionButtonHtml = `
+      <button class="comment-delete-btn" data-comment-id="${comment.id}" title="Delete comment">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="10" y1="11" x2="10" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="11" x2="14" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    `;
+  } else if (currentUserId) {
+    // Flag button for other users' comments (authenticated users only)
+    actionButtonHtml = `
+      <button class="comment-flag-btn" data-comment-id="${comment.id}" title="Report this comment">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    `;
+  } else {
+    // Guest needs to login to flag
+    actionButtonHtml = `
+      <button class="comment-flag-btn comment-flag-guest" data-comment-id="${comment.id}" title="Login to report this comment">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    `;
+  }
 
   // For guests, use # as href to prevent navigation, add data attribute for the real URL
   const avatarHref = isGuest ? '#' : profileUrl;
@@ -87,7 +125,7 @@ function renderComment(comment, currentUserId = null) {
           <a href="${authorHref}" class="comment-author" data-profile-url="${profileUrl}" data-user-id="${comment.userId}">${comment.user.username}</a>
           <span class="comment-timestamp">${formatRelativeTime(comment.createdAt)}</span>
         </div>
-        ${deleteButtonHtml}
+        ${actionButtonHtml}
       </div>
       <p class="comment-text">${escapeHtml(comment.content)}</p>
     </div>
@@ -175,6 +213,43 @@ function renderComment(comment, currentUserId = null) {
         }
       });
     }
+  }
+
+  // Add flag button handler for other users' comments
+  const flagBtn = commentItem.querySelector('.comment-flag-btn');
+  if (flagBtn) {
+    flagBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      // Check if guest - show login prompt
+      if (flagBtn.classList.contains('comment-flag-guest')) {
+        // Store current URL for redirect after login
+        localStorage.setItem('eventhive_pending_profile_url', window.location.href);
+
+        // Show login modal
+        const loginModal = document.getElementById('loginModal');
+        if (loginModal) {
+          loginModal.style.display = 'flex';
+        }
+        alert('Please log in or sign up to report this comment.');
+        return;
+      }
+
+      // Confirm flag action
+      if (confirm('Are you sure you want to report this comment for inappropriate content?')) {
+        const result = await flagComment(comment.id, 'User reported');
+        if (result.success) {
+          alert('Thank you for your report. We will review this comment.');
+          // Optionally reload comments
+          const eventId = getSelectedEventId();
+          if (eventId) {
+            await loadEventComments(eventId);
+          }
+        } else {
+          alert(result.error || 'Error reporting comment. Please try again.');
+        }
+      }
+    });
   }
 
   return commentItem;
@@ -303,6 +378,15 @@ async function handleCommentSubmit(eventId) {
   if (!content) {
     alert('Please enter a comment before posting.');
     return;
+  }
+
+  // Check for profanity before submitting
+  if (typeof checkProfanity === 'function') {
+    const profanityResult = checkProfanity(content);
+    if (profanityResult.hasProfanity) {
+      alert('Your comment contains language that may violate our community guidelines. Please revise your comment before submitting.');
+      return;
+    }
   }
 
   // Disable button and show loading state
