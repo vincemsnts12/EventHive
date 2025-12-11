@@ -1536,3 +1536,9 @@
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
 }
+
+/* Center Flags column and contents */
+.flagged-comments-table th:nth-child(4),
+.flagged-comments-table td:nth-child(4) {
+  text-align: center;
+}

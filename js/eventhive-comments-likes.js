@@ -428,22 +428,22 @@ async function loadEventComments(eventId) {
         padding: 12px;
         margin-top: 10px;
         background: transparent;
-        border: 1px solid rgba(139, 92, 246, 0.3);
+        border: 1px solid rgba(184, 30, 32, 0.3);
         border-radius: 8px;
-        color: #8b5cf6;
+        color: #B81E20;
         font-size: 14px;
         cursor: pointer;
         transition: all 0.2s ease;
       `;
 
       showMoreBtn.addEventListener('mouseover', () => {
-        showMoreBtn.style.background = 'rgba(139, 92, 246, 0.1)';
-        showMoreBtn.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+        showMoreBtn.style.background = 'rgba(184, 30, 32, 0.1)';
+        showMoreBtn.style.borderColor = 'rgba(184, 30, 32, 0.5)';
       });
 
       showMoreBtn.addEventListener('mouseout', () => {
         showMoreBtn.style.background = 'transparent';
-        showMoreBtn.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+        showMoreBtn.style.borderColor = 'rgba(184, 30, 32, 0.3)';
       });
 
       showMoreBtn.addEventListener('click', () => {
