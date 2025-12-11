@@ -1673,6 +1673,60 @@ async function getCommentFlagCount(commentId) {
 }
 
 /**
+ * Get flag info for multiple comments (batch query - more efficient)
+ * @param {string[]} commentIds - Array of comment IDs
+ * @returns {Promise<{success: boolean, flagInfo: Object, error?: string}>}
+ * flagInfo is a map: { commentId: { count: number, userFlagged: boolean } }
+ */
+async function getCommentsWithFlagInfo(commentIds) {
+  if (!commentIds || commentIds.length === 0) {
+    return { success: true, flagInfo: {} };
+  }
+
+  const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return { success: false, flagInfo: {}, error: 'Supabase client not available' };
+  }
+
+  try {
+    // Get all flags for these comments in one query
+    const { data: flags, error } = await supabase
+      .from('comment_flags')
+      .select('comment_id, user_id')
+      .in('comment_id', commentIds);
+
+    if (error) {
+      console.error('Error getting flag info:', error);
+      return { success: false, flagInfo: {}, error: error.message };
+    }
+
+    // Build flag info map
+    const flagInfo = {};
+    commentIds.forEach(id => {
+      flagInfo[id] = { count: 0, userFlagged: false };
+    });
+
+    if (flags) {
+      flags.forEach(flag => {
+        if (flagInfo[flag.comment_id]) {
+          flagInfo[flag.comment_id].count++;
+          if (userId && flag.user_id === userId) {
+            flagInfo[flag.comment_id].userFlagged = true;
+          }
+        }
+      });
+    }
+
+    return { success: true, flagInfo };
+  } catch (error) {
+    console.error('Unexpected error getting flag info:', error);
+    return { success: false, flagInfo: {}, error: error.message };
+  }
+}
+
+/**
  * Get all flagged/hidden comments (admin only)
  * @returns {Promise<{success: boolean, comments: Array, error?: string}>}
  */

@@ -28,7 +28,7 @@ function formatRelativeTime(timestamp) {
 }
 
 // Render a single comment
-function renderComment(comment, currentUserId = null) {
+function renderComment(comment, currentUserId = null, flagInfo = {}) {
   const commentItem = document.createElement('div');
   commentItem.className = 'comment-item';
   commentItem.setAttribute('data-comment-id', comment.id);
@@ -80,6 +80,10 @@ function renderComment(comment, currentUserId = null) {
 
   // Build action button HTML - delete for own, flag for others
   let actionButtonHtml = '';
+  // Get flag info (passed from loadEventComments or default)
+  const flagCount = (typeof flagInfo === 'object' && flagInfo.count) || 0;
+  const userFlagged = (typeof flagInfo === 'object' && flagInfo.userFlagged) || false;
+
   if (isOwnComment) {
     // Delete button for own comments
     actionButtonHtml = `
@@ -93,20 +97,29 @@ function renderComment(comment, currentUserId = null) {
     `;
   } else if (currentUserId) {
     // Flag button for other users' comments (authenticated users only)
+    // Show yellow filled flag if user has flagged, with count
+    const flaggedClass = userFlagged ? 'comment-flag-btn--flagged' : '';
+    const fillColor = userFlagged ? '#f59e0b' : 'none';
+    const title = userFlagged ? 'You reported this comment (click to remove report)' : 'Report this comment';
+    const countDisplay = flagCount > 0 ? `<span class="flag-count">${flagCount}</span>` : '';
+
     actionButtonHtml = `
-      <button class="comment-flag-btn" data-comment-id="${comment.id}" title="Report this comment">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <button class="comment-flag-btn ${flaggedClass}" data-comment-id="${comment.id}" data-user-flagged="${userFlagged}" title="${title}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="${fillColor}" xmlns="http://www.w3.org/2000/svg">
           <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
+        ${countDisplay}
       </button>
     `;
   } else {
     // Guest needs to login to flag
+    const countDisplay = flagCount > 0 ? `<span class="flag-count">${flagCount}</span>` : '';
     actionButtonHtml = `
       <button class="comment-flag-btn comment-flag-guest" data-comment-id="${comment.id}" title="Login to report this comment">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
+        ${countDisplay}
       </button>
     `;
   }
@@ -227,31 +240,62 @@ function renderComment(comment, currentUserId = null) {
         return;
       }
 
-      // Confirm flag action
-      if (confirm('Are you sure you want to report this comment for inappropriate content?')) {
-        // Check if flagComment function is available
-        if (typeof flagComment !== 'function') {
-          console.error('flagComment function not found');
-          alert('Error: Flag function not available. Please refresh the page.');
-          return;
-        }
+      // Check if user has already flagged this comment
+      const isAlreadyFlagged = flagBtn.dataset.userFlagged === 'true';
 
-        try {
-          const result = await flagComment(comment.id, 'User reported');
-          console.log('Flag result:', result);
-          if (result.success) {
-            alert('Thank you for your report. We will review this comment.');
-            // Optionally reload comments
-            const eventId = getSelectedEventId();
-            if (eventId) {
-              await loadEventComments(eventId);
-            }
-          } else {
-            alert(result.error || 'Error reporting comment. Please try again.');
+      if (isAlreadyFlagged) {
+        // Unflag action - show confirmation
+        if (confirm('Remove your report from this comment?')) {
+          if (typeof unflagComment !== 'function') {
+            console.error('unflagComment function not found');
+            alert('Error: Unflag function not available. Please refresh the page.');
+            return;
           }
-        } catch (err) {
-          console.error('Error flagging comment:', err);
-          alert('Error reporting comment: ' + err.message);
+
+          try {
+            const result = await unflagComment(comment.id);
+            console.log('Unflag result:', result);
+            if (result.success) {
+              alert('Your report has been removed.');
+              // Reload comments to update UI
+              const eventId = getSelectedEventId();
+              if (eventId) {
+                await loadEventComments(eventId);
+              }
+            } else {
+              alert(result.error || 'Error removing report. Please try again.');
+            }
+          } catch (err) {
+            console.error('Error unflagging comment:', err);
+            alert('Error removing report: ' + err.message);
+          }
+        }
+      } else {
+        // Flag action - show confirmation
+        if (confirm('Are you sure you want to report this comment for inappropriate content?')) {
+          if (typeof flagComment !== 'function') {
+            console.error('flagComment function not found');
+            alert('Error: Flag function not available. Please refresh the page.');
+            return;
+          }
+
+          try {
+            const result = await flagComment(comment.id, 'User reported');
+            console.log('Flag result:', result);
+            if (result.success) {
+              alert('Thank you for your report. We will review this comment.');
+              // Reload comments to update UI
+              const eventId = getSelectedEventId();
+              if (eventId) {
+                await loadEventComments(eventId);
+              }
+            } else {
+              alert(result.error || 'Error reporting comment. Please try again.');
+            }
+          } catch (err) {
+            console.error('Error flagging comment:', err);
+            alert('Error reporting comment: ' + err.message);
+          }
         }
       }
     });
@@ -311,13 +355,25 @@ async function loadEventComments(eventId) {
     console.log('No authenticated user found (guest mode)');
   }
 
+  // Get flag info for all comments (batch query)
+  let flagInfo = {};
+  if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function') {
+    const commentIds = result.comments.map(c => c.id);
+    const flagResult = await getCommentsWithFlagInfo(commentIds);
+    if (flagResult.success) {
+      flagInfo = flagResult.flagInfo;
+    }
+  }
+
   // Render comments (works for both authenticated users and guests)
   if (result.comments.length === 0) {
     commentsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No comments yet. Be the first to comment!</div>';
   } else {
     result.comments.forEach(comment => {
-      // Pass currentUserId (null for guests, user ID for authenticated users)
-      commentsList.appendChild(renderComment(comment, currentUserId));
+      // Get flag info for this comment
+      const commentFlagInfo = flagInfo[comment.id] || { count: 0, userFlagged: false };
+      // Pass currentUserId and flagInfo to renderComment
+      commentsList.appendChild(renderComment(comment, currentUserId, commentFlagInfo));
     });
   }
 

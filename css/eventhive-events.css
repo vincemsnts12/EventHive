@@ -1268,6 +1268,33 @@
   opacity: 0.8;
 }
 
+/* Flagged state - solid yellow fill */
+.comment-flag-btn.comment-flag-btn--flagged {
+  color: #f59e0b;
+  opacity: 1;
+}
+
+.comment-flag-btn.comment-flag-btn--flagged:hover {
+  color: #d97706;
+  background-color: #fef3c7;
+}
+
+.comment-flag-btn.comment-flag-btn--flagged svg {
+  fill: #f59e0b;
+}
+
+/* Flag count display */
+.flag-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #999;
+  margin-left: 4px;
+}
+
+.comment-flag-btn.comment-flag-btn--flagged .flag-count {
+  color: #f59e0b;
+}
+
 /* Hidden Comment Message */
 .comment-item--hidden {
   background-color: #fef2f2;
