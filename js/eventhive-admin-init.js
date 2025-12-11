@@ -40,6 +40,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof window.updateAuthCache === 'function') {
           window.updateAuthCache(authState);
         }
+        // IMPORTANT: Refresh dropdown/hamburger UI after cache is updated
+        // This fixes timing issue where UI renders before cache is populated
+        if (typeof window.applyAuthStateToUI === 'function') {
+          window.applyAuthStateToUI(authState.isLoggedIn, authState.isAdmin);
+        }
+        if (typeof window.applyMobileMenuState === 'function') {
+          window.applyMobileMenuState(authState.isLoggedIn, authState.isAdmin);
+        }
       }
     } catch (error) {
       console.error('Error checking admin status:', error);
