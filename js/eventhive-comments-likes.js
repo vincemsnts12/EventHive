@@ -239,31 +239,41 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
             return;
           }
 
-          // OPTIMISTIC UI: Update immediately
+          // OPTIMISTIC UI: Update immediately - all visual elements
           const originalState = flagBtn.dataset.userFlagged;
           const originalTitle = flagBtn.title;
+          const originalClass = flagBtn.classList.contains('comment-flag-btn--flagged');
+          const svgElement = flagBtn.querySelector('svg');
+          const originalFill = svgElement ? svgElement.getAttribute('fill') : 'none';
+
+          // Apply unflagged state immediately
           flagBtn.dataset.userFlagged = 'false';
           flagBtn.title = 'Report comment';
-          flagBtn.classList.remove('user-flagged');
+          flagBtn.classList.remove('user-flagged', 'comment-flag-btn--flagged');
+          if (svgElement) svgElement.setAttribute('fill', 'none');
 
           try {
             const result = await unflagComment(comment.id);
             console.log('Unflag result:', result);
             if (result.success) {
-              // Success - UI already updated, just show confirmation
+              // Success - UI already updated
               console.log('Report removed successfully');
             } else {
               // REVERT on error
               flagBtn.dataset.userFlagged = originalState;
               flagBtn.title = originalTitle;
+              if (originalClass) flagBtn.classList.add('comment-flag-btn--flagged');
               flagBtn.classList.add('user-flagged');
+              if (svgElement) svgElement.setAttribute('fill', originalFill);
               alert(result.error || 'Error removing report. Please try again.');
             }
           } catch (err) {
             // REVERT on error
             flagBtn.dataset.userFlagged = originalState;
             flagBtn.title = originalTitle;
+            if (originalClass) flagBtn.classList.add('comment-flag-btn--flagged');
             flagBtn.classList.add('user-flagged');
+            if (svgElement) svgElement.setAttribute('fill', originalFill);
             console.error('Error unflagging comment:', err);
             alert('Error removing report: ' + err.message);
           }
@@ -277,31 +287,39 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
             return;
           }
 
-          // OPTIMISTIC UI: Update immediately
+          // OPTIMISTIC UI: Update immediately - all visual elements
           const originalState = flagBtn.dataset.userFlagged;
           const originalTitle = flagBtn.title;
+          const originalClass = flagBtn.classList.contains('comment-flag-btn--flagged');
+          const svgElement = flagBtn.querySelector('svg');
+          const originalFill = svgElement ? svgElement.getAttribute('fill') : 'none';
+
+          // Apply flagged state immediately
           flagBtn.dataset.userFlagged = 'true';
-          flagBtn.title = 'Remove report';
-          flagBtn.classList.add('user-flagged');
+          flagBtn.title = 'You reported this comment (click to remove report)';
+          flagBtn.classList.add('user-flagged', 'comment-flag-btn--flagged');
+          if (svgElement) svgElement.setAttribute('fill', '#f59e0b');
 
           try {
             const result = await flagComment(comment.id, 'User reported');
             console.log('Flag result:', result);
             if (result.success) {
-              // Success - UI already updated, just show confirmation
+              // Success - UI already updated
               console.log('Comment reported successfully');
             } else {
               // REVERT on error
               flagBtn.dataset.userFlagged = originalState;
               flagBtn.title = originalTitle;
-              flagBtn.classList.remove('user-flagged');
+              flagBtn.classList.remove('user-flagged', 'comment-flag-btn--flagged');
+              if (svgElement) svgElement.setAttribute('fill', originalFill);
               alert(result.error || 'Error reporting comment. Please try again.');
             }
           } catch (err) {
             // REVERT on error
             flagBtn.dataset.userFlagged = originalState;
             flagBtn.title = originalTitle;
-            flagBtn.classList.remove('user-flagged');
+            flagBtn.classList.remove('user-flagged', 'comment-flag-btn--flagged');
+            if (svgElement) svgElement.setAttribute('fill', originalFill);
             console.error('Error flagging comment:', err);
             alert('Error reporting comment: ' + err.message);
           }
