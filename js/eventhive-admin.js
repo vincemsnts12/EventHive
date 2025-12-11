@@ -2640,8 +2640,13 @@ async function loadFlaggedComments() {
       const authorUsername = profilesMap[comment.user_id] || 'Unknown';
       const eventTitle = eventsMap[comment.event_id] || 'Unknown Event';
 
+      // Check if comment is truncated (needs modal)
+      const isTruncated = comment.content && comment.content.length > 100;
+      const clickableStyle = isTruncated ? 'cursor: pointer; text-decoration: underline; text-decoration-style: dotted;' : '';
+      const clickableAttr = isTruncated ? `onclick="showCommentPreview('${comment.id}', '${escapeHtml(comment.content || '').replace(/'/g, "\\'")}', this)"` : '';
+
       row.innerHTML = `
-        <td class="flagged-comment-text" title="${escapeHtml(comment.content || '')}">${escapeHtml(truncatedText)}</td>
+        <td class="flagged-comment-text" title="${isTruncated ? 'Click to view full comment' : ''}" style="${clickableStyle}" ${clickableAttr} data-comment-id="${comment.id}" data-full-content="${escapeHtml(comment.content || '')}">${escapeHtml(truncatedText)}</td>
         <td>
           <a href="eventhive-profile.html?uid=${comment.user_id}" class="flagged-author-link" target="_blank">
             ${escapeHtml(authorUsername)}
@@ -2670,6 +2675,7 @@ async function loadFlaggedComments() {
 
       tbody.appendChild(row);
     });
+
 
   } catch (error) {
     console.warn('Flagged comments not available:', error.message);
@@ -2863,3 +2869,63 @@ document.addEventListener('DOMContentLoaded', async function () {
   console.log('=== eventhive-admin.js DOMContentLoaded COMPLETE ===');
 });
 
+// ============================================
+// Comment Preview Modal Functions
+// ============================================
+
+let currentPreviewCommentId = null;
+
+/**
+ * Show the comment preview modal with full comment text
+ * @param {string} commentId - The comment ID
+ * @param {string} fullContent - The full comment content 
+ * @param {HTMLElement} element - The clicked element (to get data if needed)
+ */
+function showCommentPreview(commentId, fullContent, element) {
+  const modal = document.getElementById('commentPreviewModal');
+  const contentDiv = document.getElementById('commentPreviewContent');
+  const deleteBtn = document.getElementById('commentPreviewDeleteBtn');
+
+  if (!modal || !contentDiv) return;
+
+  // Get full content from data attribute if available (more reliable)
+  const actualContent = element?.dataset?.fullContent || fullContent || '[No content]';
+
+  // Decode HTML entities
+  const decodedContent = decodeHtmlEntities(actualContent);
+
+  currentPreviewCommentId = commentId;
+  contentDiv.textContent = decodedContent;
+
+  // Set up delete button
+  if (deleteBtn) {
+    deleteBtn.onclick = async () => {
+      if (confirm('Are you sure you want to permanently delete this comment? This action cannot be undone.')) {
+        await deleteFlaggedComment(commentId);
+        closeCommentPreviewModal();
+      }
+    };
+  }
+
+  modal.classList.add('active');
+}
+
+/**
+ * Close the comment preview modal
+ */
+function closeCommentPreviewModal() {
+  const modal = document.getElementById('commentPreviewModal');
+  if (modal) {
+    modal.classList.remove('active');
+    currentPreviewCommentId = null;
+  }
+}
+
+/**
+ * Decode HTML entities back to their original characters
+ */
+function decodeHtmlEntities(text) {
+  const textArea = document.createElement('textarea');
+  textArea.innerHTML = text;
+  return textArea.value;
+}

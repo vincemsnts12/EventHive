@@ -247,6 +247,39 @@
     </div>
   </section>
 
+  <!-- Comment Preview Modal -->
+  <div id="commentPreviewModal" class="admin-modal-overlay">
+    <div class="admin-modal-container">
+      <div class="admin-modal-header">
+        <h2>Flagged Comment</h2>
+        <button class="admin-modal-close" onclick="closeCommentPreviewModal()">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div id="commentPreviewContent" style="
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 20px;
+          font-size: 1rem;
+          line-height: 1.6;
+          color: #333;
+          max-height: 400px;
+          overflow-y: auto;
+          word-wrap: break-word;
+          white-space: pre-wrap;
+        "></div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button class="action-btn" onclick="closeCommentPreviewModal()"
+            style="background: #6b7280; color: white; padding: 10px 20px;">Close</button>
+          <button id="commentPreviewDeleteBtn" class="action-btn action-btn--delete" style="padding: 10px 20px;">
+            Delete Comment
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   <!-- ===== FOOTER ===== -->
   <footer class="footer">
     <div class="footer-container">
