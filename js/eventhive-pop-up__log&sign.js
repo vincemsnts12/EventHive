@@ -68,14 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loginLink) {
     loginLink.addEventListener('click', (e) => {
       e.preventDefault();
-      loginModal.style.display = 'flex';
+      if (loginModal) loginModal.style.display = 'flex';
     });
   }
 
   if (signupLink) {
     signupLink.addEventListener('click', (e) => {
       e.preventDefault();
-      signupModal.style.display = 'flex';
+      if (signupModal) signupModal.style.display = 'flex';
     });
   }
 
