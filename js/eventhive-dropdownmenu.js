@@ -34,8 +34,10 @@ function getCachedAuthState() {
 // Determine dropdown state from cached auth state
 function getDropdownState() {
   const cached = getCachedAuthState();
-  if (cached === null) {
-    return 'guest'; // Default state if no cache
+
+  // Check for null OR missing/malformed state object
+  if (cached === null || typeof cached !== 'object' || typeof cached.isLoggedIn === 'undefined') {
+    return 'guest'; // Default state if no cache or malformed
   }
 
   if (cached.isLoggedIn && cached.isAdmin) {
