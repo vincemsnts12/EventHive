@@ -215,6 +215,35 @@
         </table>
       </div>
 
+      <!-- Flagged Comments Table -->
+      <div class="dashboard-table-container" id="flaggedCommentsSection">
+        <h2 class="table-section-title">Flagged Comments (3+ Reports)</h2>
+        <div id="flaggedCommentsLoading" style="text-align: center; padding: 20px; color: #999;">Loading flagged
+          comments...</div>
+        <table class="events-table flagged-comments-table" id="flaggedCommentsTable" style="display: none;">
+          <thead class="table-header--flagged">
+            <tr>
+              <th>Comment</th>
+              <th>Author</th>
+              <th>Event</th>
+              <th>Flags</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="flaggedCommentsTableBody">
+            <!-- Flagged comments will be populated by JavaScript -->
+          </tbody>
+        </table>
+        <div id="flaggedCommentsEmpty" style="display: none; text-align: center; padding: 30px; color: #666;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+            style="opacity: 0.3; margin-bottom: 10px;">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <p>No comments with 3+ flags. Great job!</p>
+        </div>
+      </div>
+
     </div>
   </section>
 

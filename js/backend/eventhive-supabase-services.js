@@ -1567,6 +1567,32 @@ async function flagComment(commentId, reason = '') {
     return { success: false, error: 'Authentication required' };
   }
 
+  // Check daily flag limit (max 10 flags per day)
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const countResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/comment_flags?user_id=eq.${userId}&created_at=gte.${today}&select=id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (countResponse.ok) {
+      const todayFlags = await countResponse.json();
+      if (todayFlags && todayFlags.length >= 10) {
+        return { success: false, error: 'You have reached the daily limit of 10 flags. Please try again tomorrow.' };
+      }
+    }
+  } catch (e) {
+    console.warn('Could not check daily flag limit:', e);
+    // Continue anyway - better to allow than block due to check failure
+  }
+
   try {
     const response = await fetch(
       `${SUPABASE_URL}/rest/v1/comment_flags`,

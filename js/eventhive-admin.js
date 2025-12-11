@@ -77,23 +77,23 @@ function isValidUUID(id) {
 function formatShortDate(dateString) {
   // Input: "November 7, 2025 (Friday) | 12:00 NN - 4:00 PM"
   // Output: "11/7/25 | 12NN-4PM"
-  
+
   const parts = dateString.split(' | ');
   if (parts.length !== 2) return dateString;
-  
+
   const datePart = parts[0];
   const timePart = parts[1];
-  
+
   // Extract date
   const dateMatch = datePart.match(/(\w+)\s+(\d+),\s+(\d+)/);
   if (!dateMatch) return dateString;
-  
+
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
   const month = monthNames.indexOf(dateMatch[1]) + 1;
   const day = dateMatch[2];
   const year = dateMatch[3].slice(-2);
-  
+
   // Format time
   // Split time range and format each time separately
   const timeRange = timePart.split(' - ').map(time => {
@@ -108,9 +108,9 @@ function formatShortDate(dateString) {
     // For other times, preserve the colon and remove space before AM/PM
     return time.trim().replace(' AM', 'AM').replace(' PM', 'PM');
   });
-  
+
   let timeFormatted = timeRange.join('-');
-  
+
   return `${month}/${day}/${year} | ${timeFormatted}`;
 }
 
@@ -120,15 +120,15 @@ function sortEvents(events) {
     const statusOrder = { 'Upcoming': 1, 'Ongoing': 2, 'Concluded': 3 };
     const statusA = statusOrder[a[1].status] || 999;
     const statusB = statusOrder[b[1].status] || 999;
-    
+
     if (statusA !== statusB) {
       return statusA - statusB;
     }
-    
+
     // If same status, sort by date (earliest first)
     return a[1].date.localeCompare(b[1].date);
   });
-  
+
   return sorted;
 }
 
@@ -136,9 +136,9 @@ function sortEvents(events) {
 function populatePublishedEventsTable() {
   const tbody = document.getElementById('publishedEventsTableBody');
   if (!tbody) return;
-  
+
   tbody.innerHTML = '';
-  
+
   // Filter out pending events from published table
   const publishedEvents = {};
   for (const eventId in eventsData) {
@@ -147,9 +147,9 @@ function populatePublishedEventsTable() {
       publishedEvents[eventId] = event;
     }
   }
-  
+
   const sortedEvents = sortEvents(publishedEvents);
-  
+
   sortedEvents.forEach(([eventId, event]) => {
     const row = document.createElement('tr');
     row.setAttribute('data-event-id', eventId);
@@ -160,7 +160,7 @@ function populatePublishedEventsTable() {
     if (isEnded) {
       row.classList.add('ended-event');
     }
-    
+
     // Title (scrollable, clickable)
     const titleCell = document.createElement('td');
     titleCell.className = 'title-cell';
@@ -179,7 +179,7 @@ function populatePublishedEventsTable() {
     });
     titleCell.appendChild(titleSpan);
     row.appendChild(titleCell);
-    
+
     // Description (clickable)
     const descCell = document.createElement('td');
     descCell.className = 'desc-cell';
@@ -198,7 +198,7 @@ function populatePublishedEventsTable() {
     });
     descCell.appendChild(descSpan);
     row.appendChild(descCell);
-    
+
     // Location (clickable icon)
     const locationCell = document.createElement('td');
     locationCell.className = 'location-cell';
@@ -220,7 +220,7 @@ function populatePublishedEventsTable() {
     });
     locationCell.appendChild(locationIcon);
     row.appendChild(locationCell);
-    
+
     // Date & Time (clickable)
     const dateCell = document.createElement('td');
     dateCell.className = 'date-cell';
@@ -248,19 +248,19 @@ function populatePublishedEventsTable() {
     dateDisplay.appendChild(dateText);
     dateCell.appendChild(dateDisplay);
     row.appendChild(dateCell);
-    
+
     // College Tags - show all colleges
     const collegeCell = document.createElement('td');
     collegeCell.className = 'tags-cell';
     collegeCell.setAttribute('data-label', 'College');
     const collegeContainer = document.createElement('div');
     collegeContainer.className = 'tags-container';
-    
+
     // Get colleges array (support both old single college and new multiple colleges)
     const colleges = event.colleges || (event.college ? [event.college] : []);
     const mainCollegeCode = event.mainCollege || event.college || colleges[0] || 'TUP';
     const mainCollegeObj = availableColleges.find(c => c.code === mainCollegeCode);
-    
+
     // Show main college tag
     const collegeTag = document.createElement('span');
     collegeTag.className = `tag-item tag-item--college ${mainCollegeObj?.color === 'tup' ? 'tag-item--tup' : ''}`;
@@ -276,7 +276,7 @@ function populatePublishedEventsTable() {
       }
     });
     collegeContainer.appendChild(collegeTag);
-    
+
     // Show +N indicator if there are additional colleges
     if (colleges.length > 1) {
       const additionalColleges = colleges.filter(c => c !== mainCollegeCode);
@@ -297,22 +297,22 @@ function populatePublishedEventsTable() {
       });
       collegeContainer.appendChild(countTag);
     }
-    
+
     row.appendChild(collegeCell);
     collegeCell.appendChild(collegeContainer);
-    
+
     // Organization Tags (show main + indicator)
     const orgCell = document.createElement('td');
     orgCell.className = 'tags-cell';
     orgCell.setAttribute('data-label', 'Organization');
     const orgContainer = document.createElement('div');
     orgContainer.className = 'tags-container';
-    
+
     // Get organizations array (support both new array and old single field)
-    const orgs = event.organizations && event.organizations.length > 0 
-      ? event.organizations 
+    const orgs = event.organizations && event.organizations.length > 0
+      ? event.organizations
       : (event.organization ? [event.organization] : []);
-    
+
     if (orgs.length > 0) {
       // Show first organization
       const orgTag = document.createElement('span');
@@ -328,7 +328,7 @@ function populatePublishedEventsTable() {
         }
       });
       orgContainer.appendChild(orgTag);
-      
+
       // Show +N indicator if there are additional organizations
       if (orgs.length > 1) {
         const countTag = document.createElement('span');
@@ -359,24 +359,24 @@ function populatePublishedEventsTable() {
       });
       orgContainer.appendChild(orgTag);
     }
-    
+
     orgCell.appendChild(orgContainer);
     row.appendChild(orgCell);
-    
+
     // Status
     const statusCell = document.createElement('td');
     statusCell.className = 'status-cell';
     statusCell.setAttribute('data-label', 'Status');
     const statusBadge = document.createElement('span');
     // Derive statusColor from status
-    const statusColor = typeof getStatusColor !== 'undefined' 
-      ? getStatusColor(event.status) 
+    const statusColor = typeof getStatusColor !== 'undefined'
+      ? getStatusColor(event.status)
       : event.status.toLowerCase();
     statusBadge.className = `status-badge ${statusColor}`;
     statusBadge.innerHTML = `<span class="status-dot"></span> ${event.status}`;
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
-    
+
     // Images (clickable icon)
     const imagesCell = document.createElement('td');
     imagesCell.className = 'images-cell';
@@ -406,7 +406,7 @@ function populatePublishedEventsTable() {
     });
     imagesCell.appendChild(imagesIcon);
     row.appendChild(imagesCell);
-    
+
     // Actions
     const actionsCell = document.createElement('td');
     actionsCell.className = 'actions-cell';
@@ -414,7 +414,7 @@ function populatePublishedEventsTable() {
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'actions-buttons';
     actionsDiv.id = `actions-${eventId}`;
-    
+
     const editBtn = document.createElement('button');
     editBtn.className = 'action-btn action-btn--edit';
     editBtn.setAttribute('data-event-id', eventId);
@@ -422,7 +422,7 @@ function populatePublishedEventsTable() {
     editBtn.setAttribute('title', 'Edit');
     editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
     editBtn.addEventListener('click', () => toggleEditMode(eventId, 'published', row));
-    
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'action-btn action-btn--delete';
     deleteBtn.setAttribute('data-event-id', eventId);
@@ -439,19 +439,19 @@ function populatePublishedEventsTable() {
             return;
           }
         }
-        
+
         // Remove from local data
         delete eventsData[eventId];
         rowsInEditMode.delete(eventId);
         populatePublishedEventsTable();
       }
     });
-    
+
     actionsDiv.appendChild(editBtn);
     actionsDiv.appendChild(deleteBtn);
     actionsCell.appendChild(actionsDiv);
     row.appendChild(actionsCell);
-    
+
     tbody.appendChild(row);
   });
 }
@@ -462,15 +462,15 @@ function formatTodayDate() {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
-  
+
   const dayName = dayNames[today.getDay()];
   const month = monthNames[today.getMonth()];
   const day = today.getDate();
   const year = today.getFullYear();
-  
+
   // Default time: 9:00 AM - 5:00 PM
   const dateString = `${month} ${day}, ${year} (${dayName}) | 9:00 AM - 5:00 PM`;
-  
+
   return dateString;
 }
 
@@ -552,12 +552,12 @@ async function createNewPendingEvent() {
     // Create event directly in database with timeout protection
     // Note: events-services.js has its own 15s timeout, this is a backup
     const createPromise = createEvent(newEvent);
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Event creation timed out after 30 seconds')), 30000)
     );
-    
+
     const result = await Promise.race([createPromise, timeoutPromise]);
-    
+
     // Restore cursor immediately after promise resolves
     document.body.style.cursor = '';
     if (addRow) {
@@ -568,17 +568,17 @@ async function createNewPendingEvent() {
     if (result && result.success && result.event && result.event.id) {
       // Add event to pendingEventsData with DB ID
       pendingEventsData[result.event.id] = result.event;
-      
+
       console.log('Event created successfully:', result.event.id);
 
       // Refresh table and scroll to new event
-          populatePendingEventsTable();
-          setTimeout(() => {
+      populatePendingEventsTable();
+      setTimeout(() => {
         const newRow = document.querySelector(`tr[data-event-id="${result.event.id}"]`);
         if (newRow) {
           newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-          }, 100);
+      }, 100);
     } else {
       // Show error message with more details in console
       const errorMsg = result?.error || 'Unknown error';
@@ -599,7 +599,7 @@ async function createNewPendingEvent() {
     console.error('Error creating event:', error);
     console.error('Error stack:', error.stack);
     console.error('Event data that failed:', newEvent);
-    
+
     if (error.message && error.message.includes('timed out')) {
       alert('Event creation is taking too long. Please check your connection and try again.');
     } else {
@@ -614,19 +614,19 @@ function buildAddNewEventRow() {
   row.className = 'add-new-event-row';
   row.style.cursor = 'pointer';
   row.style.backgroundColor = '#f5f5f5';
-  
+
   row.addEventListener('click', () => {
     createNewPendingEvent();
   });
-  
+
   row.addEventListener('mouseenter', () => {
     row.style.backgroundColor = '#e8e8e8';
   });
-  
+
   row.addEventListener('mouseleave', () => {
     row.style.backgroundColor = '#f5f5f5';
   });
-  
+
   // Create a single cell that spans all columns
   const cell = document.createElement('td');
   cell.colSpan = 9; // Title, Description, Location, Date & Time, College, Organization, Status, Images, Actions
@@ -634,7 +634,7 @@ function buildAddNewEventRow() {
   cell.style.padding = '20px';
   cell.style.fontSize = '1.2rem';
   cell.style.color = '#666';
-  
+
   // Add plus icon
   const plusIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   plusIcon.setAttribute('width', '32');
@@ -644,13 +644,13 @@ function buildAddNewEventRow() {
   plusIcon.style.verticalAlign = 'middle';
   plusIcon.style.marginRight = '10px';
   plusIcon.innerHTML = '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>';
-  
+
   const text = document.createTextNode('Add New Event');
-  
+
   cell.appendChild(plusIcon);
   cell.appendChild(text);
   row.appendChild(cell);
-  
+
   return row;
 }
 
@@ -658,15 +658,15 @@ function buildAddNewEventRow() {
 function populatePendingEventsTable() {
   const tbody = document.getElementById('pendingEventsTableBody');
   if (!tbody) return;
-  
+
   tbody.innerHTML = '';
-  
+
   const sortedPending = sortEvents(pendingEventsData);
-  
+
   sortedPending.forEach(([eventId, event]) => {
     const row = document.createElement('tr');
     row.setAttribute('data-event-id', eventId);
-    
+
     // Title (scrollable, clickable)
     const titleCell = document.createElement('td');
     titleCell.className = 'title-cell';
@@ -682,7 +682,7 @@ function populatePendingEventsTable() {
     });
     titleCell.appendChild(titleSpan);
     row.appendChild(titleCell);
-    
+
     // Description (clickable)
     const descCell = document.createElement('td');
     descCell.className = 'desc-cell';
@@ -698,7 +698,7 @@ function populatePendingEventsTable() {
     });
     descCell.appendChild(descSpan);
     row.appendChild(descCell);
-    
+
     // Location (clickable icon)
     const locationCell = document.createElement('td');
     locationCell.className = 'location-cell';
@@ -717,7 +717,7 @@ function populatePendingEventsTable() {
     });
     locationCell.appendChild(locationIcon);
     row.appendChild(locationCell);
-    
+
     // Date & Time (clickable - always editable for pending events)
     const dateCell = document.createElement('td');
     dateCell.className = 'date-cell';
@@ -742,21 +742,21 @@ function populatePendingEventsTable() {
     dateDisplay.appendChild(dateText);
     dateCell.appendChild(dateDisplay);
     row.appendChild(dateCell);
-    
+
     // College Tags (show main + indicator)
     const collegeCell = document.createElement('td');
     collegeCell.className = 'tags-cell';
     collegeCell.setAttribute('data-label', 'College');
     const collegeContainer = document.createElement('div');
     collegeContainer.className = 'tags-container';
-    
+
     // Get all colleges for this event
-    const pendingColleges = event.colleges && event.colleges.length > 0 
-      ? event.colleges 
+    const pendingColleges = event.colleges && event.colleges.length > 0
+      ? event.colleges
       : (event.college ? [event.college] : ['TUP']);
     const pendingMainCollegeCode = event.mainCollege || event.college || pendingColleges[0];
     const pendingMainCollegeObj = availableColleges.find(c => c.code === pendingMainCollegeCode);
-    
+
     // Show main college tag
     const pendingCollegeTag = document.createElement('span');
     pendingCollegeTag.className = `tag-item tag-item--college ${pendingMainCollegeObj?.color === 'tup' ? 'tag-item--tup' : ''}`;
@@ -768,7 +768,7 @@ function populatePendingEventsTable() {
       openEditCollegeModal(eventId, pendingMainCollegeCode);
     });
     collegeContainer.appendChild(pendingCollegeTag);
-    
+
     // Show +N indicator if there are additional colleges
     if (pendingColleges.length > 1) {
       const additionalPendingColleges = pendingColleges.filter(c => c !== pendingMainCollegeCode);
@@ -785,22 +785,22 @@ function populatePendingEventsTable() {
       });
       collegeContainer.appendChild(pendingCollegeCountTag);
     }
-    
+
     row.appendChild(collegeCell);
     collegeCell.appendChild(collegeContainer);
-    
+
     // Organization Tags (show main + indicator)
     const orgCell = document.createElement('td');
     orgCell.className = 'tags-cell';
     orgCell.setAttribute('data-label', 'Organization');
     const orgContainer = document.createElement('div');
     orgContainer.className = 'tags-container';
-    
+
     // Get organizations array (support both new array and old single field)
-    const pendingOrgs = event.organizations && event.organizations.length > 0 
-      ? event.organizations 
+    const pendingOrgs = event.organizations && event.organizations.length > 0
+      ? event.organizations
       : (event.organization ? [event.organization] : []);
-    
+
     if (pendingOrgs.length > 0) {
       // Show first organization
       const pendingOrgTag = document.createElement('span');
@@ -812,7 +812,7 @@ function populatePendingEventsTable() {
         openEditOrgModal(eventId, event.organization);
       });
       orgContainer.appendChild(pendingOrgTag);
-      
+
       // Show +N indicator if there are additional organizations
       if (pendingOrgs.length > 1) {
         const pendingOrgCountTag = document.createElement('span');
@@ -837,10 +837,10 @@ function populatePendingEventsTable() {
       });
       orgContainer.appendChild(pendingOrgTag);
     }
-    
+
     orgCell.appendChild(orgContainer);
     row.appendChild(orgCell);
-    
+
     // Status
     const statusCell = document.createElement('td');
     statusCell.className = 'status-cell';
@@ -850,7 +850,7 @@ function populatePendingEventsTable() {
     statusBadge.innerHTML = `<span class="status-dot"></span> ${event.status}`;
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
-    
+
     // Images (clickable icon)
     const imagesCell = document.createElement('td');
     imagesCell.className = 'images-cell';
@@ -880,36 +880,36 @@ function populatePendingEventsTable() {
     });
     imagesCell.appendChild(imagesIcon);
     row.appendChild(imagesCell);
-    
+
     // Actions (Approve & Reject)
     const actionsCell = document.createElement('td');
     actionsCell.className = 'actions-cell';
     actionsCell.setAttribute('data-label', 'Actions');
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'actions-buttons';
-    
+
     const approveBtn = document.createElement('button');
     approveBtn.className = 'action-btn action-btn--approve';
     approveBtn.setAttribute('data-event-id', eventId);
     approveBtn.setAttribute('title', 'Approve');
     approveBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
     approveBtn.addEventListener('click', () => approvePendingEvent(eventId));
-    
+
     const rejectBtn = document.createElement('button');
     rejectBtn.className = 'action-btn action-btn--reject';
     rejectBtn.setAttribute('data-event-id', eventId);
     rejectBtn.setAttribute('title', 'Reject');
     rejectBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
     rejectBtn.addEventListener('click', () => rejectPendingEvent(eventId));
-    
+
     actionsDiv.appendChild(approveBtn);
     actionsDiv.appendChild(rejectBtn);
     actionsCell.appendChild(actionsDiv);
     row.appendChild(actionsCell);
-    
+
     tbody.appendChild(row);
   });
-  
+
   // Add the "+" row at the bottom
   const addRow = buildAddNewEventRow();
   tbody.appendChild(addRow);
@@ -921,9 +921,9 @@ async function approvePendingEvent(eventId) {
     alert('Event not found');
     return;
   }
-  
+
   const pendingEvent = pendingEventsData[eventId];
-  
+
   // Approve in Supabase if function available
   if (typeof approveEvent === 'function') {
     // Check if event already exists in the database (has valid UUID)
@@ -979,7 +979,7 @@ async function approvePendingEvent(eventId) {
     };
     delete pendingEventsData[eventId];
   }
-  
+
   // Refresh both tables
   populatePublishedEventsTable();
   populatePendingEventsTable();
@@ -991,13 +991,13 @@ async function rejectPendingEvent(eventId) {
     alert('Event not found');
     return;
   }
-  
+
   const event = pendingEventsData[eventId];
-  
+
   if (!confirm(`Are you sure you want to reject "${event.title}"?`)) {
     return;
   }
-  
+
   // Reject in Supabase if function available
   if (typeof rejectEvent === 'function') {
     const result = await rejectEvent(eventId);
@@ -1006,10 +1006,10 @@ async function rejectPendingEvent(eventId) {
       return;
     }
   }
-  
+
   // Remove from pending
   delete pendingEventsData[eventId];
-  
+
   // Refresh pending table
   populatePendingEventsTable();
 }
@@ -1017,7 +1017,7 @@ async function rejectPendingEvent(eventId) {
 // ===== TOGGLE EDIT MODE FOR ROW =====
 function toggleEditMode(eventId, tableType, rowElement) {
   const isInEditMode = rowsInEditMode.has(eventId);
-  
+
   if (isInEditMode) {
     // Exit edit mode
     rowsInEditMode.delete(eventId);
@@ -1035,9 +1035,9 @@ function toggleEditMode(eventId, tableType, rowElement) {
 function updateActionButtons(eventId, tableType, isEditMode) {
   const actionsDiv = document.getElementById(`actions-${eventId}`);
   if (!actionsDiv) return;
-  
+
   actionsDiv.innerHTML = '';
-  
+
   if (isEditMode) {
     // Show Save and Cancel buttons only (no delete in edit mode)
     const saveBtn = document.createElement('button');
@@ -1048,15 +1048,15 @@ function updateActionButtons(eventId, tableType, isEditMode) {
     saveBtn.addEventListener('click', () => {
       // Save changes (all modals already handle saving)
       rowsInEditMode.delete(eventId);
-      const row = document.querySelector(`tr[data-event-id="${eventId}"]`) || 
-                  Array.from(document.querySelectorAll('#publishedEventsTableBody tr')).find(r => 
-                    r.querySelector(`[data-event-id="${eventId}"]`));
+      const row = document.querySelector(`tr[data-event-id="${eventId}"]`) ||
+        Array.from(document.querySelectorAll('#publishedEventsTableBody tr')).find(r =>
+          r.querySelector(`[data-event-id="${eventId}"]`));
       if (row) {
         row.classList.remove('edit-mode');
         updateActionButtons(eventId, tableType, false);
       }
     });
-    
+
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'action-btn action-btn--cancel';
     cancelBtn.setAttribute('data-event-id', eventId);
@@ -1064,9 +1064,9 @@ function updateActionButtons(eventId, tableType, isEditMode) {
     cancelBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
     cancelBtn.addEventListener('click', () => {
       rowsInEditMode.delete(eventId);
-      const row = document.querySelector(`tr[data-event-id="${eventId}"]`) || 
-                  Array.from(document.querySelectorAll('#publishedEventsTableBody tr')).find(r => 
-                    r.querySelector(`[data-event-id="${eventId}"]`));
+      const row = document.querySelector(`tr[data-event-id="${eventId}"]`) ||
+        Array.from(document.querySelectorAll('#publishedEventsTableBody tr')).find(r =>
+          r.querySelector(`[data-event-id="${eventId}"]`));
       if (row) {
         row.classList.remove('edit-mode');
         updateActionButtons(eventId, tableType, false);
@@ -1074,14 +1074,14 @@ function updateActionButtons(eventId, tableType, isEditMode) {
         populatePublishedEventsTable();
       }
     });
-    
+
     // Save on left, Cancel on right
     actionsDiv.appendChild(saveBtn);
     actionsDiv.appendChild(cancelBtn);
   } else {
     // Show Edit and Delete buttons
     const event = eventsData[eventId];
-    
+
     const editBtn = document.createElement('button');
     editBtn.className = 'action-btn action-btn--edit';
     editBtn.setAttribute('data-event-id', eventId);
@@ -1089,11 +1089,11 @@ function updateActionButtons(eventId, tableType, isEditMode) {
     editBtn.setAttribute('title', 'Edit');
     editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
     editBtn.addEventListener('click', () => {
-      const row = Array.from(document.querySelectorAll('#publishedEventsTableBody tr')).find(r => 
+      const row = Array.from(document.querySelectorAll('#publishedEventsTableBody tr')).find(r =>
         r.querySelector(`[data-event-id="${eventId}"]`));
       if (row) toggleEditMode(eventId, tableType, row);
     });
-    
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'action-btn action-btn--delete';
     deleteBtn.setAttribute('data-event-id', eventId);
@@ -1107,7 +1107,7 @@ function updateActionButtons(eventId, tableType, isEditMode) {
         populatePublishedEventsTable();
       }
     });
-    
+
     actionsDiv.appendChild(editBtn);
     actionsDiv.appendChild(deleteBtn);
   }
@@ -1120,7 +1120,7 @@ function openEditTitleModal(eventId, currentTitle) {
   currentEditingField = 'title';
   if (!currentEditingTable) currentEditingTable = 'published';
   document.getElementById('editTitleInput').value = currentTitle;
-  
+
   const featureCheckbox = document.getElementById('featureEventCheckbox');
   if (featureCheckbox) {
     const source = currentEditingTable === 'pending' ? pendingEventsData : eventsData;
@@ -1150,27 +1150,27 @@ function openEditCollegeModal(eventId, currentCollege) {
   currentEditingEventId = eventId;
   currentEditingField = 'college';
   if (!currentEditingTable) currentEditingTable = 'published';
-  
+
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[eventId];
-  
+
   // Get current colleges (support both old single college and new multiple colleges)
   const currentColleges = event.colleges || (event.college ? [event.college] : []);
   const mainCollege = event.mainCollege || event.college || 'TUP';
-  
+
   const selector = document.getElementById('collegeTagSelector');
   selector.innerHTML = '';
-  
+
   // Create a flex container for side-by-side layout
   const flexContainer = document.createElement('div');
   flexContainer.style.display = 'flex';
   flexContainer.style.gap = '2rem';
   flexContainer.style.alignItems = 'flex-start';
-  
+
   // Left side: Main College Dropdown
   const leftColumn = document.createElement('div');
   leftColumn.style.flex = '1';
-  
+
   const mainLabel = document.createElement('label');
   mainLabel.textContent = 'Main College (for event card display):';
   mainLabel.style.display = 'block';
@@ -1178,7 +1178,7 @@ function openEditCollegeModal(eventId, currentCollege) {
   mainLabel.style.fontWeight = 'bold';
   mainLabel.style.color = '#333';
   leftColumn.appendChild(mainLabel);
-  
+
   const mainCollegeSelect = document.createElement('select');
   mainCollegeSelect.id = 'mainCollegeSelect';
   mainCollegeSelect.style.width = '100%';
@@ -1188,7 +1188,7 @@ function openEditCollegeModal(eventId, currentCollege) {
   mainCollegeSelect.style.fontSize = '1rem';
   mainCollegeSelect.style.backgroundColor = '#fff';
   mainCollegeSelect.style.cursor = 'pointer';
-  
+
   availableColleges.forEach(college => {
     const option = document.createElement('option');
     option.value = college.code;
@@ -1198,20 +1198,20 @@ function openEditCollegeModal(eventId, currentCollege) {
     }
     mainCollegeSelect.appendChild(option);
   });
-  
+
   leftColumn.appendChild(mainCollegeSelect);
-  
+
   // Right side: Collaboration Colleges Checkboxes
   const rightColumn = document.createElement('div');
   rightColumn.style.flex = '1';
-  
+
   const collabLabel = document.createElement('div');
   collabLabel.textContent = 'Collaboration Colleges:';
   collabLabel.style.marginBottom = '10px';
   collabLabel.style.fontWeight = 'bold';
   collabLabel.style.color = '#333';
   rightColumn.appendChild(collabLabel);
-  
+
   const checkboxesContainer = document.createElement('div');
   checkboxesContainer.id = 'collegeCheckboxesContainer';
   checkboxesContainer.style.maxHeight = '300px';
@@ -1219,59 +1219,59 @@ function openEditCollegeModal(eventId, currentCollege) {
   checkboxesContainer.style.border = '2px solid #e0e0e0';
   checkboxesContainer.style.borderRadius = '8px';
   checkboxesContainer.style.padding = '10px';
-  
+
   // Function to rebuild checkboxes (excludes the currently selected main college)
   function rebuildCollegeCheckboxes(selectedMainCollege, checkedColleges) {
     checkboxesContainer.innerHTML = '';
-    
+
     availableColleges.forEach(college => {
       // Skip the main college from checkboxes
       if (college.code === selectedMainCollege) {
         return;
       }
-      
+
       const item = document.createElement('div');
       item.className = 'tag-checkbox-item';
       item.style.marginBottom = '8px';
-      
+
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.id = `college-${college.code}`;
       checkbox.value = college.code;
       checkbox.checked = checkedColleges.includes(college.code);
-      
+
       const label = document.createElement('label');
       label.setAttribute('for', `college-${college.code}`);
       label.textContent = college.name;
       label.style.marginLeft = '8px';
       label.style.cursor = 'pointer';
-      
+
       item.appendChild(checkbox);
       item.appendChild(label);
       checkboxesContainer.appendChild(item);
     });
   }
-  
+
   // Initial build of checkboxes
   rebuildCollegeCheckboxes(mainCollege, currentColleges);
-  
+
   // When main college changes, rebuild checkboxes (excluding the new main college)
-  mainCollegeSelect.addEventListener('change', function() {
+  mainCollegeSelect.addEventListener('change', function () {
     // Get currently checked collaboration colleges
     const checkedBoxes = checkboxesContainer.querySelectorAll('input[type="checkbox"]:checked');
     const checkedColleges = Array.from(checkedBoxes).map(cb => cb.value);
-    
+
     // Rebuild checkboxes excluding the newly selected main college
     rebuildCollegeCheckboxes(this.value, checkedColleges);
   });
-  
+
   rightColumn.appendChild(checkboxesContainer);
-  
+
   // Add both columns to flex container
   flexContainer.appendChild(leftColumn);
   flexContainer.appendChild(rightColumn);
   selector.appendChild(flexContainer);
-  
+
   document.getElementById('editCollegeModal').classList.add('active');
 }
 
@@ -1282,21 +1282,21 @@ function openEditOrgModal(eventId, currentOrg) {
   currentEditingEventId = eventId;
   currentEditingField = 'organization';
   if (!currentEditingTable) currentEditingTable = 'published';
-  
+
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[eventId];
-  
+
   // Get current organizations (support both old single org and new array)
   const currentOrgs = event.organizations || (event.organization ? [event.organization] : []);
   selectedOrganizationsOrder = [...currentOrgs]; // Initialize with current order
-  
+
   const selector = document.getElementById('orgTagSelector');
   selector.innerHTML = '';
-  
+
   // Add search input
   const searchContainer = document.createElement('div');
   searchContainer.style.marginBottom = '15px';
-  
+
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.id = 'orgSearchInput';
@@ -1307,36 +1307,36 @@ function openEditOrgModal(eventId, currentOrg) {
   searchInput.style.borderRadius = '8px';
   searchInput.style.fontSize = '1rem';
   searchInput.style.boxSizing = 'border-box';
-  
+
   searchContainer.appendChild(searchInput);
   selector.appendChild(searchContainer);
-  
+
   // Container for checkboxes
   const checkboxesContainer = document.createElement('div');
   checkboxesContainer.id = 'orgCheckboxesContainer';
   checkboxesContainer.style.maxHeight = '300px';
   checkboxesContainer.style.overflowY = 'auto';
   selector.appendChild(checkboxesContainer);
-  
+
   // Function to render organization checkboxes
   function renderOrgCheckboxes(searchTerm = '') {
     checkboxesContainer.innerHTML = '';
     const searchLower = searchTerm.toLowerCase();
-    
+
     // Separate checked and unchecked orgs
-    const checkedOrgs = selectedOrganizationsOrder.filter(org => 
+    const checkedOrgs = selectedOrganizationsOrder.filter(org =>
       availableOrganizations.includes(org)
     );
-    const uncheckedOrgs = availableOrganizations.filter(org => 
+    const uncheckedOrgs = availableOrganizations.filter(org =>
       !selectedOrganizationsOrder.includes(org)
     );
-    
+
     // Render checked orgs first (always visible, not filtered)
     checkedOrgs.forEach((org, index) => {
       const item = createOrgCheckboxItem(org, true, index + 1);
       checkboxesContainer.appendChild(item);
     });
-    
+
     // Add separator if there are checked orgs
     if (checkedOrgs.length > 0 && uncheckedOrgs.length > 0) {
       const separator = document.createElement('div');
@@ -1344,7 +1344,7 @@ function openEditOrgModal(eventId, currentOrg) {
       separator.style.margin = '10px 0';
       checkboxesContainer.appendChild(separator);
     }
-    
+
     // Render unchecked orgs (filtered by search)
     uncheckedOrgs.forEach(org => {
       // Filter by search term
@@ -1355,7 +1355,7 @@ function openEditOrgModal(eventId, currentOrg) {
       checkboxesContainer.appendChild(item);
     });
   }
-  
+
   // Function to create a checkbox item
   function createOrgCheckboxItem(org, isChecked, orderNumber = null) {
     const item = document.createElement('div');
@@ -1363,16 +1363,16 @@ function openEditOrgModal(eventId, currentOrg) {
     item.style.marginBottom = '8px';
     item.style.display = 'flex';
     item.style.alignItems = 'center';
-    
+
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.id = `org-${org.replace(/\s+/g, '-')}`;
     checkbox.value = org;
     checkbox.checked = isChecked;
     checkbox.style.marginRight = '8px';
-    
+
     // When checkbox changes, update order and re-render
-    checkbox.addEventListener('change', function() {
+    checkbox.addEventListener('change', function () {
       if (this.checked) {
         // Add to end of selected list
         if (!selectedOrganizationsOrder.includes(org)) {
@@ -1384,35 +1384,35 @@ function openEditOrgModal(eventId, currentOrg) {
       }
       renderOrgCheckboxes(searchInput.value);
     });
-    
+
     const label = document.createElement('label');
     label.setAttribute('for', `org-${org.replace(/\s+/g, '-')}`);
     label.style.cursor = 'pointer';
     label.style.flex = '1';
-    
+
     // Show order number for checked items
     if (isChecked && orderNumber) {
       label.innerHTML = `<span style="background: #B81E20; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px;">${orderNumber}</span>${org}`;
     } else {
       label.textContent = org;
     }
-    
+
     item.appendChild(checkbox);
     item.appendChild(label);
-    
+
     return item;
   }
-  
+
   // Initial render
   renderOrgCheckboxes();
-  
+
   // Search functionality
-  searchInput.addEventListener('input', function() {
+  searchInput.addEventListener('input', function () {
     renderOrgCheckboxes(this.value);
   });
-  
+
   document.getElementById('editOrgModal').classList.add('active');
-  
+
   // Focus search input
   setTimeout(() => searchInput.focus(), 100);
 }
@@ -1431,35 +1431,35 @@ function openEditDateModal(eventId, event) {
     }
     return;
   }
-  
+
   currentEditingEventId = eventId;
   currentEditingField = 'date';
   if (!currentEditingTable) currentEditingTable = 'published';
-  
+
   // Parse the current date to populate the form
   const parsedDate = parseDateString(event.date);
-  
+
   if (parsedDate) {
     // Format dates for input fields (YYYY-MM-DD)
     const startDateInput = document.getElementById('editStartDate');
     const startTimeInput = document.getElementById('editStartTime');
     const endTimeInput = document.getElementById('editEndTime');
-    
+
     // Use start date for the single date field (both start and end use the same date)
     if (startDateInput && parsedDate.startDate) {
       const startDate = new Date(parsedDate.startDate);
       startDateInput.value = startDate.toISOString().split('T')[0];
     }
-    
+
     if (startTimeInput && parsedDate.startTime) {
       startTimeInput.value = parsedDate.startTime.substring(0, 5); // HH:MM format
     }
-    
+
     if (endTimeInput && parsedDate.endTime) {
       endTimeInput.value = parsedDate.endTime.substring(0, 5); // HH:MM format
     }
   }
-  
+
   document.getElementById('editDateModal').classList.add('active');
 }
 
@@ -1490,45 +1490,45 @@ function openViewLocationModal(location) {
 function openViewCollegesModal(colleges, mainCollege) {
   const container = document.getElementById('viewCollegesList');
   container.innerHTML = '';
-  
+
   colleges.forEach(collegeCode => {
     const college = availableColleges.find(c => c.code === collegeCode);
     if (!college) return;
-    
+
     const tag = document.createElement('span');
     tag.className = `tag-item tag-item--college ${college.color === 'tup' ? 'tag-item--tup' : ''}`;
     tag.textContent = `${college.code} - ${college.name}`;
-    
+
     // Mark main college
     if (collegeCode === mainCollege) {
       tag.style.fontWeight = 'bold';
       tag.innerHTML += ' <small>(Main)</small>';
     }
-    
+
     container.appendChild(tag);
   });
-  
+
   document.getElementById('viewCollegesModal').classList.add('active');
 }
 
 function openViewOrgsModal(organizations) {
   const container = document.getElementById('viewOrgsList');
   container.innerHTML = '';
-  
+
   organizations.forEach((org, index) => {
     const tag = document.createElement('span');
     tag.className = 'tag-item tag-item--org';
     tag.textContent = org;
-    
+
     // Mark first organization
     if (index === 0) {
       tag.style.fontWeight = 'bold';
       tag.innerHTML += ' <small>(Primary)</small>';
     }
-    
+
     container.appendChild(tag);
   });
-  
+
   document.getElementById('viewOrgsModal').classList.add('active');
 }
 
@@ -1543,60 +1543,60 @@ async function saveTitleEdit() {
   const newTitle = document.getElementById('editTitleInput').value.trim();
   const featureCheckbox = document.getElementById('featureEventCheckbox');
   const isFeatured = featureCheckbox ? featureCheckbox.checked : false;
-  
+
   if (!newTitle) {
     alert('Title cannot be empty');
     return;
   }
-  
+
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[currentEditingEventId];
-  
+
   if (!event) {
     alert('Event not found');
     return;
   }
-  
+
   // Show loading cursor
   document.body.style.cursor = 'wait';
-  
+
   try {
-  // Update local data first (for immediate UI feedback)
-  event.title = newTitle;
-  event.isFeatured = isFeatured;
-  
-  // Save to Supabase if function available
-  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-    const result = await updateEvent(currentEditingEventId, event);
-    if (!result.success) {
-      alert(`Error saving title: ${result.error}`);
-      return;
-    }
-    if (result.event) Object.assign(event, result.event);
-    rowsInEditMode.delete(currentEditingEventId);
-  } else if (currentEditingTable === 'pending') {
-    // For pending events: if we have a valid DB id, attempt to persist edits immediately.
-    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-      const result = await updateEvent(event.id, event);
+    // Update local data first (for immediate UI feedback)
+    event.title = newTitle;
+    event.isFeatured = isFeatured;
+
+    // Save to Supabase if function available
+    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+      const result = await updateEvent(currentEditingEventId, event);
       if (!result.success) {
-        // Persist failed - keep local change and inform the user
-        console.warn('Failed to persist pending edit:', result.error);
-        alert(`Draft saved locally. Sync failed: ${result.error}`);
-      } else if (result.event) {
-        Object.assign(event, result.event);
+        alert(`Error saving title: ${result.error}`);
+        return;
+      }
+      if (result.event) Object.assign(event, result.event);
+      rowsInEditMode.delete(currentEditingEventId);
+    } else if (currentEditingTable === 'pending') {
+      // For pending events: if we have a valid DB id, attempt to persist edits immediately.
+      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+        const result = await updateEvent(event.id, event);
+        if (!result.success) {
+          // Persist failed - keep local change and inform the user
+          console.warn('Failed to persist pending edit:', result.error);
+          alert(`Draft saved locally. Sync failed: ${result.error}`);
+        } else if (result.event) {
+          Object.assign(event, result.event);
+        }
       }
     }
-  }
-  
-  // Save table type BEFORE closing modal (closeModal clears it)
-  const tableToRefresh = currentEditingTable;
-  closeModal('editTitleModal');
-  
-  // Refresh table
-  if (tableToRefresh === 'published') {
-    populatePublishedEventsTable();
-  } else {
-    populatePendingEventsTable();
+
+    // Save table type BEFORE closing modal (closeModal clears it)
+    const tableToRefresh = currentEditingTable;
+    closeModal('editTitleModal');
+
+    // Refresh table
+    if (tableToRefresh === 'published') {
+      populatePublishedEventsTable();
+    } else {
+      populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1607,57 +1607,57 @@ async function saveTitleEdit() {
 async function saveDescEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const newDesc = document.getElementById('editDescInput').value.trim();
-  
+
   if (!newDesc) {
     alert('Description cannot be empty');
     return;
   }
-  
+
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[currentEditingEventId];
-  
+
   if (!event) {
     alert('Event not found');
     return;
   }
-  
+
   // Show loading cursor
   document.body.style.cursor = 'wait';
-  
+
   try {
-  // Update local data
-  event.description = newDesc;
-  
-  // Save to Supabase if function available
-  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-    const result = await updateEvent(currentEditingEventId, event);
-    if (!result.success) {
-      alert(`Error saving description: ${result.error}`);
-      return;
-    }
-    if (result.event) Object.assign(event, result.event);
-    rowsInEditMode.delete(currentEditingEventId);
-  } else if (currentEditingTable === 'pending') {
-    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-      const result = await updateEvent(event.id, event);
+    // Update local data
+    event.description = newDesc;
+
+    // Save to Supabase if function available
+    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+      const result = await updateEvent(currentEditingEventId, event);
       if (!result.success) {
-        console.warn('Failed to persist pending description edit:', result.error);
+        alert(`Error saving description: ${result.error}`);
+        return;
+      }
+      if (result.event) Object.assign(event, result.event);
+      rowsInEditMode.delete(currentEditingEventId);
+    } else if (currentEditingTable === 'pending') {
+      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+        const result = await updateEvent(event.id, event);
+        if (!result.success) {
+          console.warn('Failed to persist pending description edit:', result.error);
           alert(`Draft saved locally. Sync failed: ${result.error}`);
-      } else if (result.event) {
-        Object.assign(event, result.event);
+        } else if (result.event) {
+          Object.assign(event, result.event);
+        }
       }
     }
-  }
-  
-  // Save table type BEFORE closing modal (closeModal clears it)
-  const tableToRefresh = currentEditingTable;
-  closeModal('editDescModal');
-  
-  // Refresh table
-  if (tableToRefresh === 'published') {
-    populatePublishedEventsTable();
-  } else {
-    populatePendingEventsTable();
+
+    // Save table type BEFORE closing modal (closeModal clears it)
+    const tableToRefresh = currentEditingTable;
+    closeModal('editDescModal');
+
+    // Refresh table
+    if (tableToRefresh === 'published') {
+      populatePublishedEventsTable();
+    } else {
+      populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1668,57 +1668,57 @@ async function saveDescEdit() {
 async function saveLocationEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
   const newLocation = document.getElementById('editLocationInput').value.trim();
-  
+
   if (!newLocation) {
     alert('Location cannot be empty');
     return;
   }
-  
+
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[currentEditingEventId];
-  
+
   if (!event) {
     alert('Event not found');
     return;
   }
-  
+
   // Show loading cursor
   document.body.style.cursor = 'wait';
-  
+
   try {
-  // Update local data
-  event.location = newLocation;
-  
-  // Save to Supabase if function available
-  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-    const result = await updateEvent(currentEditingEventId, event);
-    if (!result.success) {
-      alert(`Error saving location: ${result.error}`);
-      return;
-    }
-    if (result.event) Object.assign(event, result.event);
-    rowsInEditMode.delete(currentEditingEventId);
-  } else if (currentEditingTable === 'pending') {
-    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-      const result = await updateEvent(event.id, event);
+    // Update local data
+    event.location = newLocation;
+
+    // Save to Supabase if function available
+    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+      const result = await updateEvent(currentEditingEventId, event);
       if (!result.success) {
-        console.warn('Failed to persist pending location edit:', result.error);
+        alert(`Error saving location: ${result.error}`);
+        return;
+      }
+      if (result.event) Object.assign(event, result.event);
+      rowsInEditMode.delete(currentEditingEventId);
+    } else if (currentEditingTable === 'pending') {
+      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+        const result = await updateEvent(event.id, event);
+        if (!result.success) {
+          console.warn('Failed to persist pending location edit:', result.error);
           alert(`Draft saved locally. Sync failed: ${result.error}`);
-      } else if (result.event) {
-        Object.assign(event, result.event);
+        } else if (result.event) {
+          Object.assign(event, result.event);
+        }
       }
     }
-  }
-  
-  // Save table type BEFORE closing modal (closeModal clears it)
-  const tableToRefresh = currentEditingTable;
-  closeModal('editLocationModal');
-  
-  // Refresh table
-  if (tableToRefresh === 'published') {
-    populatePublishedEventsTable();
-  } else {
-    populatePendingEventsTable();
+
+    // Save table type BEFORE closing modal (closeModal clears it)
+    const tableToRefresh = currentEditingTable;
+    closeModal('editLocationModal');
+
+    // Refresh table
+    if (tableToRefresh === 'published') {
+      populatePublishedEventsTable();
+    } else {
+      populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1728,51 +1728,51 @@ async function saveLocationEdit() {
 
 async function saveCollegeEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
-  
+
   // Get main college from dropdown
   const mainCollegeSelect = document.getElementById('mainCollegeSelect');
   if (!mainCollegeSelect) {
     alert('Main college dropdown not found');
     return;
   }
-  
+
   const mainCollegeCode = mainCollegeSelect.value;
   if (!mainCollegeCode) {
     alert('Please select a main college');
     return;
   }
-  
+
   const mainCollege = availableColleges.find(c => c.code === mainCollegeCode);
   if (!mainCollege) {
     alert('Invalid main college selection');
     return;
   }
-  
+
   // Get collaboration colleges (checkboxes) - main college is already excluded from checkboxes
   const checked = document.querySelectorAll('#collegeTagSelector input[type="checkbox"]:checked');
   const colleges = Array.from(checked).map(cb => cb.value);
-  
+
   // Always include main college in colleges array (at the beginning)
   if (!colleges.includes(mainCollegeCode)) {
     colleges.unshift(mainCollegeCode); // Add at the beginning
   }
-  
+
   // Ensure colleges is always an array with at least the main college
   if (colleges.length === 0) {
     colleges.push(mainCollegeCode);
   }
-  
+
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[currentEditingEventId];
-  
+
   if (!event) {
     alert('Event not found');
     return;
   }
-  
+
   // Show loading cursor
   document.body.style.cursor = 'wait';
-  
+
   try {
     // Prepare update data (don't modify original event yet)
     const updateData = {
@@ -1782,15 +1782,15 @@ async function saveCollegeEdit() {
       college: mainCollegeCode, // Keep for backward compatibility
       collegeColor: mainCollege.color // Color for main college
     };
-  
-  // Save to Supabase if function available
-  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+
+    // Save to Supabase if function available
+    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
       const result = await updateEvent(currentEditingEventId, updateData);
-    if (!result.success) {
+      if (!result.success) {
         console.error('Failed to update college:', result.error);
-      alert(`Error saving college: ${result.error}`);
-      return;
-    }
+        alert(`Error saving college: ${result.error}`);
+        return;
+      }
       // Only update local data if database save succeeded
       if (result.event) {
         Object.assign(event, result.event);
@@ -1798,14 +1798,14 @@ async function saveCollegeEdit() {
         // Fallback: update local data with what we tried to save
         Object.assign(event, updateData);
       }
-    rowsInEditMode.delete(currentEditingEventId);
-  } else if (currentEditingTable === 'pending') {
-    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+      rowsInEditMode.delete(currentEditingEventId);
+    } else if (currentEditingTable === 'pending') {
+      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
         const result = await updateEvent(event.id, updateData);
-      if (!result.success) {
-        console.warn('Failed to persist pending college edit:', result.error);
-          console.warn('Update data that failed:', { 
-            ...updateData, 
+        if (!result.success) {
+          console.warn('Failed to persist pending college edit:', result.error);
+          console.warn('Update data that failed:', {
+            ...updateData,
             description: '[truncated]',
             colleges: updateData.colleges ? `[${updateData.colleges.length} colleges]` : 'none'
           });
@@ -1815,11 +1815,11 @@ async function saveCollegeEdit() {
         } else {
           // Database save succeeded - use the returned event data
           if (result.event) {
-        Object.assign(event, result.event);
+            Object.assign(event, result.event);
           } else {
             Object.assign(event, updateData);
-      }
-    }
+          }
+        }
       } else {
         // No valid UUID or updateEvent not available - just update locally
         Object.assign(event, updateData);
@@ -1827,17 +1827,17 @@ async function saveCollegeEdit() {
     } else {
       // No database save attempted - just update locally
       Object.assign(event, updateData);
-  }
-  
-  // Save table type BEFORE closing modal (closeModal clears it)
-  const tableToRefresh = currentEditingTable;
-  closeModal('editCollegeModal');
-  
-  // Refresh table
-  if (tableToRefresh === 'published') {
-    populatePublishedEventsTable();
-  } else {
-    populatePendingEventsTable();
+    }
+
+    // Save table type BEFORE closing modal (closeModal clears it)
+    const tableToRefresh = currentEditingTable;
+    closeModal('editCollegeModal');
+
+    // Refresh table
+    if (tableToRefresh === 'published') {
+      populatePublishedEventsTable();
+    } else {
+      populatePendingEventsTable();
     }
   } catch (error) {
     console.error('Unexpected error in saveCollegeEdit:', error);
@@ -1850,59 +1850,59 @@ async function saveCollegeEdit() {
 
 async function saveOrgEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
-  
+
   if (selectedOrganizationsOrder.length === 0) {
     alert('Please select at least one organization');
     return;
   }
-  
+
   const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
   const event = source[currentEditingEventId];
-  
+
   if (!event) {
     alert('Event not found');
     return;
   }
-  
+
   // Show loading cursor
   document.body.style.cursor = 'wait';
-  
+
   try {
-  // Update local data with all selected organizations (in order)
-  event.organizations = [...selectedOrganizationsOrder];
-  // Keep organization (singular) for backward compatibility - use first selected
-  event.organization = selectedOrganizationsOrder[0];
-  
-  // Save to Supabase if function available
-  if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
-    const result = await updateEvent(currentEditingEventId, event);
-    if (!result.success) {
-      alert(`Error saving organizations: ${result.error}`);
-      return;
-    }
-    if (result.event) Object.assign(event, result.event);
-    rowsInEditMode.delete(currentEditingEventId);
-  } else if (currentEditingTable === 'pending') {
-    if (isValidUUID(event.id) && typeof updateEvent === 'function') {
-      const result = await updateEvent(event.id, event);
+    // Update local data with all selected organizations (in order)
+    event.organizations = [...selectedOrganizationsOrder];
+    // Keep organization (singular) for backward compatibility - use first selected
+    event.organization = selectedOrganizationsOrder[0];
+
+    // Save to Supabase if function available
+    if (typeof updateEvent === 'function' && currentEditingTable === 'published') {
+      const result = await updateEvent(currentEditingEventId, event);
       if (!result.success) {
-        console.warn('Failed to persist pending organizations edit:', result.error);
-        alert(`Draft saved locally. Sync failed: ${result.error}`);
-      } else if (result.event) {
-        Object.assign(event, result.event);
+        alert(`Error saving organizations: ${result.error}`);
+        return;
+      }
+      if (result.event) Object.assign(event, result.event);
+      rowsInEditMode.delete(currentEditingEventId);
+    } else if (currentEditingTable === 'pending') {
+      if (isValidUUID(event.id) && typeof updateEvent === 'function') {
+        const result = await updateEvent(event.id, event);
+        if (!result.success) {
+          console.warn('Failed to persist pending organizations edit:', result.error);
+          alert(`Draft saved locally. Sync failed: ${result.error}`);
+        } else if (result.event) {
+          Object.assign(event, result.event);
+        }
       }
     }
-  }
-  
-  // Save table type BEFORE closing modal (closeModal clears it)
-  const tableToRefresh = currentEditingTable;
-  closeModal('editOrgModal');
-  
-  // Refresh table
-  if (tableToRefresh === 'published') {
-    populatePublishedEventsTable();
-  } else {
-    populatePendingEventsTable();
+
+    // Save table type BEFORE closing modal (closeModal clears it)
+    const tableToRefresh = currentEditingTable;
+    closeModal('editOrgModal');
+
+    // Refresh table
+    if (tableToRefresh === 'published') {
+      populatePublishedEventsTable();
+    } else {
+      populatePendingEventsTable();
     }
   } finally {
     // Restore cursor
@@ -1912,68 +1912,68 @@ async function saveOrgEdit() {
 
 async function saveDateEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
-  
+
   const startDateInput = document.getElementById('editStartDate');
   const startTimeInput = document.getElementById('editStartTime');
   const endTimeInput = document.getElementById('editEndTime');
-  
+
   if (!startDateInput || !startTimeInput || !endTimeInput) {
     alert('Please fill in all date and time fields');
     return;
   }
-  
+
   const date = startDateInput.value;
   const startTime = startTimeInput.value;
   const endTime = endTimeInput.value;
-  
+
   if (!date || !startTime || !endTime) {
     alert('Please fill in all date and time fields');
     return;
   }
-  
+
   // Combine date and time into Date objects (using the same date for both start and end)
   const startDateTime = new Date(`${date}T${startTime}`);
   const endDateTime = new Date(`${date}T${endTime}`);
-  
+
   if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
     alert('Invalid date or time format');
     return;
   }
-  
+
   if (endDateTime < startDateTime) {
     alert('End time must be after start time');
     return;
   }
-  
+
   // Show loading cursor
   document.body.style.cursor = 'wait';
-  
+
   try {
     // Format the date string for display (using formatDateRangeForDisplay)
-    const formattedDate = typeof formatDateRangeForDisplay !== 'undefined' 
+    const formattedDate = typeof formatDateRangeForDisplay !== 'undefined'
       ? formatDateRangeForDisplay(startDateTime, endDateTime)
       : `${date} ${startTime} - ${endTime}`;
-    
+
     // Update the event data
     const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
     const event = source[currentEditingEventId];
-    
+
     if (event) {
       // Update the date string
       event.date = formattedDate;
-      
+
       // Update parsed date fields
       event.startDate = startDateTime;
       event.endDate = endDateTime;
       // Persist time (camelCase; DB mapping handled downstream)
       event.startTime = `${startTime}:00`;
       event.endTime = `${endTime}:00`;
-      
+
       // Recalculate status from dates
       if (typeof calculateEventStatus !== 'undefined') {
         event.status = calculateEventStatus(startDateTime, endDateTime, event.status === 'Pending' ? 'Pending' : null);
       }
-      
+
       // Persist published edits as well
       if (currentEditingTable === 'published' && typeof updateEvent === 'function') {
         const result = await updateEvent(currentEditingEventId, event);
@@ -1997,11 +1997,11 @@ async function saveDateEdit() {
         }
       }
     }
-    
+
     // Save table type BEFORE closing modal (closeModal clears it)
     const tableToRefresh = currentEditingTable;
     closeModal('editDateModal');
-    
+
     // Refresh the table
     if (tableToRefresh === 'published') {
       populatePublishedEventsTable();
@@ -2024,40 +2024,40 @@ let currentThumbnailIndex = 0;
 function openImagesModal(eventId, event) {
   currentEditingEventId = eventId;
   if (!currentEditingTable) currentEditingTable = 'published';
-  
+
   // Check if in edit mode (for published events only)
-  const isEditMode = currentEditingTable === 'published' 
-    ? rowsInEditMode.has(eventId) 
+  const isEditMode = currentEditingTable === 'published'
+    ? rowsInEditMode.has(eventId)
     : true; // Pending events are always editable
-  
+
   // Initialize images array (use event.images or default to universityLogo as example only)
   // Only show default logo if there are no real images uploaded
-  currentEditingImages = event.images && event.images.length > 0 
-    ? [...event.images] 
+  currentEditingImages = event.images && event.images.length > 0
+    ? [...event.images]
     : []; // Start with empty array - default logo is just for display, not in editing array
-  
+
   // Get thumbnail index (first image is thumbnail by default, or check if there's a thumbnailIndex property)
   currentThumbnailIndex = event.thumbnailIndex !== undefined ? event.thumbnailIndex : 0;
-  
+
   // Ensure thumbnail index is valid
   if (currentThumbnailIndex >= currentEditingImages.length) {
     currentThumbnailIndex = 0;
   }
-  
+
   // Update modal title based on edit mode
   const modalTitle = document.querySelector('#imagesModal .admin-modal-header h2');
   if (modalTitle) {
     modalTitle.textContent = isEditMode ? 'Manage Event Images' : 'Event Images';
   }
-  
+
   // Show/hide upload section and action buttons based on edit mode
   const uploadSection = document.querySelector('.images-upload-section');
   const actionButtons = document.querySelector('#imagesModal .admin-modal-actions');
-  
+
   if (uploadSection) {
     uploadSection.style.display = isEditMode ? 'block' : 'none';
   }
-  
+
   if (actionButtons) {
     // Hide Cancel/Save buttons in view mode, show Close button instead
     if (!isEditMode) {
@@ -2076,18 +2076,18 @@ function openImagesModal(eventId, event) {
       cancelBtn.id = 'cancelImagesEdit';
       cancelBtn.textContent = 'Cancel';
       cancelBtn.addEventListener('click', () => closeModal('imagesModal'));
-      
+
       const saveBtn = document.createElement('button');
       saveBtn.className = 'admin-btn admin-btn--save';
       saveBtn.id = 'saveImagesEdit';
       saveBtn.textContent = 'Save';
       saveBtn.addEventListener('click', saveImagesEdit);
-      
+
       actionButtons.appendChild(cancelBtn);
       actionButtons.appendChild(saveBtn);
     }
   }
-  
+
   renderImagesGallery(isEditMode);
   document.getElementById('imagesModal').classList.add('active');
 }
@@ -2095,25 +2095,25 @@ function openImagesModal(eventId, event) {
 function renderImagesGallery(isEditMode = true) {
   const gallery = document.getElementById('imagesGallery');
   if (!gallery) return;
-  
+
   gallery.innerHTML = '';
-  
+
   // Show example image if no real images uploaded (only in edit mode)
   if (currentEditingImages.length === 0 && isEditMode) {
     const exampleItem = document.createElement('div');
     exampleItem.className = 'image-item';
     exampleItem.style.opacity = '0.6';
-    
+
     const exampleWrapper = document.createElement('div');
     exampleWrapper.className = 'image-wrapper';
-    
+
     const exampleImg = document.createElement('img');
     const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
     const event = source[currentEditingEventId];
     exampleImg.src = event?.universityLogo || 'images/tup.png';
     exampleImg.alt = 'Example image';
     exampleImg.style.opacity = '0.5';
-    
+
     const exampleLabel = document.createElement('div');
     exampleLabel.style.position = 'absolute';
     exampleLabel.style.top = '50%';
@@ -2127,14 +2127,14 @@ function renderImagesGallery(isEditMode = true) {
     exampleLabel.style.fontWeight = '600';
     exampleLabel.style.zIndex = '10';
     exampleLabel.textContent = 'Example - Upload images to replace';
-    
+
     exampleWrapper.appendChild(exampleImg);
     exampleWrapper.appendChild(exampleLabel);
     exampleItem.appendChild(exampleWrapper);
     gallery.appendChild(exampleItem);
     return;
   }
-  
+
   if (currentEditingImages.length === 0) {
     const emptyMsg = document.createElement('p');
     emptyMsg.className = 'images-empty-message';
@@ -2142,17 +2142,17 @@ function renderImagesGallery(isEditMode = true) {
     gallery.appendChild(emptyMsg);
     return;
   }
-  
+
   currentEditingImages.forEach((imageUrl, index) => {
     const imageItem = document.createElement('div');
     imageItem.className = 'image-item';
     if (index === currentThumbnailIndex) {
       imageItem.classList.add('image-item--thumbnail');
     }
-    
+
     const imageWrapper = document.createElement('div');
     imageWrapper.className = 'image-wrapper';
-    
+
     // Make image clickable to view larger (both modes)
     imageWrapper.style.cursor = 'pointer';
     imageWrapper.addEventListener('click', (e) => {
@@ -2161,27 +2161,27 @@ function renderImagesGallery(isEditMode = true) {
         window.open(imageUrl, '_blank');
       }
     });
-    
+
     const img = document.createElement('img');
     img.src = imageUrl;
     img.alt = `Event image ${index + 1}`;
-    img.onerror = function() {
+    img.onerror = function () {
       this.src = 'images/tup.png';
     };
-    
+
     // Only show overlay and actions in edit mode
     if (isEditMode) {
       const overlay = document.createElement('div');
       overlay.className = 'image-overlay';
-      
+
       const thumbnailBadge = document.createElement('div');
       thumbnailBadge.className = 'thumbnail-badge';
       thumbnailBadge.textContent = 'Thumbnail';
       thumbnailBadge.style.display = index === currentThumbnailIndex ? 'block' : 'none';
-      
+
       const actions = document.createElement('div');
       actions.className = 'image-actions';
-      
+
       const setThumbnailBtn = document.createElement('button');
       setThumbnailBtn.className = 'image-action-btn';
       setThumbnailBtn.textContent = index === currentThumbnailIndex ? '✓ Thumbnail' : 'Set as Thumbnail';
@@ -2190,7 +2190,7 @@ function renderImagesGallery(isEditMode = true) {
         e.stopPropagation();
         setThumbnail(index);
       });
-      
+
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'image-action-btn image-action-btn--delete';
       deleteBtn.title = 'Delete image';
@@ -2199,13 +2199,13 @@ function renderImagesGallery(isEditMode = true) {
         e.stopPropagation();
         deleteImage(index);
       });
-      
+
       actions.appendChild(setThumbnailBtn);
       actions.appendChild(deleteBtn);
-      
+
       overlay.appendChild(thumbnailBadge);
       overlay.appendChild(actions);
-      
+
       imageWrapper.appendChild(overlay);
     } else {
       // View mode: just show thumbnail badge if it's the thumbnail
@@ -2220,10 +2220,10 @@ function renderImagesGallery(isEditMode = true) {
         imageWrapper.appendChild(thumbnailBadge);
       }
     }
-    
+
     imageWrapper.appendChild(img);
     imageItem.appendChild(imageWrapper);
-    
+
     gallery.appendChild(imageItem);
   });
 }
@@ -2239,19 +2239,19 @@ function setThumbnail(index) {
 function deleteImage(index) {
   if (confirm('Are you sure you want to delete this image?')) {
     currentEditingImages.splice(index, 1);
-    
+
     // If no images left, reset to empty array (will show example image)
     if (currentEditingImages.length === 0) {
       currentThumbnailIndex = 0;
     } else {
-    // Adjust thumbnail index if needed
-    if (currentThumbnailIndex >= currentEditingImages.length) {
-      currentThumbnailIndex = Math.max(0, currentEditingImages.length - 1);
-    } else if (currentThumbnailIndex > index) {
-      currentThumbnailIndex--;
+      // Adjust thumbnail index if needed
+      if (currentThumbnailIndex >= currentEditingImages.length) {
+        currentThumbnailIndex = Math.max(0, currentEditingImages.length - 1);
+      } else if (currentThumbnailIndex > index) {
+        currentThumbnailIndex--;
       }
     }
-    
+
     // Re-render with edit mode (always true when this function is called)
     renderImagesGallery(true);
   }
@@ -2260,7 +2260,7 @@ function deleteImage(index) {
 async function handleImageUpload(event) {
   const files = Array.from(event.target.files);
   const errorDiv = document.getElementById('imageUploadError');
-  
+
   // Validate file count
   const totalImages = currentEditingImages.length + files.length;
   if (totalImages > 5) {
@@ -2269,50 +2269,50 @@ async function handleImageUpload(event) {
     event.target.value = ''; // Reset input
     return;
   }
-  
+
   // Validate file types
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
   const invalidFiles = files.filter(file => !validTypes.includes(file.type));
-  
+
   if (invalidFiles.length > 0) {
     errorDiv.textContent = `Invalid file type(s). Only JPG and PNG files are allowed.`;
     errorDiv.style.display = 'block';
     event.target.value = ''; // Reset input
     return;
   }
-  
+
   // Hide error if validation passes
   errorDiv.style.display = 'none';
-  
+
   // Show loading state
   errorDiv.textContent = 'Uploading images...';
   errorDiv.style.display = 'block';
   errorDiv.style.color = '#666';
-  
+
   // Upload files to Supabase Storage
   if (typeof uploadEventImages === 'function' && currentEditingEventId) {
     try {
       const uploadResult = await uploadEventImages(files, currentEditingEventId);
-      
+
       if (uploadResult.success && uploadResult.urls.length > 0) {
         // Remove default logo if it exists (it's just an example)
         const defaultLogo = 'images/tup.png';
         currentEditingImages = currentEditingImages.filter(img => img !== defaultLogo);
-        
+
         // Add uploaded URLs to current editing images
         currentEditingImages.push(...uploadResult.urls);
-        
+
         // If this is the first real image, set it as thumbnail
         if (currentEditingImages.length === uploadResult.urls.length) {
           currentThumbnailIndex = 0;
         }
-        
+
         errorDiv.style.display = 'none';
         renderImagesGallery(true);
       } else {
         // Show errors
-        const errorMsg = uploadResult.errors && uploadResult.errors.length > 0 
-          ? uploadResult.errors.join('; ') 
+        const errorMsg = uploadResult.errors && uploadResult.errors.length > 0
+          ? uploadResult.errors.join('; ')
           : 'Failed to upload images. Please try again.';
         errorDiv.textContent = errorMsg;
         errorDiv.style.color = '#B81E20';
@@ -2333,7 +2333,7 @@ async function handleImageUpload(event) {
         // Remove default logo if it exists (it's just an example)
         const defaultLogo = 'images/tup.png';
         currentEditingImages = currentEditingImages.filter(img => img !== defaultLogo);
-        
+
         currentEditingImages.push(imageUrl);
         if (currentEditingImages.length === 1) {
           currentThumbnailIndex = 0;
@@ -2348,94 +2348,94 @@ async function handleImageUpload(event) {
       reader.readAsDataURL(file);
     });
   }
-  
+
   // Reset input
   event.target.value = '';
 }
 
 async function saveImagesEdit() {
   if (!currentEditingEventId || !currentEditingTable) return;
-  
+
   // Show loading cursor
   document.body.style.cursor = 'wait';
-  
+
   try {
-  // Ensure thumbnail index is valid
-  if (currentThumbnailIndex >= currentEditingImages.length) {
-    currentThumbnailIndex = 0;
-  }
-  
+    // Ensure thumbnail index is valid
+    if (currentThumbnailIndex >= currentEditingImages.length) {
+      currentThumbnailIndex = 0;
+    }
+
     // Don't add default logo - if no images, save empty array
     // The default logo is only for display purposes as an example
-  
-  // Update event in Supabase if functions are available
-  if (typeof updateEvent === 'function') {
-    if (currentEditingTable === 'published') {
-      const source = eventsData;
-      const event = source[currentEditingEventId];
 
-      if (event) {
-        // Update event with new images and thumbnail index
-        // Include saveImages flag to explicitly save images
-        const updatedEvent = {
-          ...event,
-          images: [...currentEditingImages],
-          thumbnailIndex: currentThumbnailIndex,
-          saveImages: true  // Flag to tell updateEvent to save images
-        };
+    // Update event in Supabase if functions are available
+    if (typeof updateEvent === 'function') {
+      if (currentEditingTable === 'published') {
+        const source = eventsData;
+        const event = source[currentEditingEventId];
 
-        const result = await updateEvent(currentEditingEventId, updatedEvent);
+        if (event) {
+          // Update event with new images and thumbnail index
+          // Include saveImages flag to explicitly save images
+          const updatedEvent = {
+            ...event,
+            images: [...currentEditingImages],
+            thumbnailIndex: currentThumbnailIndex,
+            saveImages: true  // Flag to tell updateEvent to save images
+          };
 
-        if (result.success) {
-          // Update local data
+          const result = await updateEvent(currentEditingEventId, updatedEvent);
+
+          if (result.success) {
+            // Update local data
+            event.images = [...currentEditingImages];
+            event.thumbnailIndex = currentThumbnailIndex;
+          } else {
+            alert(`Error saving images: ${result.error}`);
+            return;
+          }
+        }
+      } else {
+        // For pending events: persist images to event_images table immediately (so they survive reloads)
+        const source = pendingEventsData;
+        const event = source[currentEditingEventId];
+
+        if (event && isValidUUID(currentEditingEventId) && typeof saveEventImages === 'function') {
+          // Attempt to persist images to database
+          const saveResult = await saveEventImages(currentEditingEventId, currentEditingImages, currentThumbnailIndex);
+          if (!saveResult.success) {
+            console.warn('Failed to persist pending images:', saveResult.error);
+            // Still update local copy for UI consistency
+          }
+        }
+
+        // Update local data
+        if (event) {
           event.images = [...currentEditingImages];
           event.thumbnailIndex = currentThumbnailIndex;
-        } else {
-          alert(`Error saving images: ${result.error}`);
-          return;
         }
       }
     } else {
-      // For pending events: persist images to event_images table immediately (so they survive reloads)
-      const source = pendingEventsData;
+      // Fallback: update local data only (for development)
+      const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
       const event = source[currentEditingEventId];
-      
-      if (event && isValidUUID(currentEditingEventId) && typeof saveEventImages === 'function') {
-        // Attempt to persist images to database
-        const saveResult = await saveEventImages(currentEditingEventId, currentEditingImages, currentThumbnailIndex);
-        if (!saveResult.success) {
-          console.warn('Failed to persist pending images:', saveResult.error);
-          // Still update local copy for UI consistency
-        }
-      }
-      
-      // Update local data
+
       if (event) {
         event.images = [...currentEditingImages];
         event.thumbnailIndex = currentThumbnailIndex;
       }
     }
-  } else {
-    // Fallback: update local data only (for development)
-    const source = currentEditingTable === 'published' ? eventsData : pendingEventsData;
-    const event = source[currentEditingEventId];
-    
-    if (event) {
-      event.images = [...currentEditingImages];
-      event.thumbnailIndex = currentThumbnailIndex;
+
+    // Save table type BEFORE closing modal (closeModal clears it)
+    const tableToRefresh = currentEditingTable;
+    closeModal('imagesModal');
+
+    // Refresh the table
+    if (tableToRefresh === 'published') {
+      populatePublishedEventsTable();
+    } else {
+      populatePendingEventsTable();
     }
-  }
-  
-  // Save table type BEFORE closing modal (closeModal clears it)
-  const tableToRefresh = currentEditingTable;
-  closeModal('imagesModal');
-  
-  // Refresh the table
-  if (tableToRefresh === 'published') {
-    populatePublishedEventsTable();
-  } else {
-    populatePendingEventsTable();
-  }
   } finally {
     // Restore cursor
     document.body.style.cursor = '';
@@ -2445,12 +2445,12 @@ async function saveImagesEdit() {
 async function addNewOrganization() {
   const input = document.getElementById('newOrgInput');
   const newOrg = input.value.trim();
-  
+
   if (!newOrg) {
     alert('Please enter an organization name');
     return;
   }
-  
+
   if (availableOrganizations.includes(newOrg)) {
     alert('This organization already exists');
     input.value = '';
@@ -2467,28 +2467,28 @@ async function addNewOrganization() {
     // Save to database if function available
     if (typeof createOrganization === 'function') {
       const result = await createOrganization(newOrg);
-      
+
       if (!result.success) {
         alert(`Error adding organization: ${result.error}`);
         return;
       }
-      
+
       // Add to cache
       if (result.organization) {
         organizationsCache[result.organization.id] = result.organization;
       }
-      
+
       console.log('Organization created successfully:', newOrg);
     }
-    
+
     // Add to local array
     availableOrganizations.push(newOrg);
     input.value = '';
-    
+
     // Reopen modal to show new org (and auto-select it)
     const eventId = currentEditingEventId;
     openEditOrgModal(eventId, newOrg);
-    
+
   } catch (error) {
     console.error('Error adding organization:', error);
     alert(`Error adding organization: ${error.message}`);
@@ -2499,63 +2499,245 @@ async function addNewOrganization() {
   }
 }
 
+// ===== FLAGGED COMMENTS MANAGEMENT =====
+
+async function loadFlaggedComments() {
+  const loadingDiv = document.getElementById('flaggedCommentsLoading');
+  const tableEl = document.getElementById('flaggedCommentsTable');
+  const tbody = document.getElementById('flaggedCommentsTableBody');
+  const emptyDiv = document.getElementById('flaggedCommentsEmpty');
+
+  if (!tbody) return;
+
+  // Show loading
+  if (loadingDiv) loadingDiv.style.display = 'block';
+  if (tableEl) tableEl.style.display = 'none';
+  if (emptyDiv) emptyDiv.style.display = 'none';
+
+  try {
+    // Fetch flagged comments using RPC function
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.warn('Supabase not configured for flagged comments');
+      if (loadingDiv) loadingDiv.textContent = 'Supabase not configured';
+      return;
+    }
+
+    // Get auth token
+    let accessToken = null;
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      (key.includes('supabase') && key.includes('auth-token')) ||
+      (key.startsWith('sb-') && key.includes('auth-token'))
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+
+    if (!accessToken) {
+      if (loadingDiv) loadingDiv.textContent = 'Authentication required';
+      return;
+    }
+
+    // Call the RPC function
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_flagged_comments_for_admin`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch flagged comments: ${response.status}`);
+    }
+
+    const flaggedComments = await response.json();
+
+    // Hide loading
+    if (loadingDiv) loadingDiv.style.display = 'none';
+
+    if (!flaggedComments || flaggedComments.length === 0) {
+      if (emptyDiv) emptyDiv.style.display = 'block';
+      return;
+    }
+
+    // Render table
+    if (tableEl) tableEl.style.display = 'table';
+    tbody.innerHTML = '';
+
+    flaggedComments.forEach(comment => {
+      const row = document.createElement('tr');
+
+      // Truncate comment text
+      const truncatedText = comment.comment_content && comment.comment_content.length > 100
+        ? comment.comment_content.substring(0, 100) + '...'
+        : (comment.comment_content || '[No content]');
+
+      row.innerHTML = `
+        <td class="flagged-comment-text" title="${escapeHtml(comment.comment_content || '')}">${escapeHtml(truncatedText)}</td>
+        <td>
+          <a href="eventhive-profile.html?uid=${comment.comment_author_id}" class="flagged-author-link" target="_blank">
+            ${escapeHtml(comment.comment_author_username || 'Unknown')}
+          </a>
+        </td>
+        <td>
+          <a href="eventhive-events.html?event=${comment.event_id}" class="flagged-event-link" target="_blank">
+            ${escapeHtml(comment.event_title || 'Unknown Event')}
+          </a>
+        </td>
+        <td>
+          <span class="flag-count-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.3"/>
+              <line x1="4" y1="22" x2="4" y2="15" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            ${comment.flag_count}
+          </span>
+        </td>
+        <td>
+          <button class="delete-flagged-btn" onclick="deleteFlaggedComment('${comment.comment_id}')">
+            Delete
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+    });
+
+  } catch (error) {
+    console.error('Error loading flagged comments:', error);
+    if (loadingDiv) {
+      loadingDiv.textContent = `Error: ${error.message}`;
+      loadingDiv.style.color = '#B81E20';
+    }
+  }
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+async function deleteFlaggedComment(commentId) {
+  if (!confirm('Are you sure you want to permanently delete this comment? This action cannot be undone.')) {
+    return;
+  }
+
+  try {
+    const SUPABASE_URL = window.__EH_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+    // Get auth token
+    let accessToken = null;
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      (key.includes('supabase') && key.includes('auth-token')) ||
+      (key.startsWith('sb-') && key.includes('auth-token'))
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+
+    if (!accessToken) {
+      alert('Authentication required');
+      return;
+    }
+
+    // Call the RPC function to delete
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_delete_flagged_comment`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_comment_id: commentId })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Delete failed: ${response.status} - ${errorText}`);
+    }
+
+    alert('Comment deleted successfully.');
+
+    // Reload the table
+    await loadFlaggedComments();
+
+  } catch (error) {
+    console.error('Error deleting flagged comment:', error);
+    alert(`Error deleting comment: ${error.message}`);
+  }
+}
+
 // ===== EVENT LISTENERS =====
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
   console.log('=== eventhive-admin.js DOMContentLoaded START ===');
-  
+
   // Load organizations from database first
   await loadOrganizationsFromDatabase();
   console.log('Organizations loaded, setting up event listeners...');
-  
+
   // Then populate tables
   populatePublishedEventsTable();
   populatePendingEventsTable();
-  
+
+  // Load flagged comments
+  loadFlaggedComments();
+
   // View Title Modal
   document.getElementById('closeViewTitleModal')?.addEventListener('click', () => closeModal('viewTitleModal'));
   document.getElementById('closeViewTitleBtn')?.addEventListener('click', () => closeModal('viewTitleModal'));
-  
+
   // View Description Modal
   document.getElementById('closeViewDescModal')?.addEventListener('click', () => closeModal('viewDescModal'));
   document.getElementById('closeViewDescBtn')?.addEventListener('click', () => closeModal('viewDescModal'));
-  
+
   // View Location Modal
   document.getElementById('closeViewLocationModal')?.addEventListener('click', () => closeModal('viewLocationModal'));
   document.getElementById('closeViewLocationBtn')?.addEventListener('click', () => closeModal('viewLocationModal'));
-  
+
   // View Date Modal
   document.getElementById('closeViewDateModal')?.addEventListener('click', () => closeModal('viewDateModal'));
   document.getElementById('closeViewDateBtn')?.addEventListener('click', () => closeModal('viewDateModal'));
-  
+
   // View Colleges Modal
   document.getElementById('closeViewCollegesModal')?.addEventListener('click', () => closeModal('viewCollegesModal'));
   document.getElementById('closeViewCollegesBtn')?.addEventListener('click', () => closeModal('viewCollegesModal'));
-  
+
   // View Organizations Modal
   document.getElementById('closeViewOrgsModal')?.addEventListener('click', () => closeModal('viewOrgsModal'));
   document.getElementById('closeViewOrgsBtn')?.addEventListener('click', () => closeModal('viewOrgsModal'));
-  
+
   // Title Modal
   document.getElementById('closeTitleModal')?.addEventListener('click', () => closeModal('editTitleModal'));
   document.getElementById('cancelTitleEdit')?.addEventListener('click', () => closeModal('editTitleModal'));
   document.getElementById('saveTitleEdit')?.addEventListener('click', () => saveTitleEdit());
-  
+
   // Description Modal
   document.getElementById('closeDescModal')?.addEventListener('click', () => closeModal('editDescModal'));
   document.getElementById('cancelDescEdit')?.addEventListener('click', () => closeModal('editDescModal'));
   document.getElementById('saveDescEdit')?.addEventListener('click', saveDescEdit);
-  
+
   // Location Modal
   document.getElementById('closeLocationModal')?.addEventListener('click', () => closeModal('editLocationModal'));
   document.getElementById('cancelLocationEdit')?.addEventListener('click', () => closeModal('editLocationModal'));
   document.getElementById('saveLocationEdit')?.addEventListener('click', saveLocationEdit);
-  
+
   // Date Modal
   document.getElementById('closeDateModal')?.addEventListener('click', () => closeModal('editDateModal'));
   document.getElementById('cancelDateEdit')?.addEventListener('click', () => closeModal('editDateModal'));
   document.getElementById('saveDateEdit')?.addEventListener('click', saveDateEdit);
-  
+
   // Images Modal
   document.getElementById('closeImagesModal')?.addEventListener('click', () => closeModal('imagesModal'));
   document.getElementById('cancelImagesEdit')?.addEventListener('click', () => closeModal('imagesModal'));
@@ -2571,35 +2753,35 @@ document.addEventListener('DOMContentLoaded', async function() {
       imageUploadInput.click();
     });
   }
-  
+
   // College Modal
   document.getElementById('closeCollegeModal')?.addEventListener('click', () => closeModal('editCollegeModal'));
   document.getElementById('cancelCollegeEdit')?.addEventListener('click', () => closeModal('editCollegeModal'));
   document.getElementById('saveCollegeEdit')?.addEventListener('click', saveCollegeEdit);
-  
+
   // Organization Modal
   document.getElementById('closeOrgModal')?.addEventListener('click', () => closeModal('editOrgModal'));
   document.getElementById('cancelOrgEdit')?.addEventListener('click', () => closeModal('editOrgModal'));
   document.getElementById('saveOrgEdit')?.addEventListener('click', saveOrgEdit);
   document.getElementById('addNewOrgBtn')?.addEventListener('click', addNewOrganization);
-  
+
   // Close modals on overlay click
   document.querySelectorAll('.admin-modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', function(e) {
+    overlay.addEventListener('click', function (e) {
       if (e.target === this) {
         const modalId = this.id;
         closeModal(modalId);
       }
     });
   });
-  
+
   // Enter key to add new organization
-  document.getElementById('newOrgInput')?.addEventListener('keypress', function(e) {
+  document.getElementById('newOrgInput')?.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
       addNewOrganization();
     }
   });
-  
+
   console.log('=== eventhive-admin.js DOMContentLoaded COMPLETE ===');
 });
 

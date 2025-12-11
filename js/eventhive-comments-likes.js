@@ -61,22 +61,8 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
   const isGuest = !currentUserId;
   // Only show delete button if user is authenticated AND it's their own comment
   const isOwnComment = currentUserId && comment.userId === currentUserId;
-  // Check if comment is hidden
-  const isHidden = comment.is_hidden || comment.isHidden;
 
-  // If hidden, show hidden message instead of normal content
-  if (isHidden) {
-    commentItem.classList.add('comment-item--hidden');
-    commentItem.innerHTML = `
-      <div class="comment-hidden-message">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <span>Comment has been automatically hidden because it appears to contain language that may violate our community guidelines (profanity/inappropriate content).</span>
-      </div>
-    `;
-    return commentItem;
-  }
+  // Note: is_hidden check removed - comments no longer auto-hide, admin decides on deletion
 
   // Build action button HTML - delete for own, flag for others
   let actionButtonHtml = '';

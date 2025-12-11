@@ -204,3 +204,94 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Run these queries to verify:
 -- SELECT * FROM information_schema.columns WHERE table_name = 'comments' AND column_name IN ('is_hidden', 'hidden_reason');
 -- SELECT * FROM information_schema.tables WHERE table_name IN ('comment_flags', 'comment_flag_logs');
+
+-- ============================================================
+-- STEP 11: DISABLE AUTO-HIDE TRIGGER
+-- Flags are now metadata only - admin decides on deletion
+-- ============================================================
+DROP TRIGGER IF EXISTS trigger_check_flagged_comment ON comment_flags;
+
+-- Keep the function in case we need to re-enable, but it won't be called
+-- The trigger was: AFTER INSERT ON comment_flags EXECUTE FUNCTION check_and_hide_flagged_comment()
+
+-- ============================================================
+-- STEP 12: Daily Flag Rate Limiting (max 10 flags per user per day)
+-- ============================================================
+CREATE OR REPLACE FUNCTION get_user_daily_flag_count(p_user_id UUID)
+RETURNS INTEGER AS $$
+DECLARE
+  flag_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO flag_count
+  FROM comment_flags
+  WHERE user_id = p_user_id
+    AND created_at >= CURRENT_DATE
+    AND created_at < CURRENT_DATE + INTERVAL '1 day';
+  
+  RETURN flag_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- STEP 13: Function to get flagged comments for admin (3+ flags)
+-- Returns comments with their flag counts, ordered by count DESC
+-- ============================================================
+CREATE OR REPLACE FUNCTION get_flagged_comments_for_admin()
+RETURNS TABLE (
+  comment_id UUID,
+  comment_content TEXT,
+  comment_author_id UUID,
+  comment_author_username TEXT,
+  event_id UUID,
+  event_title TEXT,
+  flag_count BIGINT,
+  created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+  -- Only admins can call this
+  IF NOT is_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Access denied: Admin only';
+  END IF;
+
+  RETURN QUERY
+  SELECT 
+    c.id AS comment_id,
+    c.content AS comment_content,
+    c.user_id AS comment_author_id,
+    p.username AS comment_author_username,
+    c.event_id AS event_id,
+    e.title AS event_title,
+    COUNT(cf.id)::BIGINT AS flag_count,
+    c.created_at AS created_at
+  FROM comments c
+  INNER JOIN comment_flags cf ON c.id = cf.comment_id
+  LEFT JOIN profiles p ON c.user_id = p.id
+  LEFT JOIN events e ON c.event_id = e.id
+  GROUP BY c.id, c.content, c.user_id, p.username, c.event_id, e.title, c.created_at
+  HAVING COUNT(cf.id) >= 3
+  ORDER BY COUNT(cf.id) DESC, c.created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- STEP 14: Function for admin to delete a flagged comment
+-- ============================================================
+CREATE OR REPLACE FUNCTION admin_delete_flagged_comment(p_comment_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- Only admins can delete
+  IF NOT is_admin(auth.uid()) THEN
+    RAISE EXCEPTION 'Access denied: Admin only';
+  END IF;
+
+  -- Log the deletion
+  INSERT INTO comment_flag_logs (comment_id, action, performed_by, details)
+  VALUES (p_comment_id, 'admin_deleted', auth.uid(), 
+          jsonb_build_object('deleted_at', NOW()));
+
+  -- Delete the comment (cascades to flags)
+  DELETE FROM comments WHERE id = p_comment_id;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
