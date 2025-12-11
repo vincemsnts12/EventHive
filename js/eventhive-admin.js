@@ -2692,8 +2692,9 @@ document.addEventListener('DOMContentLoaded', async function () {
   populatePublishedEventsTable();
   populatePendingEventsTable();
 
-  // Load flagged comments
-  loadFlaggedComments();
+  // Load flagged comments - TEMPORARILY DISABLED FOR DEBUGGING
+  // TODO: Re-enable after fixing SQL RPC
+  // loadFlaggedComments();
 
   // View Title Modal
   document.getElementById('closeViewTitleModal')?.addEventListener('click', () => closeModal('viewTitleModal'));
