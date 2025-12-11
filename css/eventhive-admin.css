@@ -1542,3 +1542,9 @@
 .flagged-comments-table td:nth-child(4) {
   text-align: center;
 }
+
+/* Center Author column and contents */
+.flagged-comments-table th:nth-child(2),
+.flagged-comments-table td:nth-child(2) {
+  text-align: center;
+}
