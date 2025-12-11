@@ -370,7 +370,8 @@ async function updateDropdownAuthState(forceCheck = false) {
   // If not forced, check cache first - if valid, use it ABSOLUTELY with NO async operations
   if (!forceCheck) {
     const cached = getCachedAuthState();
-    if (cached !== null) {
+    // Ensure cache is valid AND has required properties
+    if (cached !== null && typeof cached === 'object' && typeof cached.isLoggedIn !== 'undefined') {
       // Cache is valid (< 5 minutes from login) - use it ABSOLUTELY
       // This is the state from initial login check - NO async operations
       const state = cached.isLoggedIn && cached.isAdmin ? 'admin' : (cached.isLoggedIn ? 'user' : 'guest');
