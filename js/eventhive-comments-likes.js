@@ -352,13 +352,27 @@ async function loadEventComments(eventId) {
     console.log('No authenticated user found (guest mode)');
   }
 
-  // STEP 1: Render comments IMMEDIATELY without waiting for flag info
+  // Fetch flag info for all comments BEFORE rendering (synchronous with error handling)
+  let flagInfo = {};
+  if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function') {
+    try {
+      const commentIds = result.comments.map(c => c.id);
+      const flagResult = await getCommentsWithFlagInfo(commentIds);
+      if (flagResult && flagResult.success && flagResult.flagInfo) {
+        flagInfo = flagResult.flagInfo;
+      }
+    } catch (flagError) {
+      console.warn('Could not load flag info (non-critical):', flagError);
+    }
+  }
+
+  // Render comments with flag info included
   if (result.comments.length === 0) {
     commentsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No comments yet. Be the first to comment!</div>';
   } else {
     result.comments.forEach(comment => {
-      // Render without flag info first (will update async)
-      commentsList.appendChild(renderComment(comment, currentUserId, { count: 0, userFlagged: false }));
+      const commentFlagInfo = flagInfo[comment.id] || { count: 0, userFlagged: false };
+      commentsList.appendChild(renderComment(comment, currentUserId, commentFlagInfo));
     });
   }
 
@@ -371,47 +385,6 @@ async function loadEventComments(eventId) {
     if (altCommentsCount) {
       altCommentsCount.textContent = `${count} ${count === 1 ? 'comment' : 'comments'}`;
     }
-  }
-
-  // STEP 2: Fetch flag info in BACKGROUND (non-blocking) and update buttons
-  if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function' && currentUserId) {
-    // Use IIFE to start immediately but non-blocking (no await on outer function)
-    (async () => {
-      try {
-        const commentIds = result.comments.map(c => c.id);
-        const flagResult = await getCommentsWithFlagInfo(commentIds);
-
-        if (flagResult && flagResult.success && flagResult.flagInfo) {
-          // Update flag buttons with the fetched info
-          Object.keys(flagResult.flagInfo).forEach(commentId => {
-            const info = flagResult.flagInfo[commentId];
-            const flagBtn = commentsList.querySelector(`.comment-flag-btn[data-comment-id="${commentId}"]`);
-            if (flagBtn && (info.count > 0 || info.userFlagged)) {
-              // Update button state
-              if (info.userFlagged) {
-                flagBtn.classList.add('comment-flag-btn--flagged');
-                flagBtn.dataset.userFlagged = 'true';
-                flagBtn.title = 'You reported this comment (click to remove report)';
-                const svg = flagBtn.querySelector('svg');
-                if (svg) svg.setAttribute('fill', '#f59e0b');
-              }
-              // Update/add count
-              if (info.count > 0) {
-                let countSpan = flagBtn.querySelector('.flag-count');
-                if (!countSpan) {
-                  countSpan = document.createElement('span');
-                  countSpan.className = 'flag-count';
-                  flagBtn.appendChild(countSpan);
-                }
-                countSpan.textContent = info.count;
-              }
-            }
-          });
-        }
-      } catch (flagError) {
-        console.warn('Could not update flag info (non-critical):', flagError);
-      }
-    })(); // Immediately invoked, no delay
   }
 }
 
