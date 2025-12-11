@@ -103,8 +103,23 @@ ON comment_flag_logs FOR INSERT
 WITH CHECK (auth.uid() IS NOT NULL);
 
 -- ============================================================
--- STEP 6: Function to check if user is admin
+-- STEP 6: Functions to check if user is admin
+-- NOTE: There are TWO versions - one with parameter, one without
+-- The parameterless version is called by frontend: supabase.rpc('is_admin')
 -- ============================================================
+
+-- Version 1: Parameterless (used by frontend RPC calls)
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE id = auth.uid() AND is_admin = TRUE
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Version 2: With parameter (used internally by other SQL functions)
 CREATE OR REPLACE FUNCTION is_admin(check_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
