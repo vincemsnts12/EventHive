@@ -141,7 +141,8 @@ function renderComment(comment, currentUserId = null, flagInfo = {}) {
     let isAuthenticated = false;
     try {
       const authCache = JSON.parse(localStorage.getItem('eventhive_auth_cache') || '{}');
-      isAuthenticated = authCache.state?.isLoggedIn === true;
+      // Handle both flat format (isLoggedIn) and nested format (state.isLoggedIn)
+      isAuthenticated = authCache.isLoggedIn === true || authCache.state?.isLoggedIn === true;
 
       if (!isAuthenticated) {
         const userId = localStorage.getItem('eventhive_last_authenticated_user_id');
