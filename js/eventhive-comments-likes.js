@@ -352,10 +352,8 @@ async function loadEventComments(eventId) {
     console.log('No authenticated user found (guest mode)');
   }
 
-  // Flag info fetch - DISABLED TEMPORARILY FOR DEBUGGING
-  // TODO: Re-enable after fixing the issue
+  // Fetch flag info for all comments before rendering
   let flagInfo = {};
-  /*
   if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function') {
     try {
       const commentIds = result.comments.map(c => c.id);
@@ -367,7 +365,6 @@ async function loadEventComments(eventId) {
       console.warn('Could not load flag info (non-critical):', flagError);
     }
   }
-  */
 
   // Render comments with flag info included
   if (result.comments.length === 0) {
