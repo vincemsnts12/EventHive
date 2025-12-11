@@ -40,7 +40,7 @@
   border-radius: 20px;
   padding: 2rem;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08),
-              0 5px 15px rgba(0, 0, 0, 0.05);
+    0 5px 15px rgba(0, 0, 0, 0.05);
   overflow-x: auto;
   margin-bottom: 2.5rem;
 }
@@ -98,21 +98,64 @@
 }
 
 /* Set uniform column widths for both tables */
-.events-table th:nth-child(1) { width: 20%; text-align: center; } /* Title */
-.events-table th:nth-child(2) { width: 10%; text-align: center; } /* Description (icon) */
+.events-table th:nth-child(1) {
+  width: 20%;
+  text-align: center;
+}
+
+/* Title */
+.events-table th:nth-child(2) {
+  width: 10%;
+  text-align: center;
+}
+
+/* Description (icon) */
 .events-table th:nth-child(2) svg {
   display: block;
   margin: 0 auto;
   fill: currentColor;
   stroke: currentColor;
 }
-.events-table th:nth-child(3) { width: 7%; }  /* Location */
-.events-table th:nth-child(4) { width: 16%; text-align: center; } /* Date & Time */
-.events-table th:nth-child(5) { width: 10%; } /* College */
-.events-table th:nth-child(6) { width: 13%; } /* Organization */
-.events-table th:nth-child(7) { width: 9%; text-align: center; } /* Status */
-.events-table th:nth-child(8) { width: 5%; text-align: center; } /* Images */
-.events-table th:nth-child(9) { width: 10%; text-align: center; } /* Actions */
+
+.events-table th:nth-child(3) {
+  width: 7%;
+}
+
+/* Location */
+.events-table th:nth-child(4) {
+  width: 16%;
+  text-align: center;
+}
+
+/* Date & Time */
+.events-table th:nth-child(5) {
+  width: 10%;
+}
+
+/* College */
+.events-table th:nth-child(6) {
+  width: 13%;
+}
+
+/* Organization */
+.events-table th:nth-child(7) {
+  width: 9%;
+  text-align: center;
+}
+
+/* Status */
+.events-table th:nth-child(8) {
+  width: 5%;
+  text-align: center;
+}
+
+/* Images */
+.events-table th:nth-child(9) {
+  width: 10%;
+  text-align: center;
+}
+
+/* Actions */
 
 .events-table td {
   padding: 1rem;
@@ -200,6 +243,8 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
+  /* Standard property for compatibility */
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -687,6 +732,7 @@
     transform: translateY(-20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -874,7 +920,7 @@
   overflow-y: visible;
 }
 
-#collegeTagSelector > div[style*="display: flex"] {
+#collegeTagSelector>div[style*="display: flex"] {
   /* Flex container for main college dropdown and checkboxes */
   margin: 0;
 }
@@ -1111,7 +1157,7 @@
   }
 
   /* Center all content within fields in mobile */
-  .events-table td > * {
+  .events-table td>* {
     text-align: center;
     margin: 0 auto;
   }
@@ -1261,7 +1307,8 @@
 .image-wrapper {
   position: relative;
   width: 100%;
-  padding-top: 100%; /* Square aspect ratio */
+  padding-top: 100%;
+  /* Square aspect ratio */
   background-color: #f0f0f0;
 }
 
@@ -1382,7 +1429,7 @@
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 1rem;
   }
-  
+
   .admin-modal-container--images {
     max-width: 95%;
   }
@@ -1410,4 +1457,3 @@
     padding: 1rem;
   }
 }
-
