@@ -294,10 +294,17 @@ function applyDropdownState(state) {
   }
 }
 
+// Flag to prevent IIFE/MutationObserver from overriding state after it's been set by admin-init
+window.__dropdownStateLockedByAdmin = false;
+
 // IMMEDIATE INITIALIZATION: Apply dropdown state as soon as script loads
 // This runs IMMEDIATELY to prevent showing wrong state
 (function applyDropdownStateImmediately() {
   function applyStateNow() {
+    // Don't override if admin-init has already set the state
+    if (window.__dropdownStateLockedByAdmin) {
+      return;
+    }
     const state = getDropdownState();
     applyDropdownState(state);
   }
@@ -321,6 +328,11 @@ function applyDropdownState(state) {
 
   // Use MutationObserver to catch elements as soon as they're added to DOM
   const observer = new MutationObserver(() => {
+    // Don't override if admin-init has already set the state
+    if (window.__dropdownStateLockedByAdmin) {
+      observer.disconnect();
+      return;
+    }
     applyStateNow();
   });
 

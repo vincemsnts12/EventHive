@@ -214,15 +214,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // FINAL: Ensure dropdown shows admin state after everything is loaded
       // This runs after all async operations complete to guarantee correct UI
+      // Set lock flag to prevent IIFE/MutationObserver from overriding this state
       setTimeout(() => {
+        // Lock the dropdown state so other scripts don't override it
+        window.__dropdownStateLockedByAdmin = true;
+
         const guestDiv = document.getElementById('dropdownState-guest');
         const userDiv = document.getElementById('dropdownState-user');
         const adminDiv = document.getElementById('dropdownState-admin');
         if (guestDiv) guestDiv.style.display = 'none';
         if (userDiv) userDiv.style.display = 'none';
         if (adminDiv) adminDiv.style.display = 'block';
-        console.log('Final dropdown state applied: admin');
-      }, 100);
+        console.log('Final dropdown state applied: admin (locked)');
+      }, 500);
     } catch (error) {
       console.error('Error loading events:', error);
       console.error('Error stack:', error.stack);
