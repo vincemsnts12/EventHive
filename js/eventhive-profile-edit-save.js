@@ -39,6 +39,41 @@ function confirmMainChanges() {
     return false;
   }
 
+  // Check username for profanity
+  if (typeof checkProfanity === 'function') {
+    const usernameCheck = checkProfanity(username);
+    if (usernameCheck.hasProfanity && (usernameCheck.severity === 'severe' || usernameCheck.severity === 'moderate')) {
+      alert('Username Not Allowed\n\nThe username you entered contains inappropriate language.\n\nPlease choose a different username.');
+      if (usernameInput) usernameInput.focus();
+      return false;
+    }
+  }
+
+  // Check bio for profanity
+  if (bio && typeof checkProfanity === 'function') {
+    const bioCheck = checkProfanity(bio);
+    if (bioCheck.hasProfanity) {
+      if (bioCheck.severity === 'severe') {
+        alert('Bio Not Allowed\n\nYour bio contains highly inappropriate language and cannot be saved.\n\nPlease revise your bio.');
+        if (bioTextarea) bioTextarea.focus();
+        return false;
+      }
+      if (bioCheck.severity === 'moderate') {
+        alert('Bio Warning\n\nYour bio may contain inappropriate language.\n\nPlease revise before saving.');
+        if (bioTextarea) bioTextarea.focus();
+        return false;
+      }
+      // Mild: just warn but allow saving
+      if (bioCheck.severity === 'mild') {
+        const proceed = confirm('Your bio may contain mildly inappropriate language. Do you want to save it anyway?');
+        if (!proceed) {
+          if (bioTextarea) bioTextarea.focus();
+          return false;
+        }
+      }
+    }
+  }
+
   // Build update object - only include fields that have changed
   const updateData = {};
 

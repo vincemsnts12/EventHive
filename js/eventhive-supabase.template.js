@@ -5,6 +5,14 @@
 const SUPABASE_URL = '{{SUPABASE_URL}}'; // Injected from Vercel env: NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}'; // Injected from Vercel env: NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+// OpenAI API key for AI moderation (optional - set in Vercel env vars)
+const OPENAI_API_KEY = '{{OPENAI_API_KEY}}'; // Injected from Vercel env: OPENAI_API_KEY
+
+// Initialize AI moderation if API key is available
+if (typeof initAIModeration === 'function' && OPENAI_API_KEY && OPENAI_API_KEY !== '{{OPENAI_API_KEY}}') {
+  initAIModeration(OPENAI_API_KEY);
+}
+
 // Initialize Supabase client
 // Note: You'll need to include the Supabase JS library in your HTML:
 // <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

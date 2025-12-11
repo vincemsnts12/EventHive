@@ -645,12 +645,55 @@ async function handleCommentSubmit(eventId) {
     }
   }
 
-  // Check for profanity before submitting
+  // Check for profanity before submitting (local quick check first)
   if (typeof checkProfanity === 'function') {
     const profanityResult = checkProfanity(content);
+
     if (profanityResult.hasProfanity) {
-      alert('Your comment contains language that may violate our community guidelines. Please revise your comment before submitting.');
-      return;
+      // Severe content is blocked immediately
+      if (profanityResult.severity === 'severe') {
+        const message = typeof getProfanityWarningMessage === 'function'
+          ? getProfanityWarningMessage('severe', profanityResult.flaggedWords)
+          : 'Your comment contains highly inappropriate language and cannot be posted.';
+        alert(message);
+        return;
+      }
+
+      // Moderate/mild content gets a warning but user can choose to revise
+      if (profanityResult.severity === 'moderate') {
+        const message = typeof getProfanityWarningMessage === 'function'
+          ? getProfanityWarningMessage('moderate', profanityResult.flaggedWords)
+          : 'Your comment may contain inappropriate language. Please revise before submitting.';
+        alert(message);
+        return;
+      }
+
+      // Mild: Just warn but don't block
+      if (profanityResult.severity === 'mild') {
+        const proceed = confirm('Your comment may contain mildly inappropriate language. Do you want to post it anyway?');
+        if (!proceed) return;
+      }
+    }
+  }
+
+  // If AI moderation is available, run enhanced check (async)
+  if (typeof moderateContent === 'function') {
+    try {
+      const aiResult = await moderateContent(content, { useAI: true, useCache: true });
+
+      if (aiResult.blocked) {
+        alert(aiResult.message || 'Your comment violates our community guidelines and cannot be posted.');
+        return;
+      }
+
+      // If AI flagged but not blocked, warn user
+      if (aiResult.flagged && aiResult.severity === 'moderate') {
+        alert(aiResult.message || 'Your comment may contain inappropriate content. Please revise.');
+        return;
+      }
+    } catch (err) {
+      console.warn('AI moderation check failed, continuing with local check only:', err.message);
+      // Continue anyway - local check already passed
     }
   }
 

@@ -674,6 +674,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // Check username for profanity
+      if (typeof checkProfanity === 'function') {
+        const usernameCheck = checkProfanity(username);
+        if (usernameCheck.hasProfanity && (usernameCheck.severity === 'severe' || usernameCheck.severity === 'moderate')) {
+          alert('Username Not Allowed\n\nThe username you entered contains inappropriate language.\n\nPlease choose a different username.');
+          return;
+        }
+      }
+
       // Validate password match
       if (password !== confirmPassword) {
         alert('Passwords Don\'t Match\n\nPlease ensure both password fields are identical.');
