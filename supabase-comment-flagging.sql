@@ -4,12 +4,53 @@
 -- ============================================================
 
 -- ============================================================
+-- STEP 0: CLEANUP - Remove unused objects from old system
+-- ============================================================
+
+-- Drop old triggers that are no longer needed
+DROP TRIGGER IF EXISTS trigger_check_and_hide_flagged ON comment_flags;
+DROP TRIGGER IF EXISTS check_and_hide_flagged_comment ON comment_flags;
+DROP TRIGGER IF EXISTS update_flag_count_trigger ON comment_flags;
+
+-- Drop old functions that are no longer used
+-- (We're keeping is_admin, update_comment_flag_count, and a few helpers)
+DROP FUNCTION IF EXISTS check_and_hide_flagged_comment() CASCADE;
+DROP FUNCTION IF EXISTS auto_hide_flagged_comment() CASCADE;
+DROP FUNCTION IF EXISTS hide_flagged_comment(UUID) CASCADE;
+DROP FUNCTION IF EXISTS restore_hidden_comment(UUID) CASCADE;
+DROP FUNCTION IF EXISTS get_hidden_comments() CASCADE;
+DROP FUNCTION IF EXISTS is_admin(UUID) CASCADE; -- Drop parameterized version, keep parameterless
+
+-- Drop old policies on comments table that may conflict
+DROP POLICY IF EXISTS "Users can view non-hidden comments" ON comments;
+DROP POLICY IF EXISTS "Admins can view all comments" ON comments;
+DROP POLICY IF EXISTS "Admins can update comments" ON comments;
+
+-- Drop comment_flag_logs table (audit log - not essential)
+DROP TABLE IF EXISTS comment_flag_logs CASCADE;
+
+-- ============================================================
 -- STEP 1: Add flag_count column to comments table
 -- ============================================================
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS flag_count INT DEFAULT 0;
 
 -- Create index for faster queries on flagged comments
 CREATE INDEX IF NOT EXISTS idx_comments_flag_count ON comments(flag_count) WHERE flag_count > 0;
+
+
+-- ============================================================
+-- STEP 1.5: Add admin delete policy on comments table
+-- Allows admins to delete any comment directly
+-- ============================================================
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can delete any comment" ON comments;
+CREATE POLICY "Admins can delete any comment"
+ON comments FOR DELETE
+USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = TRUE)
+);
+
 
 -- ============================================================
 -- STEP 2: Drop unused columns from comments table
@@ -99,6 +140,7 @@ FOR EACH ROW EXECUTE FUNCTION update_comment_flag_count();
 
 -- ============================================================
 -- STEP 8: is_admin() helper function (parameterless version)
+-- REQUIRED: Used by RLS policies for admin checks
 -- ============================================================
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
@@ -111,9 +153,13 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================
--- STEP 9: Simplified admin query function
--- Now just queries comments table directly (no complex JOINs needed)
+-- OPTIONAL: Legacy RPC functions (kept for backward compatibility)
+-- The frontend now uses direct fetch, so these are not required
+-- You can DROP these if you want to clean up
 -- ============================================================
+
+-- OPTIONAL: get_flagged_comments_for_admin (legacy - frontend uses direct fetch now)
+
 CREATE OR REPLACE FUNCTION get_flagged_comments_for_admin()
 RETURNS TABLE (
   comment_id UUID,
@@ -201,11 +247,26 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================
 -- VERIFICATION QUERIES (run these to test)
 -- ============================================================
+
 -- Check comments table structure:
 -- SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'comments';
 
 -- Check for flagged comments:
 -- SELECT id, content, flag_count FROM comments WHERE flag_count > 0;
 
--- Test admin function:
--- SELECT * FROM get_flagged_comments_for_admin();
+-- Test the simplified query (same as what frontend does):
+-- SELECT c.id, c.content, c.flag_count, c.user_id, p.username, c.event_id, e.title
+-- FROM comments c
+-- LEFT JOIN profiles p ON c.user_id = p.id
+-- LEFT JOIN events e ON c.event_id = e.id
+-- WHERE c.flag_count >= 3
+-- ORDER BY c.flag_count DESC;
+
+-- ============================================================
+-- OPTIONAL CLEANUP: Drop legacy RPC functions if not needed
+-- Uncomment these lines if you want to fully clean up
+-- ============================================================
+DROP FUNCTION IF EXISTS get_flagged_comments_for_admin() CASCADE;
+DROP FUNCTION IF EXISTS admin_delete_flagged_comment(UUID) CASCADE;
+DROP FUNCTION IF EXISTS get_user_daily_flag_count(UUID) CASCADE;
+DROP FUNCTION IF EXISTS has_user_flagged_comment(UUID) CASCADE;

@@ -2501,11 +2501,18 @@ async function addNewOrganization() {
 
 // ===== FLAGGED COMMENTS MANAGEMENT =====
 
+/**
+ * Load flagged comments directly from comments table
+ * Uses direct fetch API (no RPC, no blocking) - same pattern as events
+ * Admin verification is already done by admin-init.js
+ */
+
 async function loadFlaggedComments() {
   const loadingDiv = document.getElementById('flaggedCommentsLoading');
   const tableEl = document.getElementById('flaggedCommentsTable');
   const tbody = document.getElementById('flaggedCommentsTableBody');
   const emptyDiv = document.getElementById('flaggedCommentsEmpty');
+  const section = document.getElementById('flaggedCommentsSection');
 
   if (!tbody) return;
 
@@ -2515,7 +2522,6 @@ async function loadFlaggedComments() {
   if (emptyDiv) emptyDiv.style.display = 'none';
 
   try {
-    // Fetch flagged comments using RPC function
     const SUPABASE_URL = window.__EH_SUPABASE_URL;
     const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
@@ -2525,7 +2531,7 @@ async function loadFlaggedComments() {
       return;
     }
 
-    // Get auth token
+    // Get auth token for authenticated request
     let accessToken = null;
     const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
       (key.includes('supabase') && key.includes('auth-token')) ||
@@ -2536,58 +2542,74 @@ async function loadFlaggedComments() {
       accessToken = authData?.access_token;
     }
 
-    if (!accessToken) {
-      if (loadingDiv) loadingDiv.textContent = 'Authentication required';
-      return;
-    }
+    // Direct fetch from comments table with flag_count >= 3
+    // No RPC needed - admin-init.js already verified we're admin
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
-    // Call the RPC function
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_flagged_comments_for_admin`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: '{}'
-    });
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/comments?flag_count=gte.3&select=id,content,user_id,event_id,flag_count,created_at,profiles(username),events(title)&order=flag_count.desc,created_at.desc`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': accessToken ? `Bearer ${accessToken}` : undefined,
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
+      // If flag_count column doesn't exist yet, hide section gracefully
+      if (response.status === 400) {
+        console.warn('flag_count column may not exist yet. Run the migration SQL.');
+        if (loadingDiv) loadingDiv.textContent = 'Migration required - run SQL';
+        return;
+      }
       throw new Error(`Failed to fetch flagged comments: ${response.status}`);
     }
 
-    const flaggedComments = await response.json();
+    const comments = await response.json();
 
     // Hide loading
     if (loadingDiv) loadingDiv.style.display = 'none';
 
-    if (!flaggedComments || flaggedComments.length === 0) {
+    if (!comments || comments.length === 0) {
       if (emptyDiv) emptyDiv.style.display = 'block';
+      if (section) section.style.display = 'block';
       return;
     }
 
-    // Render table
+    // Show section and table
+    if (section) section.style.display = 'block';
     if (tableEl) tableEl.style.display = 'table';
     tbody.innerHTML = '';
 
-    flaggedComments.forEach(comment => {
+    comments.forEach(comment => {
       const row = document.createElement('tr');
 
       // Truncate comment text
-      const truncatedText = comment.comment_content && comment.comment_content.length > 100
-        ? comment.comment_content.substring(0, 100) + '...'
-        : (comment.comment_content || '[No content]');
+      const truncatedText = comment.content && comment.content.length > 100
+        ? comment.content.substring(0, 100) + '...'
+        : (comment.content || '[No content]');
+
+      // Get username and event title from joined tables
+      const authorUsername = comment.profiles?.username || 'Unknown';
+      const eventTitle = comment.events?.title || 'Unknown Event';
 
       row.innerHTML = `
-        <td class="flagged-comment-text" title="${escapeHtml(comment.comment_content || '')}">${escapeHtml(truncatedText)}</td>
+        <td class="flagged-comment-text" title="${escapeHtml(comment.content || '')}">${escapeHtml(truncatedText)}</td>
         <td>
-          <a href="eventhive-profile.html?uid=${comment.comment_author_id}" class="flagged-author-link" target="_blank">
-            ${escapeHtml(comment.comment_author_username || 'Unknown')}
+          <a href="eventhive-profile.html?uid=${comment.user_id}" class="flagged-author-link" target="_blank">
+            ${escapeHtml(authorUsername)}
           </a>
         </td>
         <td>
           <a href="eventhive-events.html?event=${comment.event_id}" class="flagged-event-link" target="_blank">
-            ${escapeHtml(comment.event_title || 'Unknown Event')}
+            ${escapeHtml(eventTitle)}
           </a>
         </td>
         <td>
@@ -2600,7 +2622,7 @@ async function loadFlaggedComments() {
           </span>
         </td>
         <td>
-          <button class="delete-flagged-btn" onclick="deleteFlaggedComment('${comment.comment_id}')">
+          <button class="delete-flagged-btn" onclick="deleteFlaggedComment('${comment.id}')">
             Delete
           </button>
         </td>
@@ -2611,13 +2633,20 @@ async function loadFlaggedComments() {
 
   } catch (error) {
     console.warn('Flagged comments not available:', error.message);
-    // Hide the entire section if RPC doesn't exist (400 error)
-    const section = document.getElementById('flaggedCommentsSection');
-    if (section) {
-      section.style.display = 'none';
+    // Show empty state instead of hiding section
+    if (loadingDiv) loadingDiv.style.display = 'none';
+    if (emptyDiv) {
+      emptyDiv.innerHTML = `
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.3; margin-bottom: 10px;">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p>Could not load flagged comments. Please run the migration SQL.</p>
+      `;
+      emptyDiv.style.display = 'block';
     }
   }
 }
+
 
 // Helper function to escape HTML
 function escapeHtml(text) {
@@ -2652,16 +2681,22 @@ async function deleteFlaggedComment(commentId) {
       return;
     }
 
-    // Call the RPC function to delete
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_delete_flagged_comment`, {
-      method: 'POST',
+    // Direct DELETE to comments table (admin-init.js already verified admin status)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/comments?id=eq.${commentId}`, {
+      method: 'DELETE',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ p_comment_id: commentId })
+      signal: controller.signal
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -2678,6 +2713,7 @@ async function deleteFlaggedComment(commentId) {
     alert(`Error deleting comment: ${error.message}`);
   }
 }
+
 
 // ===== EVENT LISTENERS =====
 
