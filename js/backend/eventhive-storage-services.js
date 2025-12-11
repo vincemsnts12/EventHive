@@ -27,11 +27,19 @@ function checkAdminFromCacheStorage() {
 
       // Use cache if it's less than 5 minutes old
       if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
-        if (parsed.state) {
+        // Handle FLAT format: {isLoggedIn, isAdmin, timestamp}
+        if (typeof parsed.isAdmin !== 'undefined') {
+          isAdmin = parsed.isAdmin === true;
+          cacheValid = true;
+          const adminCheckDuration = Date.now() - adminCheckStart;
+          console.log(`uploadEventImage: Admin check from cache (flat format) completed in ${adminCheckDuration}ms:`, { isAdmin, cacheValid });
+        }
+        // Handle NESTED format: {timestamp, state: {isLoggedIn, isAdmin}}
+        else if (parsed.state && typeof parsed.state.isAdmin !== 'undefined') {
           isAdmin = parsed.state.isAdmin === true;
           cacheValid = true;
           const adminCheckDuration = Date.now() - adminCheckStart;
-          console.log(`uploadEventImage: Admin check from cache completed in ${adminCheckDuration}ms:`, { isAdmin, cacheValid });
+          console.log(`uploadEventImage: Admin check from cache (nested format) completed in ${adminCheckDuration}ms:`, { isAdmin, cacheValid });
         }
       }
     }
@@ -41,6 +49,7 @@ function checkAdminFromCacheStorage() {
 
   return { isAdmin, cacheValid };
 }
+
 
 /**
  * Upload an image file to Supabase Storage using direct fetch API
