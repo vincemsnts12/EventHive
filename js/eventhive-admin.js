@@ -2610,10 +2610,11 @@ async function loadFlaggedComments() {
     });
 
   } catch (error) {
-    console.error('Error loading flagged comments:', error);
-    if (loadingDiv) {
-      loadingDiv.textContent = `Error: ${error.message}`;
-      loadingDiv.style.color = '#B81E20';
+    console.warn('Flagged comments not available:', error.message);
+    // Hide the entire section if RPC doesn't exist (400 error)
+    const section = document.getElementById('flaggedCommentsSection');
+    if (section) {
+      section.style.display = 'none';
     }
   }
 }
