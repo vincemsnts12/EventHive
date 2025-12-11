@@ -221,32 +221,37 @@ function renderComment(comment, currentUserId = null) {
     flagBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
 
-      // Check if guest - show login prompt
+      // Check if guest - show simple alert (same behavior as liking/commenting)
       if (flagBtn.classList.contains('comment-flag-guest')) {
-        // Store current URL for redirect after login
-        localStorage.setItem('eventhive_pending_profile_url', window.location.href);
-
-        // Show login modal
-        const loginModal = document.getElementById('loginModal');
-        if (loginModal) {
-          loginModal.style.display = 'flex';
-        }
         alert('Please log in or sign up to report this comment.');
         return;
       }
 
       // Confirm flag action
       if (confirm('Are you sure you want to report this comment for inappropriate content?')) {
-        const result = await flagComment(comment.id, 'User reported');
-        if (result.success) {
-          alert('Thank you for your report. We will review this comment.');
-          // Optionally reload comments
-          const eventId = getSelectedEventId();
-          if (eventId) {
-            await loadEventComments(eventId);
+        // Check if flagComment function is available
+        if (typeof flagComment !== 'function') {
+          console.error('flagComment function not found');
+          alert('Error: Flag function not available. Please refresh the page.');
+          return;
+        }
+
+        try {
+          const result = await flagComment(comment.id, 'User reported');
+          console.log('Flag result:', result);
+          if (result.success) {
+            alert('Thank you for your report. We will review this comment.');
+            // Optionally reload comments
+            const eventId = getSelectedEventId();
+            if (eventId) {
+              await loadEventComments(eventId);
+            }
+          } else {
+            alert(result.error || 'Error reporting comment. Please try again.');
           }
-        } else {
-          alert(result.error || 'Error reporting comment. Please try again.');
+        } catch (err) {
+          console.error('Error flagging comment:', err);
+          alert('Error reporting comment: ' + err.message);
         }
       }
     });
