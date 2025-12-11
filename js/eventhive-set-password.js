@@ -267,7 +267,18 @@
                 if (!response.ok) {
                     const errData = await response.json().catch(() => ({}));
                     console.error('Update failed:', errData);
-                    throw new Error(errData.message || errData.error_description || `HTTP ${response.status}`);
+
+                    // Check for same password error
+                    const errorMsg = errData.message || errData.error_description || errData.msg || '';
+                    if (errorMsg.toLowerCase().includes('same as') ||
+                        errorMsg.toLowerCase().includes('different from') ||
+                        errorMsg.toLowerCase().includes('same password') ||
+                        errorMsg.toLowerCase().includes('previous password') ||
+                        errData.code === 'same_password') {
+                        throw new Error('Your new password cannot be the same as your previous password. Please choose a different password.');
+                    }
+
+                    throw new Error(errorMsg || `HTTP ${response.status}`);
                 }
 
                 const userData = await response.json();
