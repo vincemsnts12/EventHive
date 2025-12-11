@@ -376,13 +376,110 @@ async function loadEventComments(eventId) {
   }
 
   // Render comments with flag info included
+  const INITIAL_COMMENTS_SHOWN = 5;
+  const MAX_SCROLL_HEIGHT = '500px';
+
   if (result.comments.length === 0) {
     commentsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No comments yet. Be the first to comment!</div>';
   } else {
-    result.comments.forEach(comment => {
+    // Create scrollable container for comments
+    const commentsContainer = document.createElement('div');
+    commentsContainer.className = 'comments-scroll-container';
+    commentsContainer.style.cssText = `
+      overflow-y: auto;
+      max-height: ${MAX_SCROLL_HEIGHT};
+      scroll-behavior: smooth;
+    `;
+
+    // Render all comments but initially hide those beyond the limit
+    result.comments.forEach((comment, index) => {
       const commentFlagInfo = flagInfo[comment.id] || { count: 0, userFlagged: false };
-      commentsList.appendChild(renderComment(comment, currentUserId, commentFlagInfo));
+      const commentEl = renderComment(comment, currentUserId, commentFlagInfo);
+
+      // Hide comments beyond initial limit
+      if (index >= INITIAL_COMMENTS_SHOWN) {
+        commentEl.classList.add('hidden-comment');
+        commentEl.style.display = 'none';
+      }
+
+      commentsContainer.appendChild(commentEl);
     });
+
+    commentsList.appendChild(commentsContainer);
+
+    // Add "Show more" button if there are more than initial limit
+    if (result.comments.length > INITIAL_COMMENTS_SHOWN) {
+      const hiddenCount = result.comments.length - INITIAL_COMMENTS_SHOWN;
+
+      const showMoreBtn = document.createElement('button');
+      showMoreBtn.className = 'show-more-comments-btn';
+      showMoreBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 9l-7 7-7-7"/>
+        </svg>
+        Show more comments (${hiddenCount} more)
+      `;
+      showMoreBtn.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
+        background: transparent;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        color: #8b5cf6;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+
+      showMoreBtn.addEventListener('mouseover', () => {
+        showMoreBtn.style.background = 'rgba(139, 92, 246, 0.1)';
+        showMoreBtn.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+      });
+
+      showMoreBtn.addEventListener('mouseout', () => {
+        showMoreBtn.style.background = 'transparent';
+        showMoreBtn.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+      });
+
+      showMoreBtn.addEventListener('click', () => {
+        const hiddenComments = commentsContainer.querySelectorAll('.hidden-comment');
+        let isExpanded = showMoreBtn.dataset.expanded === 'true';
+
+        if (isExpanded) {
+          // Collapse - hide comments beyond initial
+          hiddenComments.forEach(el => {
+            el.style.display = 'none';
+          });
+          showMoreBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 9l-7 7-7-7"/>
+            </svg>
+            Show more comments (${hiddenCount} more)
+          `;
+          showMoreBtn.dataset.expanded = 'false';
+          commentsContainer.scrollTop = 0; // Scroll to top
+        } else {
+          // Expand - show all hidden comments
+          hiddenComments.forEach(el => {
+            el.style.display = '';
+          });
+          showMoreBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(180deg)">
+              <path d="M19 9l-7 7-7-7"/>
+            </svg>
+            Show fewer comments
+          `;
+          showMoreBtn.dataset.expanded = 'true';
+        }
+      });
+
+      commentsList.appendChild(showMoreBtn);
+    }
   }
 
   // Update comment count immediately
@@ -447,6 +544,28 @@ async function handleCommentSubmit(eventId) {
     return;
   }
 
+  // Check rate limit before proceeding
+  if (typeof checkCommentRateLimit === 'function') {
+    const rateLimitResult = await checkCommentRateLimit();
+    if (!rateLimitResult.canComment) {
+      if (rateLimitResult.limitType === 'daily') {
+        // Daily limit - show exact time
+        const midnight = rateLimitResult.nextAllowedAt ? new Date(rateLimitResult.nextAllowedAt) : null;
+        const timeStr = midnight ? midnight.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'midnight';
+        alert(`You've reached the daily comment limit (50 comments). You can comment again after ${timeStr}.`);
+      } else if (rateLimitResult.limitType === 'interval') {
+        // Interval limit - show countdown
+        const mins = Math.floor(rateLimitResult.waitSeconds / 60);
+        const secs = rateLimitResult.waitSeconds % 60;
+        const countdown = `${mins}:${secs.toString().padStart(2, '0')}`;
+        alert(`Please wait ${countdown} before posting another comment.`);
+      } else {
+        alert(rateLimitResult.message || 'Please wait before posting another comment.');
+      }
+      return;
+    }
+  }
+
   // Check for profanity before submitting
   if (typeof checkProfanity === 'function') {
     const profanityResult = checkProfanity(content);
@@ -462,6 +581,7 @@ async function handleCommentSubmit(eventId) {
   sendBtn.style.cursor = 'not-allowed';
 
   const result = await createComment(eventId, content);
+
 
   if (result.success) {
     // Clear textarea

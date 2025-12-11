@@ -2080,3 +2080,90 @@ async function deleteCommentAsAdmin(commentId) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Check if user can post a comment (rate limit check)
+ * Rules:
+ *   - Every 10 comments = 5 minute wait
+ *   - Max 50 comments per day (resets at midnight)
+ * @returns {Promise<{canComment: boolean, waitSeconds: number, message: string, limitType?: string, commentsToday?: number}>}
+ */
+async function checkCommentRateLimit() {
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    // If config not available, allow comment (fail open)
+    return { canComment: true, waitSeconds: 0, message: null };
+  }
+
+  // Get access token
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token for rate limit check:', e);
+  }
+
+  if (!accessToken) {
+    // Not authenticated - can't check rate limit, will fail at comment creation
+    return { canComment: true, waitSeconds: 0, message: null };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_comment_rate_limit`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: '{}',
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      // If RPC doesn't exist, allow comment (function may not be deployed yet)
+      console.warn('Rate limit RPC not available:', response.status);
+      return { canComment: true, waitSeconds: 0, message: null };
+    }
+
+    const result = await response.json();
+
+    return {
+      canComment: result.can_comment === true,
+      waitSeconds: result.wait_seconds || 0,
+      message: result.message || null,
+      limitType: result.limit_type || null,
+      commentsToday: result.comments_today || 0,
+      commentsUntilWait: result.comments_until_wait || 0,
+      nextAllowedAt: result.next_allowed_at || null
+    };
+  } catch (error) {
+    console.error('Error checking rate limit:', error);
+    // Fail open - allow comment if rate limit check fails
+    return { canComment: true, waitSeconds: 0, message: null };
+  }
+}
+
+/**
+ * Format countdown time from seconds
+ * @param {number} seconds 
+ * @returns {string} Formatted time like "4:32" or "0:15"
+ */
+function formatCountdown(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
