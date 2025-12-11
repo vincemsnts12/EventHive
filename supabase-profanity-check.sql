@@ -45,10 +45,13 @@ CREATE INDEX IF NOT EXISTS idx_profanity_logs_created ON profanity_logs(created_
 -- 3. PROFANITY CHECK FUNCTION
 -- Server-side validation using word list table
 -- ============================================================
+-- Drop existing function first (signature changed)
+DROP FUNCTION IF EXISTS check_profanity(TEXT);
+
 CREATE OR REPLACE FUNCTION check_profanity(
     p_text TEXT,
     OUT has_profanity BOOLEAN,
-    OUT severity TEXT,
+    OUT p_severity TEXT,
     OUT flagged_words TEXT[]
 )
 LANGUAGE plpgsql
@@ -57,11 +60,11 @@ DECLARE
     normalized_text TEXT;
     word_record RECORD;
     found_words TEXT[] := '{}';
-    highest_severity TEXT := NULL;
-    severity_rank INTEGER := 0;
+    highest_sev TEXT := NULL;
+    sev_rank INTEGER := 0;
 BEGIN
     has_profanity := false;
-    severity := NULL;
+    p_severity := NULL;
     flagged_words := '{}';
     
     IF p_text IS NULL OR TRIM(p_text) = '' THEN
@@ -83,30 +86,29 @@ BEGIN
     
     -- Check against word list
     FOR word_record IN 
-        SELECT word, severity AS word_severity 
-        FROM profanity_words 
-        WHERE is_active = true
+        SELECT pw.word, pw.severity AS word_sev 
+        FROM profanity_words pw
+        WHERE pw.is_active = true
     LOOP
         IF normalized_text LIKE '%' || LOWER(word_record.word) || '%' THEN
             found_words := array_append(found_words, word_record.word);
             
             -- Track highest severity
-            IF word_record.word_severity = 'severe' AND severity_rank < 3 THEN
-                severity_rank := 3;
-                highest_severity := 'severe';
-            ELSIF word_record.word_severity = 'moderate' AND severity_rank < 2 THEN
-                severity_rank := 2;
-                highest_severity := 'moderate';
-            ELSIF word_record.word_severity = 'mild' AND severity_rank < 1 THEN
-                severity_rank := 1;
-                highest_severity := 'mild';
+            IF word_record.word_sev = 'severe' AND sev_rank < 3 THEN
+                sev_rank := 3;
+                highest_sev := 'severe';
+            ELSIF word_record.word_sev = 'moderate' AND sev_rank < 2 THEN
+                sev_rank := 2;
+                highest_sev := 'moderate';
+            ELSIF word_record.word_sev = 'mild' AND sev_rank < 1 THEN
+                sev_rank := 1;
+                highest_sev := 'mild';
             END IF;
         END IF;
     END LOOP;
     
     has_profanity := array_length(found_words, 1) > 0;
-    severity := highest_severity;
-    flagged_words := found_words;
+    p_severity := highest_sev;
 END;
 $$;
 
@@ -127,12 +129,12 @@ BEGIN
     IF check_result.has_profanity THEN
         -- Log the violation
         INSERT INTO profanity_logs (user_id, content_type, content, flagged_words, severity, action_taken, source)
-        VALUES (NEW.user_id, 'comment', NEW.content, check_result.flagged_words, check_result.severity,
-                CASE WHEN check_result.severity = 'severe' THEN 'blocked' ELSE 'allowed' END,
+        VALUES (NEW.user_id, 'comment', NEW.content, check_result.flagged_words, check_result.p_severity,
+                CASE WHEN check_result.p_severity = 'severe' THEN 'blocked' ELSE 'allowed' END,
                 'server');
         
         -- Block severe content
-        IF check_result.severity = 'severe' THEN
+        IF check_result.p_severity = 'severe' THEN
             RAISE EXCEPTION 'Comment contains inappropriate content and cannot be posted.';
         END IF;
     END IF;
@@ -164,10 +166,10 @@ BEGIN
     IF NEW.username IS DISTINCT FROM COALESCE(OLD.username, '') THEN
         SELECT * INTO username_check FROM check_profanity(NEW.username);
         
-        IF username_check.has_profanity AND username_check.severity IN ('severe', 'moderate') THEN
+        IF username_check.has_profanity AND username_check.p_severity IN ('severe', 'moderate') THEN
             -- Log the violation
             INSERT INTO profanity_logs (user_id, content_type, content, flagged_words, severity, action_taken, source)
-            VALUES (NEW.id, 'username', NEW.username, username_check.flagged_words, username_check.severity, 'blocked', 'server');
+            VALUES (NEW.id, 'username', NEW.username, username_check.flagged_words, username_check.p_severity, 'blocked', 'server');
             
             RAISE EXCEPTION 'Username contains inappropriate content.';
         END IF;
@@ -177,10 +179,10 @@ BEGIN
     IF NEW.bio IS DISTINCT FROM COALESCE(OLD.bio, '') THEN
         SELECT * INTO bio_check FROM check_profanity(NEW.bio);
         
-        IF bio_check.has_profanity AND bio_check.severity = 'severe' THEN
+        IF bio_check.has_profanity AND bio_check.p_severity = 'severe' THEN
             -- Log the violation
             INSERT INTO profanity_logs (user_id, content_type, content, flagged_words, severity, action_taken, source)
-            VALUES (NEW.id, 'bio', NEW.bio, bio_check.flagged_words, bio_check.severity, 'blocked', 'server');
+            VALUES (NEW.id, 'bio', NEW.bio, bio_check.flagged_words, bio_check.p_severity, 'blocked', 'server');
             
             RAISE EXCEPTION 'Bio contains inappropriate content.';
         END IF;
@@ -188,7 +190,7 @@ BEGIN
         -- Log moderate/mild but allow
         IF bio_check.has_profanity THEN
             INSERT INTO profanity_logs (user_id, content_type, content, flagged_words, severity, action_taken, source)
-            VALUES (NEW.id, 'bio', NEW.bio, bio_check.flagged_words, bio_check.severity, 'allowed', 'server');
+            VALUES (NEW.id, 'bio', NEW.bio, bio_check.flagged_words, bio_check.p_severity, 'allowed', 'server');
         END IF;
     END IF;
     
@@ -228,6 +230,12 @@ ON CONFLICT (word) DO NOTHING;
 -- ============================================================
 -- Enable RLS on profanity_logs (admins only)
 ALTER TABLE profanity_logs ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies first (for re-runs)
+DROP POLICY IF EXISTS "Admins can view profanity logs" ON profanity_logs;
+DROP POLICY IF EXISTS "System can insert profanity logs" ON profanity_logs;
+DROP POLICY IF EXISTS "Anyone can read profanity words" ON profanity_words;
+DROP POLICY IF EXISTS "Admins can manage profanity words" ON profanity_words;
 
 -- Admins can view logs
 CREATE POLICY "Admins can view profanity logs"

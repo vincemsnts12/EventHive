@@ -292,23 +292,40 @@ function checkProfanity(text) {
     const words = text.toLowerCase().split(/\s+/);
 
     for (const word of words) {
-        // Skip if word is whitelisted
+        // Skip if word is whitelisted or too short to contain profanity
         if (isWhitelisted(word)) continue;
+        if (word.length < 3) continue; // Skip very short words
 
         const normalizedWord = normalizeLeetSpeak(word);
 
         for (const profaneWord of ALL_PROFANITY) {
             const normalizedProfane = normalizeLeetSpeak(profaneWord);
 
-            // Check if word matches or contains profanity
-            if (normalizedWord === normalizedProfane || normalizedWord.includes(normalizedProfane)) {
-                // Verify it's not a false positive by checking context
-                if (!isWhitelisted(word)) {
-                    flaggedWords.push(profaneWord);
+            // Skip if profane word is longer than the word being checked
+            if (normalizedProfane.length > normalizedWord.length) continue;
 
-                    const severity = getSeverity(profaneWord);
-                    if (severity && (!highestSeverity || severityRank[severity] > severityRank[highestSeverity])) {
-                        highestSeverity = severity;
+            // For short profane words (<=4 chars), require exact/near-exact match
+            // to avoid "ass" matching "class", "hoe" matching "shoes", etc.
+            if (normalizedProfane.length <= 4) {
+                // Only match if word equals profane word or is very close
+                if (normalizedWord === normalizedProfane) {
+                    if (!isWhitelisted(word)) {
+                        flaggedWords.push(profaneWord);
+                        const severity = getSeverity(profaneWord);
+                        if (severity && (!highestSeverity || severityRank[severity] > severityRank[highestSeverity])) {
+                            highestSeverity = severity;
+                        }
+                    }
+                }
+            } else {
+                // For longer profane words (5+ chars), allow substring matching
+                if (normalizedWord === normalizedProfane || normalizedWord.includes(normalizedProfane)) {
+                    if (!isWhitelisted(word)) {
+                        flaggedWords.push(profaneWord);
+                        const severity = getSeverity(profaneWord);
+                        if (severity && (!highestSeverity || severityRank[severity] > severityRank[highestSeverity])) {
+                            highestSeverity = severity;
+                        }
                     }
                 }
             }

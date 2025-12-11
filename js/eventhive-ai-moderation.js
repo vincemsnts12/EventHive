@@ -8,8 +8,8 @@
 // CONFIGURATION
 // ============================================================
 
-// OpenAI API key - will be set from eventhive-supabase.js config
-let OPENAI_API_KEY = null;
+// OpenAI API key - will be set via initAIModeration() from eventhive-supabase.js
+let _aiModerationApiKey = null;
 
 // Cache for moderation results (reduces API calls)
 const moderationCache = new Map();
@@ -29,7 +29,7 @@ const MIN_API_INTERVAL = 100; // 100ms between calls
  */
 function initAIModeration(apiKey) {
     if (apiKey && apiKey.startsWith('sk-')) {
-        OPENAI_API_KEY = apiKey;
+        _aiModerationApiKey = apiKey;
         console.log('AI Moderation initialized with OpenAI API');
         return true;
     }
@@ -47,7 +47,7 @@ function initAIModeration(apiKey) {
  * @returns {Promise<{flagged: boolean, categories: Object, scores: Object}>}
  */
 async function callOpenAIModeration(text) {
-    if (!OPENAI_API_KEY) {
+    if (!_aiModerationApiKey) {
         throw new Error('OpenAI API key not configured');
     }
 
@@ -66,7 +66,7 @@ async function callOpenAIModeration(text) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENAI_API_KEY}`
+                'Authorization': `Bearer ${_aiModerationApiKey}`
             },
             body: JSON.stringify({
                 input: text,
@@ -200,7 +200,7 @@ async function moderateContent(text, options = {}) {
     };
 
     // If AI is enabled and key is available, also check with OpenAI
-    if (useAI && OPENAI_API_KEY) {
+    if (useAI && _aiModerationApiKey) {
         try {
             const aiResult = await callOpenAIModeration(text);
 
