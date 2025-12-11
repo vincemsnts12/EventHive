@@ -1372,11 +1372,6 @@ async function getOrganizations() {
  * @returns {Promise<{success: boolean, organization?: Object, error?: string}>}
  */
 async function createOrganization(name, description = '') {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, error: 'Supabase not initialized' };
-  }
-
   // Input validation
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return { success: false, error: 'Organization name is required' };
@@ -1394,32 +1389,82 @@ async function createOrganization(name, description = '') {
     return { success: false, error: 'Only admins can create organizations' };
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('organizations')
-      .insert({
-        name: trimmedName,
-        description: description?.trim() || null
-      })
-      .select()
-      .single();
+  // Use direct fetch API to avoid Supabase client hanging issues
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
 
-    if (error) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, error: 'Supabase configuration not available' };
+  }
+
+  // Get access token
+  let accessToken = null;
+  try {
+    const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
+      key.startsWith('sb-') && key.includes('auth-token')
+    );
+    if (supabaseAuthKeys.length > 0) {
+      const authData = JSON.parse(localStorage.getItem(supabaseAuthKeys[0]));
+      accessToken = authData?.access_token;
+    }
+  } catch (e) {
+    console.error('Error getting access token:', e);
+  }
+
+  if (!accessToken) {
+    return { success: false, error: 'Authentication token not found. Please log in again.' };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/organizations`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          name: trimmedName,
+          description: description?.trim() || null
+        }),
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
       // Check for unique constraint violation
-      if (error.code === '23505' || error.message.includes('duplicate')) {
+      if (response.status === 409 || errorText.includes('duplicate') || errorText.includes('unique')) {
         return { success: false, error: 'An organization with this name already exists' };
       }
-      console.error('Error creating organization:', error);
-      return { success: false, error: error.message };
+      console.error('Error creating organization:', response.status, errorText);
+      return { success: false, error: errorText };
     }
 
+    const data = await response.json();
+    const organization = Array.isArray(data) && data.length > 0 ? data[0] : data;
+
     logSecurityEvent('ORGANIZATION_CREATED', { name: trimmedName }, 'Organization created successfully');
-    return { success: true, organization: data };
+    console.log('Organization created successfully:', organization);
+    return { success: true, organization };
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('createOrganization: Request timed out');
+      return { success: false, error: 'Request timed out. Please try again.' };
+    }
     console.error('Unexpected error creating organization:', error);
     return { success: false, error: error.message };
   }
 }
+
 
 /**
  * Update an organization
