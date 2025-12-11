@@ -2897,13 +2897,11 @@ function showCommentPreview(commentId, fullContent, element) {
   currentPreviewCommentId = commentId;
   contentDiv.textContent = decodedContent;
 
-  // Set up delete button
+  // Set up delete button (no confirm needed - deleteFlaggedComment handles it)
   if (deleteBtn) {
     deleteBtn.onclick = async () => {
-      if (confirm('Are you sure you want to permanently delete this comment? This action cannot be undone.')) {
-        await deleteFlaggedComment(commentId);
-        closeCommentPreviewModal();
-      }
+      await deleteFlaggedComment(commentId);
+      closeCommentPreviewModal();
     };
   }
 
