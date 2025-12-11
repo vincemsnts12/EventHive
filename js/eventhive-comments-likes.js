@@ -334,10 +334,8 @@ async function loadEventComments(eventId) {
   // Get current user ID for rendering (guests will have null, which is fine)
   let currentUserId = null;
   try {
-    // Try to get user ID from localStorage (works for authenticated users)
     currentUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
     if (!currentUserId) {
-      // Fallback: Try to get from auth token
       const supabaseAuthKeys = Object.keys(localStorage).filter(key =>
         (key.includes('supabase') && key.includes('auth-token')) ||
         (key.startsWith('sb-') && key.includes('auth-token'))
@@ -351,49 +349,69 @@ async function loadEventComments(eventId) {
       }
     }
   } catch (e) {
-    // Ignore errors - guests will have currentUserId = null, which is expected
     console.log('No authenticated user found (guest mode)');
   }
 
-  // Get flag info for all comments (batch query) - wrapped in try-catch to be defensive
-  let flagInfo = {};
-  if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function') {
-    try {
-      const commentIds = result.comments.map(c => c.id);
-      const flagResult = await getCommentsWithFlagInfo(commentIds);
-      if (flagResult && flagResult.success) {
-        flagInfo = flagResult.flagInfo || {};
-      }
-    } catch (flagError) {
-      // Log error but don't break comment loading
-      console.warn('Could not load flag info (non-critical):', flagError);
-      // Continue with empty flagInfo - comments will still render
-    }
-  }
-
-  // Render comments (works for both authenticated users and guests)
+  // STEP 1: Render comments IMMEDIATELY without waiting for flag info
   if (result.comments.length === 0) {
     commentsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No comments yet. Be the first to comment!</div>';
   } else {
     result.comments.forEach(comment => {
-      // Get flag info for this comment
-      const commentFlagInfo = flagInfo[comment.id] || { count: 0, userFlagged: false };
-      // Pass currentUserId and flagInfo to renderComment
-      commentsList.appendChild(renderComment(comment, currentUserId, commentFlagInfo));
+      // Render without flag info first (will update async)
+      commentsList.appendChild(renderComment(comment, currentUserId, { count: 0, userFlagged: false }));
     });
   }
 
-  // Update comment count
+  // Update comment count immediately
+  const count = result.comments.length;
   if (commentsCount) {
-    const count = result.comments.length;
     commentsCount.textContent = `${count} ${count === 1 ? 'comment' : 'comments'}`;
   } else {
-    // Try alternative selector if ID doesn't exist
     const altCommentsCount = document.querySelector('.comments-count');
     if (altCommentsCount) {
-      const count = result.comments.length;
       altCommentsCount.textContent = `${count} ${count === 1 ? 'comment' : 'comments'}`;
     }
+  }
+
+  // STEP 2: Fetch flag info in BACKGROUND (non-blocking) and update buttons
+  if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function' && currentUserId) {
+    // Use setTimeout to make this truly non-blocking
+    setTimeout(async () => {
+      try {
+        const commentIds = result.comments.map(c => c.id);
+        const flagResult = await getCommentsWithFlagInfo(commentIds);
+
+        if (flagResult && flagResult.success && flagResult.flagInfo) {
+          // Update flag buttons with the fetched info
+          Object.keys(flagResult.flagInfo).forEach(commentId => {
+            const info = flagResult.flagInfo[commentId];
+            const flagBtn = commentsList.querySelector(`.comment-flag-btn[data-comment-id="${commentId}"]`);
+            if (flagBtn && (info.count > 0 || info.userFlagged)) {
+              // Update button state
+              if (info.userFlagged) {
+                flagBtn.classList.add('comment-flag-btn--flagged');
+                flagBtn.dataset.userFlagged = 'true';
+                flagBtn.title = 'You reported this comment (click to remove report)';
+                const svg = flagBtn.querySelector('svg');
+                if (svg) svg.setAttribute('fill', '#f59e0b');
+              }
+              // Update/add count
+              if (info.count > 0) {
+                let countSpan = flagBtn.querySelector('.flag-count');
+                if (!countSpan) {
+                  countSpan = document.createElement('span');
+                  countSpan.className = 'flag-count';
+                  flagBtn.appendChild(countSpan);
+                }
+                countSpan.textContent = info.count;
+              }
+            }
+          });
+        }
+      } catch (flagError) {
+        console.warn('Could not update flag info (non-critical):', flagError);
+      }
+    }, 100); // Small delay to ensure DOM is ready
   }
 }
 
