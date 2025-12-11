@@ -1775,36 +1775,55 @@ async function hasUserFlaggedComment(commentId) {
 
 /**
  * Get flag count for a comment
+ * Now reads flag_count directly from comments table (more efficient)
  * @param {string} commentId - Comment ID
  * @returns {Promise<{success: boolean, count: number, error?: string}>}
  */
 async function getCommentFlagCount(commentId) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return { success: false, count: 0, error: 'Supabase client not available' };
+  const SUPABASE_URL = window.__EH_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.__EH_SUPABASE_ANON_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return { success: false, count: 0, error: 'Supabase config not available' };
   }
 
   try {
-    const { count, error } = await supabase
-      .from('comment_flags')
-      .select('*', { count: 'exact', head: true })
-      .eq('comment_id', commentId);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-    if (error) {
-      console.error('Error getting flag count:', error);
-      return { success: false, count: 0, error: error.message };
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/comments?id=eq.${commentId}&select=flag_count`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return { success: false, count: 0, error: `Failed to get flag count: ${response.status}` };
     }
 
-    return { success: true, count: count || 0 };
+    const data = await response.json();
+    const flagCount = data && data.length > 0 ? (data[0].flag_count || 0) : 0;
+
+    return { success: true, count: flagCount };
   } catch (error) {
     console.error('Unexpected error getting flag count:', error);
     return { success: false, count: 0, error: error.message };
   }
 }
 
+
 /**
  * Get flag info for multiple comments (batch query - more efficient)
  * Uses direct fetch API to avoid blocking issues with Supabase client
+ * Now reads flag_count from comments table and user flags from comment_flags
  * @param {string[]} commentIds - Array of comment IDs
  * @returns {Promise<{success: boolean, flagInfo: Object, error?: string}>}
  * flagInfo is a map: { commentId: { count: number, userFlagged: boolean } }
@@ -1826,33 +1845,41 @@ async function getCommentsWithFlagInfo(commentIds) {
 
   try {
     // Build the filter for multiple comment IDs
-    const filter = commentIds.map(id => `comment_id.eq.${id}`).join(',');
+    const commentFilter = commentIds.map(id => `id.eq.${id}`).join(',');
+    const flagFilter = commentIds.map(id => `comment_id.eq.${id}`).join(',');
 
-    // Use direct fetch with timeout (5 seconds max)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/comment_flags?or=(${filter})&select=comment_id,user_id`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        },
-        signal: controller.signal
-      }
-    );
+    // Parallel fetch: comments for flag_count, comment_flags for user's flags
+    const [commentsResponse, flagsResponse] = await Promise.all([
+      // Get flag_count from comments table
+      fetch(
+        `${SUPABASE_URL}/rest/v1/comments?or=(${commentFilter})&select=id,flag_count`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        }
+      ),
+      // Get user's flags from comment_flags table (only if logged in)
+      userId ? fetch(
+        `${SUPABASE_URL}/rest/v1/comment_flags?or=(${flagFilter})&user_id=eq.${userId}&select=comment_id`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        }
+      ) : Promise.resolve({ ok: true, json: () => [] })
+    ]);
 
     clearTimeout(timeout);
-
-    if (!response.ok) {
-      // Table might not exist or other error - return empty gracefully
-      console.warn('Flag info fetch failed:', response.status);
-      return { success: true, flagInfo: {} };
-    }
-
-    const flags = await response.json();
 
     // Build flag info map
     const flagInfo = {};
@@ -1860,15 +1887,28 @@ async function getCommentsWithFlagInfo(commentIds) {
       flagInfo[id] = { count: 0, userFlagged: false };
     });
 
-    if (flags && Array.isArray(flags)) {
-      flags.forEach(flag => {
-        if (flagInfo[flag.comment_id]) {
-          flagInfo[flag.comment_id].count++;
-          if (userId && flag.user_id === userId) {
+    // Process comments for flag_count
+    if (commentsResponse.ok) {
+      const comments = await commentsResponse.json();
+      if (comments && Array.isArray(comments)) {
+        comments.forEach(comment => {
+          if (flagInfo[comment.id]) {
+            flagInfo[comment.id].count = comment.flag_count || 0;
+          }
+        });
+      }
+    }
+
+    // Process user's flags
+    if (userId && flagsResponse.ok) {
+      const userFlags = await flagsResponse.json();
+      if (userFlags && Array.isArray(userFlags)) {
+        userFlags.forEach(flag => {
+          if (flagInfo[flag.comment_id]) {
             flagInfo[flag.comment_id].userFlagged = true;
           }
-        }
-      });
+        });
+      }
     }
 
     return { success: true, flagInfo };
@@ -1882,6 +1922,7 @@ async function getCommentsWithFlagInfo(commentIds) {
     return { success: true, flagInfo: {} };
   }
 }
+
 
 /**
  * Get all flagged/hidden comments (admin only)
