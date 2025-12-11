@@ -375,8 +375,8 @@ async function loadEventComments(eventId) {
 
   // STEP 2: Fetch flag info in BACKGROUND (non-blocking) and update buttons
   if (result.comments.length > 0 && typeof getCommentsWithFlagInfo === 'function' && currentUserId) {
-    // Use setTimeout to make this truly non-blocking
-    setTimeout(async () => {
+    // Use IIFE to start immediately but non-blocking (no await on outer function)
+    (async () => {
       try {
         const commentIds = result.comments.map(c => c.id);
         const flagResult = await getCommentsWithFlagInfo(commentIds);
@@ -411,7 +411,7 @@ async function loadEventComments(eventId) {
       } catch (flagError) {
         console.warn('Could not update flag info (non-critical):', flagError);
       }
-    }, 100); // Small delay to ensure DOM is ready
+    })(); // Immediately invoked, no delay
   }
 }
 
