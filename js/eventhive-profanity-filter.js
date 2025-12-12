@@ -78,17 +78,26 @@ const WHITELIST = [
 // ============================================================
 const FILIPINO_PROFANITY = {
     severe: [
+        // Main profanity
         'putangina', 'putang ina', 'puta', 'tangina', 'tang ina',
         'kinginamo', 'kingina', 'pukingina', 'pukinangina',
         'kantot', 'kantutan', 'iyot', 'iyutan', 'kinantot',
-        'tite', 'titi', 'burat', 'tamod',
-        'puke', 'pepe', 'pekpek', 'kepyas', 'keps',
-        'betlog', 'bayag', 'etits', 'junior',
-        'jakol', 'jabol', 'salsal', 'finger', 'finjer',
-        'pokpok', 'patutot', 'kalapating mababa ang lipad',
-        'hindot', 'hindutan', 'iyutan', 'kantotan',
-        'libog', 'malibog', 'malandi', 'karat', 'makarat',
-        'pota', 'potang ina', 'potangina', 'pucha', 'pakshet'
+        // Male body parts
+        'tite', 'titi', 't1t1', 't1te', 'tit3', 'burat', 'tamod',
+        'betlog', 'bayag', 'etits', 'et1ts', '3t1ts', 'junior', 'burat',
+        // Female body parts
+        'puke', 'puk3', 'p0ke', 'pepe', 'p3p3', 'pekpek', 'p3kp3k', 'kepyas', 'keps',
+        'dede', 'd3d3', 'ded3', 'd3de', 'suso', 'sus0', 's0s0', 'utong', 'ut0ng',
+        'kiki', 'k1k1', 'bilat', 'b1lat', 'bil4t',
+        // Sexual acts
+        'jakol', 'jak0l', 'j4kol', 'j4k0l', 'jabol', 'salsal', 's4ls4l',
+        'finger', 'finjer', 'fing3r', 'f1nger',
+        'pokpok', 'p0kp0k', 'patutot', 'kalapating mababa ang lipad',
+        'hindot', 'h1ndot', 'hind0t', 'hindutan', 'iyutan', 'kantotan',
+        'libog', 'l1b0g', 'malibog', 'mal1bog', 'malandi', 'karat', 'makarat',
+        'pota', 'p0ta', 'potang ina', 'potangina', 'pucha', 'puch4', 'pakshet',
+        // Common leet variations
+        'put4ng1n4', 'put4', 't4ng1n4', 'g4g0', 'b0b0', 't4ng4'
     ],
     moderate: [
         'gago', 'gaga', 'bobo', 'boba', 'tanga', 'tangahan',
