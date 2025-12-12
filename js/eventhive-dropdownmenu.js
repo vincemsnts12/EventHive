@@ -12,24 +12,18 @@ if (typeof window !== 'undefined') {
 }
 
 // Get cached auth state from localStorage
+// Note: No expiry check - we trust the session. Cache is cleared on logout/SIGNED_OUT.
 function getCachedAuthState() {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
-      const now = Date.now();
-      const timeSinceLogin = now - parsed.timestamp;
-
-      // Return cache if it's less than 5 minutes old (timer starts from login)
-      if (timeSinceLogin < AUTH_CHECK_INTERVAL) {
-        // auth-utils.js saves flat format: {isLoggedIn, isAdmin, userId, timestamp}
-        // Return parsed directly if it has isLoggedIn (new flat format)
-        // Or return parsed.state for backwards compatibility (old nested format)
-        if (typeof parsed.isLoggedIn !== 'undefined') {
-          return parsed; // New flat format from auth-utils.js
-        } else if (parsed.state && typeof parsed.state.isLoggedIn !== 'undefined') {
-          return parsed.state; // Old nested format
-        }
+      // Return cache if it has valid structure (no time-based expiry)
+      // Cache is cleared on logout, session timeout, or SIGNED_OUT event
+      if (typeof parsed.isLoggedIn !== 'undefined') {
+        return parsed; // New flat format from auth-utils.js
+      } else if (parsed.state && typeof parsed.state.isLoggedIn !== 'undefined') {
+        return parsed.state; // Old nested format
       }
     }
   } catch (e) {
@@ -469,30 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // Listen for auth state changes (when user logs in/out)
 // NOTE: onAuthStateChange is registered once below (around line 550) to avoid duplicate subscriptions
 
-// Set up periodic check every 5 minutes (background refresh)
-// This runs continuously and automatically updates cache every 5 minutes
-// Timer starts from login time (stored in cache timestamp)
-let authCheckInterval = setInterval(() => {
-  // Check if cache exists and if 5 minutes have passed since login
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      const timeSinceLogin = Date.now() - parsed.timestamp;
-
-      if (timeSinceLogin >= AUTH_CHECK_INTERVAL) {
-        // 5 minutes have passed since login - refresh cache in background
-        updateDropdownAuthState(true);
-      }
-      // If less than 5 minutes, do nothing - use cache only
-    } else {
-      // No cache - check auth
-      updateDropdownAuthState(true);
-    }
-  } catch (e) {
-    console.error('Error in periodic auth check:', e);
-  }
-}, 60000); // Check every minute to see if 5 minutes have passed since login
+// Note: Periodic refresh removed - we now trust the session.
+// Auth state is refreshed on:
+// 1. Login/logout events (onAuthStateChange)
+// 2. Page load (if no cache exists)
+// 3. SIGNED_OUT event from Supabase
 
 // Clear all caches - use centralized function if available
 function clearAllCaches() {

@@ -78,26 +78,34 @@ const WHITELIST = [
 // ============================================================
 const FILIPINO_PROFANITY = {
     severe: [
-        // Main profanity
+        // Main profanity / curses
         'putangina', 'putang ina', 'puta', 'tangina', 'tang ina',
         'kinginamo', 'kingina', 'pukingina', 'pukinangina',
-        'kantot', 'kantutan', 'iyot', 'iyutan', 'kinantot',
-        // Male body parts
-        'tite', 'titi', 't1t1', 't1te', 'tit3', 'burat', 'tamod',
-        'betlog', 'bayag', 'etits', 'et1ts', '3t1ts', 'junior', 'burat',
-        // Female body parts
+        'kantot', 'kantutan', 'iyot', 'iyutan', 'kinantot', 'kntot',
+        // Male body parts (Tagalog + regional)
+        'tite', 'titi', 't1t1', 't1te', 'tit3', 'burat', 'tamod', 'tmod',
+        'betlog', 'bayag', 'etits', 'et1ts', '3t1ts', 'burat', 'bur4t',
+        'otin', 'oten', 'ot1n', '0t1n', '0ten', 'ot3n', 'utin', 'ut1n',
+        'boto', 'b0t0', 'bot0', 'b0to',
+        // Female body parts (Tagalog + regional dialects)
         'puke', 'puk3', 'p0ke', 'pepe', 'p3p3', 'pekpek', 'p3kp3k', 'kepyas', 'keps',
         'dede', 'd3d3', 'ded3', 'd3de', 'suso', 'sus0', 's0s0', 'utong', 'ut0ng',
         'kiki', 'k1k1', 'bilat', 'b1lat', 'bil4t',
+        // Visayan / Cebuano / Bisaya terms
+        'puday', 'pud4y', 'pud@y', 'p0day', 'pudae', 'pd4y',
+        'buang', 'bu4ng', 'yawa', 'y4w4', 'yaw4',
+        'pisot', 'pis0t', 'p1sot', 'supot', 'sup0t',
         // Sexual acts
         'jakol', 'jak0l', 'j4kol', 'j4k0l', 'jabol', 'salsal', 's4ls4l',
-        'finger', 'finjer', 'fing3r', 'f1nger',
+        'finger', 'finjer', 'fing3r', 'f1nger', 'fingr',
         'pokpok', 'p0kp0k', 'patutot', 'kalapating mababa ang lipad',
         'hindot', 'h1ndot', 'hind0t', 'hindutan', 'iyutan', 'kantotan',
         'libog', 'l1b0g', 'malibog', 'mal1bog', 'malandi', 'karat', 'makarat',
         'pota', 'p0ta', 'potang ina', 'potangina', 'pucha', 'puch4', 'pakshet',
+        'raep', 'r4pe', 'r4p3', 'rape',
         // Common leet variations
-        'put4ng1n4', 'put4', 't4ng1n4', 'g4g0', 'b0b0', 't4ng4'
+        'put4ng1n4', 'put4', 't4ng1n4', 'g4g0', 'b0b0', 't4ng4',
+        'puk3', 'pek', 'p3k', 'suso', 'sus', 'd3d', 'kkk'
     ],
     moderate: [
         'gago', 'gaga', 'bobo', 'boba', 'tanga', 'tangahan',
