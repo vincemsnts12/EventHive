@@ -2548,7 +2548,7 @@ async function loadFlaggedComments() {
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/comments?flag_count=gte.1&select=id,content,user_id,event_id,flag_count,created_at&order=flag_count.desc,created_at.desc`,
+      `${SUPABASE_URL}/rest/v1/comments?flag_count=gte.3&select=id,content,user_id,event_id,flag_count,created_at&order=flag_count.desc,created_at.desc`,
       {
         method: 'GET',
         headers: {
