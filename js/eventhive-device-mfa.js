@@ -725,6 +725,235 @@ async function checkAndHandleMFA(userId, email) {
 }
 
 // ============================================================
+// INLINE MFA FOR LOGIN MODAL
+// ============================================================
+
+/**
+ * Show MFA verification inline within the login modal
+ * Returns a Promise that resolves when MFA passes
+ * @param {string} userId - User ID
+ * @param {string} email - User email
+ * @param {HTMLElement} loginModal - The login modal element to replace content in
+ * @returns {Promise<{success: boolean}>}
+ */
+async function showInlineMFA(userId, email, loginModal) {
+    return new Promise(async (resolve) => {
+        console.log('showInlineMFA: Starting inline MFA for', email);
+
+        // Store reference for resolving
+        window.__EH_MFA_RESOLVE = resolve;
+        window.__EH_MFA_MODAL_REF = loginModal;
+
+        // Store pending MFA state
+        mfaPendingUserId = userId;
+        mfaPendingEmail = email;
+
+        // Request MFA code
+        const result = await requestDeviceMFACode(userId, email);
+        if (!result.success) {
+            console.error('Failed to request MFA code:', result.error);
+            alert('Failed to send verification email. Please try again.');
+            resolve({ success: false });
+            return;
+        }
+
+        // Get the modal content container (find the form within the modal)
+        const modalContent = loginModal.querySelector('.login-form, .modal-content, form') || loginModal;
+
+        // Store original content to restore if cancelled
+        const originalContent = modalContent.innerHTML;
+        window.__EH_ORIGINAL_MODAL_CONTENT = originalContent;
+
+        // Replace with MFA form
+        modalContent.innerHTML = `
+            <div class="mfa-inline-content" style="padding: 20px; text-align: center;">
+                <div class="mfa-icon" style="font-size: 48px; margin-bottom: 15px;">🔐</div>
+                <h2 style="margin-bottom: 10px; color: #fff;">Verify Your Device</h2>
+                <p style="margin-bottom: 20px; color: #ccc;">
+                    We noticed you're logging in from a new device.<br>
+                    A 6-digit verification code has been sent to your email.
+                </p>
+                <input type="text" id="inlineMfaCodeInput" 
+                    class="mfa-code-input" 
+                    placeholder="000000"
+                    maxlength="6" 
+                    autocomplete="one-time-code"
+                    style="width: 200px; font-size: 24px; letter-spacing: 8px; text-align: center; 
+                           padding: 15px; border: 2px solid #444; border-radius: 8px; 
+                           background: rgba(255,255,255,0.1); color: #fff; margin-bottom: 15px;">
+                <div id="inlineMfaError" style="color: #ff4444; margin-bottom: 15px; display: none;"></div>
+                <label style="display: flex; align-items: center; justify-content: center; gap: 8px; 
+                             margin-bottom: 20px; color: #ccc; cursor: pointer;">
+                    <input type="checkbox" id="inlineTrustDeviceCheckbox">
+                    Trust this device for 7 days
+                </label>
+                <button id="inlineVerifyMFABtn" 
+                    style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                           border: none; border-radius: 8px; color: #fff; font-size: 16px; font-weight: bold; 
+                           cursor: pointer; margin-bottom: 10px;">
+                    Verify
+                </button>
+                <button id="inlineCancelMFABtn" 
+                    style="width: 100%; padding: 10px; background: transparent; border: 1px solid #666; 
+                           border-radius: 8px; color: #ccc; font-size: 14px; cursor: pointer;">
+                    Cancel
+                </button>
+                <p id="inlineMfaExpiry" style="margin-top: 15px; color: #888; font-size: 12px;">
+                    Code expires in 10:00
+                </p>
+                <button id="inlineResendMFABtn" style="margin-top: 5px; background: none; border: none; 
+                        color: #667eea; cursor: pointer; text-decoration: underline; font-size: 12px;">
+                    Resend Code
+                </button>
+            </div>
+        `;
+
+        // Setup event listeners
+        setupInlineMFAListeners(userId, email, resolve);
+
+        // Start countdown timer
+        mfaExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        startInlineMFACountdown();
+
+        // Focus on input
+        setTimeout(() => {
+            const input = document.getElementById('inlineMfaCodeInput');
+            if (input) input.focus();
+        }, 100);
+    });
+}
+
+/**
+ * Setup event listeners for inline MFA form
+ */
+function setupInlineMFAListeners(userId, email, resolve) {
+    const codeInput = document.getElementById('inlineMfaCodeInput');
+    const verifyBtn = document.getElementById('inlineVerifyMFABtn');
+    const cancelBtn = document.getElementById('inlineCancelMFABtn');
+    const resendBtn = document.getElementById('inlineResendMFABtn');
+    const errorEl = document.getElementById('inlineMfaError');
+
+    if (!codeInput || !verifyBtn) return;
+
+    // Input formatting
+    codeInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '').substring(0, 6);
+        if (errorEl) errorEl.style.display = 'none';
+    });
+
+    // Enter key
+    codeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') verifyBtn.click();
+    });
+
+    // Verify button
+    verifyBtn.addEventListener('click', async () => {
+        const code = codeInput.value.trim();
+        const trustDevice = document.getElementById('inlineTrustDeviceCheckbox')?.checked || false;
+
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = 'Verifying...';
+        if (errorEl) errorEl.style.display = 'none';
+
+        const result = await verifyDeviceMFACode(code, trustDevice);
+
+        if (result.success) {
+            console.log('Inline MFA verification successful');
+            // Restore modal and resolve
+            restoreLoginModal();
+            resolve({ success: true });
+        } else {
+            if (errorEl) {
+                errorEl.textContent = result.error || 'Verification failed';
+                errorEl.style.display = 'block';
+            }
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify';
+        }
+    });
+
+    // Cancel button
+    cancelBtn.addEventListener('click', () => {
+        console.log('MFA cancelled by user');
+        restoreLoginModal();
+        resolve({ success: false });
+    });
+
+    // Resend button
+    resendBtn.addEventListener('click', async () => {
+        resendBtn.disabled = true;
+        resendBtn.textContent = 'Sending...';
+
+        const result = await requestDeviceMFACode(userId, email);
+
+        if (result.success) {
+            resendBtn.textContent = 'Code Sent!';
+            // Reset timer
+            mfaExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+            startInlineMFACountdown();
+        } else {
+            resendBtn.textContent = 'Failed - Try Again';
+        }
+
+        setTimeout(() => {
+            resendBtn.disabled = false;
+            resendBtn.textContent = 'Resend Code';
+        }, 3000);
+    });
+}
+
+/**
+ * Start countdown timer for inline MFA
+ */
+function startInlineMFACountdown() {
+    const expiryEl = document.getElementById('inlineMfaExpiry');
+    if (!expiryEl || !mfaExpiresAt) return;
+
+    const updateCountdown = () => {
+        const now = Date.now();
+        const remaining = mfaExpiresAt.getTime() - now;
+
+        if (remaining <= 0) {
+            expiryEl.textContent = 'Code expired';
+            return;
+        }
+
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        expiryEl.textContent = `Code expires in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    updateCountdown();
+    const interval = setInterval(() => {
+        if (!document.getElementById('inlineMfaExpiry')) {
+            clearInterval(interval);
+            return;
+        }
+        updateCountdown();
+    }, 1000);
+}
+
+/**
+ * Restore original login modal content
+ */
+function restoreLoginModal() {
+    const loginModal = window.__EH_MFA_MODAL_REF;
+    const originalContent = window.__EH_ORIGINAL_MODAL_CONTENT;
+
+    if (loginModal && originalContent) {
+        const modalContent = loginModal.querySelector('.login-form, .modal-content, form') || loginModal;
+        modalContent.innerHTML = originalContent;
+    }
+
+    // Clear references
+    window.__EH_MFA_MODAL_REF = null;
+    window.__EH_ORIGINAL_MODAL_CONTENT = null;
+    window.__EH_MFA_RESOLVE = null;
+    mfaPendingUserId = null;
+    mfaPendingEmail = null;
+}
+
+// ============================================================
 // EXPORTS
 // ============================================================
 
@@ -736,5 +965,6 @@ window.verifyDeviceMFACode = verifyDeviceMFACode;
 window.showMFAModal = showMFAModal;
 window.hideMFAModal = hideMFAModal;
 window.checkAndHandleMFA = checkAndHandleMFA;
+window.showInlineMFA = showInlineMFA;
 
 console.log('EventHive Device MFA module loaded');

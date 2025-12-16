@@ -200,25 +200,8 @@ function setupAuthStateListener() {
       // Only show message if user changed (not just a token refresh)
       const isNewUserLogin = lastAuthenticatedUserId !== userId;
 
-      // ===== DEVICE MFA CHECK =====
-      // Check if MFA was just verified (after reload from MFA modal)
-      const mfaJustVerified = sessionStorage.getItem('eventhive_mfa_just_verified');
-      if (mfaJustVerified) {
-        console.log('MFA was just verified, clearing flag and continuing');
-        sessionStorage.removeItem('eventhive_mfa_just_verified');
-        // Continue with login flow - MFA already passed
-      } else if (typeof checkAndHandleMFA === 'function' && isNewUserLogin) {
-        // Check if this is a new/untrusted device and require MFA
-        const mfaPassed = await checkAndHandleMFA(userId, email);
-        if (!mfaPassed) {
-          // MFA modal is showing, don't continue with login flow
-          // User will be redirected/reloaded after successful MFA verification
-          // NOTE: Do NOT delete from processedUserIds - global flag blocks reprocessing
-          console.log('MFA required, pausing login flow');
-          return;
-        }
-        console.log('MFA check passed or not required');
-      }
+      // NOTE: Device MFA is now handled INLINE in the login modal
+      // (see eventhive-pop-up__log&sign.js) - not here in the auth listener
 
       // ===== UPDATE UI CACHE AFTER MFA =====
       // This is critical - update the auth cache so dropdown shows logged-in state

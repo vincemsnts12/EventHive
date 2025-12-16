@@ -384,6 +384,33 @@ document.addEventListener('DOMContentLoaded', () => {
               // Success - wait for both auth and profile to load BEFORE completing login
               // This ensures dropdown is functional immediately after login
 
+              // ===== DEVICE MFA CHECK - BEFORE completing login =====
+              // Check if device is trusted. If not, show MFA inline and wait.
+              const loginUserId = data?.user?.id;
+              if (loginUserId && typeof isDeviceTrusted === 'function') {
+                const trusted = await isDeviceTrusted(loginUserId);
+                if (!trusted) {
+                  console.log('New device detected, MFA required - showing inline MFA');
+                  // Keep modal open but show MFA content instead
+                  if (typeof showInlineMFA === 'function') {
+                    // This will handle MFA flow and only return when successful
+                    const mfaResult = await showInlineMFA(loginUserId, loginEmail, loginModal);
+                    if (!mfaResult.success) {
+                      // MFA failed or cancelled - sign out and return
+                      console.log('MFA failed or cancelled');
+                      await supabase.auth.signOut();
+                      if (typeof hideLoading === 'function') hideLoading();
+                      if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Login';
+                      }
+                      return;
+                    }
+                    console.log('MFA passed, continuing with login completion');
+                  }
+                }
+              }
+
               // Clear failed login attempts on successful login
               if (typeof clearLoginAttempts === 'function') {
                 await clearLoginAttempts(loginEmail);
@@ -479,15 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
               emailInput.value = '';
               passwordInput.value = '';
 
-              // ===== MFA CHECK =====
-              // If MFA is pending (global flag set by device-mfa.js), DON'T complete login flow here
-              // The MFA modal will reload the page after successful verification
-              if (window.__EH_MFA_PENDING) {
-                console.log('MFA pending (global flag), pausing login completion in pop-up handler');
-                // Don't show alerts, don't log security event, don't complete login
-                // MFA modal will handle the flow and reload page on success
-                return;
-              }
+              // MFA check now happens BEFORE reaching this point (see earlier in this handler)
 
               // If no MFA or MFA already passed, continue with normal login completion
               if (isFirstTimeSignup) {
