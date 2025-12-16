@@ -764,130 +764,50 @@ async function showInlineMFA(userId, email, loginModal) {
         const originalContent = modalContent.innerHTML;
         window.__EH_ORIGINAL_MODAL_CONTENT = originalContent;
 
-        // Replace with MFA form - EventHive themed design
+        // Replace with MFA form - Light theme for white login modal
         modalContent.innerHTML = `
-            <div class="mfa-inline-content" style="
-                padding: 30px; 
-                text-align: center; 
-                background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
-                border-radius: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            ">
-                <div style="font-size: 56px; margin-bottom: 20px;">🔐</div>
-                <h2 style="
-                    margin-bottom: 12px; 
-                    color: #ffffff; 
-                    font-size: 22px; 
-                    font-weight: 600;
-                ">Verify Your Device</h2>
-                <p style="
-                    margin-bottom: 25px; 
-                    color: #9ca3af; 
-                    font-size: 14px; 
-                    line-height: 1.6;
-                ">
+            <div class="mfa-inline-content" style="padding: 25px 20px; text-align: center;">
+                <div style="font-size: 50px; margin-bottom: 15px;">🔐</div>
+                <h2 style="margin: 0 0 10px 0; color: #1f2937; font-size: 20px; font-weight: 600;">Verify Your Device</h2>
+                <p style="margin: 0 0 25px 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
                     We noticed you're signing in from a new device.<br>
                     A 6-digit code has been sent to your email.
                 </p>
                 
                 <input type="text" id="inlineMfaCodeInput" 
-                    placeholder="• • • • • •"
+                    placeholder="Enter code"
                     maxlength="6" 
                     autocomplete="one-time-code"
                     inputmode="numeric"
-                    style="
-                        width: 100%;
-                        max-width: 220px;
-                        font-size: 28px; 
-                        letter-spacing: 12px; 
-                        text-align: center; 
-                        padding: 16px 20px;
-                        border: 2px solid #3b4252;
-                        border-radius: 12px; 
-                        background: #2e3440;
-                        color: #e5e9f0;
-                        margin-bottom: 8px;
-                        transition: border-color 0.2s, box-shadow 0.2s;
-                        font-family: 'Courier New', monospace;
-                    "
-                    onfocus="this.style.borderColor='#88c0d0'; this.style.boxShadow='0 0 0 3px rgba(136, 192, 208, 0.2)';"
-                    onblur="this.style.borderColor='#3b4252'; this.style.boxShadow='none';"
-                >
+                    style="display: block; width: 100%; max-width: 200px; margin: 0 auto 15px auto;
+                           font-size: 24px; letter-spacing: 8px; text-align: center; padding: 14px 16px;
+                           border: 2px solid #d1d5db; border-radius: 10px; background: #f9fafb;
+                           color: #111827; font-family: monospace; outline: none; box-sizing: border-box;">
                 
-                <div id="inlineMfaError" style="
-                    color: #bf616a; 
-                    margin: 12px 0;
-                    font-size: 13px;
-                    display: none;
-                "></div>
+                <div id="inlineMfaError" style="color: #dc2626; margin: 0 0 15px 0; font-size: 13px; display: none;"></div>
                 
-                <label style="
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center; 
-                    gap: 10px; 
-                    margin: 20px 0;
-                    color: #9ca3af; 
-                    cursor: pointer;
-                    font-size: 14px;
-                ">
-                    <input type="checkbox" id="inlineTrustDeviceCheckbox" style="
-                        width: 18px;
-                        height: 18px;
-                        accent-color: #88c0d0;
-                    ">
+                <label style="display: flex; align-items: center; justify-content: center; gap: 8px; 
+                              margin: 0 0 20px 0; color: #4b5563; cursor: pointer; font-size: 14px;">
+                    <input type="checkbox" id="inlineTrustDeviceCheckbox" style="width: 16px; height: 16px; accent-color: #6366f1;">
                     Trust this device for 7 days
                 </label>
                 
-                <button id="inlineVerifyMFABtn" style="
-                    width: 100%;
-                    padding: 14px 24px;
-                    background: linear-gradient(135deg, #5e81ac 0%, #81a1c1 100%);
-                    border: none;
-                    border-radius: 10px;
-                    color: #fff;
-                    font-size: 16px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    margin-bottom: 12px;
-                    transition: transform 0.1s, box-shadow 0.2s;
-                "
-                onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(94, 129, 172, 0.4)';"
-                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                <button type="button" id="inlineVerifyMFABtn" style="display: block; width: 100%; padding: 12px 20px;
+                        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none; border-radius: 8px;
+                        color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin: 0 0 10px 0;">
                     Verify Code
                 </button>
                 
-                <button id="inlineCancelMFABtn" style="
-                    width: 100%;
-                    padding: 12px 24px;
-                    background: transparent;
-                    border: 1px solid #4c566a;
-                    border-radius: 10px;
-                    color: #9ca3af;
-                    font-size: 14px;
-                    cursor: pointer;
-                    transition: background 0.2s, color 0.2s;
-                "
-                onmouseover="this.style.background='rgba(76, 86, 106, 0.3)'; this.style.color='#d8dee9';"
-                onmouseout="this.style.background='transparent'; this.style.color='#9ca3af';">
+                <button type="button" id="inlineCancelMFABtn" style="display: block; width: 100%; padding: 10px 20px;
+                        background: transparent; border: 1px solid #d1d5db; border-radius: 8px;
+                        color: #6b7280; font-size: 14px; cursor: pointer;">
                     Cancel
                 </button>
                 
-                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <p id="inlineMfaExpiry" style="color: #6b7280; font-size: 12px; margin-bottom: 8px;">
-                        Code expires in 10:00
-                    </p>
-                    <button id="inlineResendMFABtn" style="
-                        background: none;
-                        border: none;
-                        color: #88c0d0;
-                        cursor: pointer;
-                        font-size: 13px;
-                        text-decoration: none;
-                        transition: color 0.2s;
-                    "
-                    onmouseover="this.style.color='#a3cfdb'; this.style.textDecoration='underline';"
-                    onmouseout="this.style.color='#88c0d0'; this.style.textDecoration='none';">
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                    <p id="inlineMfaExpiry" style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">Code expires in 10:00</p>
+                    <button type="button" id="inlineResendMFABtn" style="background: none; border: none; color: #6366f1;
+                            cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0;">
                         Resend Code
                     </button>
                 </div>
