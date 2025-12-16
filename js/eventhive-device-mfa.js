@@ -6,6 +6,11 @@
  */
 
 // ============================================================
+// GLOBAL MFA STATE FLAG
+// This prevents race conditions with other login handlers
+// ============================================================
+window.__EH_MFA_PENDING = false;
+// ============================================================
 // DEVICE FINGERPRINTING
 // ============================================================
 
@@ -698,11 +703,16 @@ async function checkAndHandleMFA(userId, email) {
 
     console.log('New device detected, MFA required');
 
+    // SET GLOBAL FLAG FIRST - blocks other login handlers
+    window.__EH_MFA_PENDING = true;
+    console.log('MFA pending flag set to TRUE');
+
     // Request MFA code
     const result = await requestDeviceMFACode(userId, email);
 
     if (!result.success) {
         console.error('Failed to request MFA code:', result.error);
+        window.__EH_MFA_PENDING = false; // Clear flag on failure
         alert('Failed to send verification email. Please try again.');
         return false;
     }

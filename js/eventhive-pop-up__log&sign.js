@@ -479,21 +479,26 @@ document.addEventListener('DOMContentLoaded', () => {
               emailInput.value = '';
               passwordInput.value = '';
 
-              // Show appropriate message
-              // NOTE: Skip alerts if MFA modal is pending - the auth listener handles MFA flow
-              const mfaModalShowing = document.getElementById('mfaModal')?.style.display === 'flex';
+              // ===== MFA CHECK =====
+              // If MFA is pending (global flag set by device-mfa.js), DON'T complete login flow here
+              // The MFA modal will reload the page after successful verification
+              if (window.__EH_MFA_PENDING) {
+                console.log('MFA pending (global flag), pausing login completion in pop-up handler');
+                // Don't show alerts, don't log security event, don't complete login
+                // MFA modal will handle the flow and reload page on success
+                return;
+              }
 
-              if (!mfaModalShowing) {
-                if (isFirstTimeSignup) {
-                  // First-time signup - show welcome message
-                  alert('Welcome! You have been successfully authenticated with ' + loginEmail);
-                  // Clear flags so it doesn't show again on next login
-                  localStorage.removeItem('eventhive_just_signed_up');
-                  localStorage.removeItem('eventhive_just_signed_up_email');
-                } else {
-                  // Regular login - show login success message
-                  alert('Log in successful!');
-                }
+              // If no MFA or MFA already passed, continue with normal login completion
+              if (isFirstTimeSignup) {
+                // First-time signup - show welcome message
+                alert('Welcome! You have been successfully authenticated with ' + loginEmail);
+                // Clear flags so it doesn't show again on next login
+                localStorage.removeItem('eventhive_just_signed_up');
+                localStorage.removeItem('eventhive_just_signed_up_email');
+              } else {
+                // Regular login - show login success message
+                alert('Log in successful!');
               }
 
               console.log('Login complete - auth cache and profile cache loaded, 5-minute timer started');

@@ -152,6 +152,11 @@ function setupAuthStateListener() {
       }
 
       // Prevent duplicate processing if SIGNED_IN fires multiple times for the same user
+      // OR if MFA is currently pending (global flag set by device-mfa.js)
+      if (window.__EH_MFA_PENDING) {
+        console.log('MFA is pending, blocking auth listener processing');
+        return;
+      }
       if (processedUserIds.has(userId)) {
         console.log('SIGNED_IN event already processed for this user, skipping');
         return;
@@ -208,8 +213,8 @@ function setupAuthStateListener() {
         if (!mfaPassed) {
           // MFA modal is showing, don't continue with login flow
           // User will be redirected/reloaded after successful MFA verification
+          // NOTE: Do NOT delete from processedUserIds - global flag blocks reprocessing
           console.log('MFA required, pausing login flow');
-          processedUserIds.delete(userId); // Allow reprocessing after MFA
           return;
         }
         console.log('MFA check passed or not required');
