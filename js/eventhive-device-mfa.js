@@ -161,6 +161,7 @@ function generateMFACode() {
 
 /**
  * Request a new MFA code - generates code, stores in DB, sends email
+ * Uses direct fetch for reliability
  * @param {string} userId - User ID
  * @param {string} email - User email
  * @returns {Promise<{success: boolean, error?: string}>}
@@ -174,46 +175,87 @@ async function requestDeviceMFACode(userId, email) {
     const code = generateMFACode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-        return { success: false, error: 'Supabase not available' };
+    // Get Supabase config
+    const supabaseUrl = window.__EH_SUPABASE_URL;
+    const supabaseKey = window.__EH_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+        console.error('Supabase config not available');
+        return { success: false, error: 'Configuration error' };
     }
 
+    // Get session token
+    const supabase = getSupabaseClient();
+    let authToken = supabaseKey;
     try {
-        // Delete any existing pending codes for this device
-        await supabase
-            .from('mfa_codes')
-            .delete()
-            .eq('user_id', userId)
-            .eq('device_fingerprint', fingerprint)
-            .eq('verified', false);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            authToken = session.access_token;
+        }
+    } catch (e) {
+        console.warn('Could not get session token, using anon key');
+    }
 
-        // Insert new code
-        const { error: insertError } = await supabase
-            .from('mfa_codes')
-            .insert({
+    const headers = {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    };
+
+    try {
+        // Delete existing pending codes with timeout
+        const deleteController = new AbortController();
+        const deleteTimeout = setTimeout(() => deleteController.abort(), 5000);
+
+        await fetch(
+            `${supabaseUrl}/rest/v1/mfa_codes?user_id=eq.${userId}&device_fingerprint=eq.${encodeURIComponent(fingerprint)}&verified=eq.false`,
+            {
+                method: 'DELETE',
+                headers,
+                signal: deleteController.signal
+            }
+        ).catch(() => { }); // Ignore delete errors
+        clearTimeout(deleteTimeout);
+
+        // Insert new code with timeout
+        const insertController = new AbortController();
+        const insertTimeout = setTimeout(() => insertController.abort(), 5000);
+
+        const insertResponse = await fetch(`${supabaseUrl}/rest/v1/mfa_codes`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
                 user_id: userId,
                 code: code,
                 device_fingerprint: fingerprint,
                 expires_at: expiresAt.toISOString(),
                 attempts: 0,
                 verified: false
-            });
+            }),
+            signal: insertController.signal
+        });
+        clearTimeout(insertTimeout);
 
-        if (insertError) {
-            console.error('Error storing MFA code:', insertError);
+        if (!insertResponse.ok) {
+            console.error('Error storing MFA code:', await insertResponse.text());
             return { success: false, error: 'Failed to generate code' };
         }
 
-        // Send email via Vercel API
-        const response = await fetch('/api/send-mfa-email', {
+        // Send email via Vercel API with timeout
+        const emailController = new AbortController();
+        const emailTimeout = setTimeout(() => emailController.abort(), 10000);
+
+        const emailResponse = await fetch('/api/send-mfa-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
+            body: JSON.stringify({ email, code }),
+            signal: emailController.signal
         });
+        clearTimeout(emailTimeout);
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
+        if (!emailResponse.ok) {
+            const errorData = await emailResponse.json().catch(() => ({}));
             console.error('Error sending MFA email:', errorData);
             return { success: false, error: 'Failed to send verification email' };
         }
@@ -223,15 +265,19 @@ async function requestDeviceMFACode(userId, email) {
         mfaPendingEmail = email;
         mfaExpiresAt = expiresAt;
 
+        console.log('MFA code sent successfully');
         return { success: true };
     } catch (err) {
-        console.error('Exception in requestMFACode:', err);
+        console.error('Exception in requestDeviceMFACode:', err);
+        if (err.name === 'AbortError') {
+            return { success: false, error: 'Request timed out. Please try again.' };
+        }
         return { success: false, error: 'An error occurred' };
     }
 }
 
 /**
- * Verify an MFA code
+ * Verify an MFA code using direct fetch
  * @param {string} inputCode - Code entered by user
  * @param {boolean} trustDevice - Whether to trust this device for 7 days
  * @returns {Promise<{success: boolean, error?: string, attemptsLeft?: number}>}
@@ -246,29 +292,55 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
     }
 
     const fingerprint = generateDeviceFingerprint();
-    const supabase = getSupabaseClient();
 
-    if (!supabase) {
-        return { success: false, error: 'Supabase not available' };
+    // Get Supabase config
+    const supabaseUrl = window.__EH_SUPABASE_URL;
+    const supabaseKey = window.__EH_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+        return { success: false, error: 'Configuration error' };
     }
 
+    // Get session token
+    const supabase = getSupabaseClient();
+    let authToken = supabaseKey;
     try {
-        // Get pending code
-        const { data: codeRecord, error: fetchError } = await supabase
-            .from('mfa_codes')
-            .select('*')
-            .eq('user_id', mfaPendingUserId)
-            .eq('device_fingerprint', fingerprint)
-            .eq('verified', false)
-            .gt('expires_at', new Date().toISOString())
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            authToken = session.access_token;
+        }
+    } catch (e) {
+        console.warn('Could not get session token, using anon key');
+    }
 
-        if (fetchError) {
-            console.error('Error fetching MFA code:', fetchError);
+    const headers = {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+    };
+
+    try {
+        // Fetch pending code with timeout
+        const fetchController = new AbortController();
+        const fetchTimeout = setTimeout(() => fetchController.abort(), 5000);
+
+        const now = new Date().toISOString();
+        const fetchUrl = `${supabaseUrl}/rest/v1/mfa_codes?user_id=eq.${mfaPendingUserId}&device_fingerprint=eq.${encodeURIComponent(fingerprint)}&verified=eq.false&expires_at=gt.${now}&order=created_at.desc&limit=1`;
+
+        const fetchResponse = await fetch(fetchUrl, {
+            method: 'GET',
+            headers: { ...headers, 'Prefer': 'return=representation' },
+            signal: fetchController.signal
+        });
+        clearTimeout(fetchTimeout);
+
+        if (!fetchResponse.ok) {
+            console.error('Error fetching MFA code:', await fetchResponse.text());
             return { success: false, error: 'Verification failed' };
         }
+
+        const records = await fetchResponse.json();
+        const codeRecord = records[0];
 
         if (!codeRecord) {
             return { success: false, error: 'Code expired or not found. Please request a new code.' };
@@ -281,11 +353,17 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
 
         // Check code
         if (codeRecord.code !== inputCode) {
-            // Increment attempts
-            await supabase
-                .from('mfa_codes')
-                .update({ attempts: codeRecord.attempts + 1 })
-                .eq('id', codeRecord.id);
+            // Increment attempts with timeout
+            const updateController = new AbortController();
+            const updateTimeout = setTimeout(() => updateController.abort(), 5000);
+
+            await fetch(`${supabaseUrl}/rest/v1/mfa_codes?id=eq.${codeRecord.id}`, {
+                method: 'PATCH',
+                headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ attempts: codeRecord.attempts + 1 }),
+                signal: updateController.signal
+            }).catch(() => { });
+            clearTimeout(updateTimeout);
 
             const attemptsLeft = 4 - codeRecord.attempts;
             return {
@@ -295,27 +373,38 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
             };
         }
 
-        // Code is correct! Mark as verified
-        await supabase
-            .from('mfa_codes')
-            .update({ verified: true })
-            .eq('id', codeRecord.id);
+        // Code is correct! Mark as verified with timeout
+        const verifyController = new AbortController();
+        const verifyTimeout = setTimeout(() => verifyController.abort(), 5000);
+
+        await fetch(`${supabaseUrl}/rest/v1/mfa_codes?id=eq.${codeRecord.id}`, {
+            method: 'PATCH',
+            headers: { ...headers, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ verified: true }),
+            signal: verifyController.signal
+        });
+        clearTimeout(verifyTimeout);
 
         // Trust device if requested
         if (trustDevice) {
             const trustUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-            await supabase
-                .from('trusted_devices')
-                .upsert({
+            const trustController = new AbortController();
+            const trustTimeout = setTimeout(() => trustController.abort(), 5000);
+
+            await fetch(`${supabaseUrl}/rest/v1/trusted_devices`, {
+                method: 'POST',
+                headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+                body: JSON.stringify({
                     user_id: mfaPendingUserId,
                     device_fingerprint: fingerprint,
                     device_name: getDeviceName(),
                     user_agent: navigator.userAgent,
                     trusted_until: trustUntil.toISOString()
-                }, {
-                    onConflict: 'user_id,device_fingerprint'
-                });
+                }),
+                signal: trustController.signal
+            }).catch(() => { });
+            clearTimeout(trustTimeout);
         }
 
         // Clear pending state
@@ -323,9 +412,13 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
         mfaPendingEmail = null;
         mfaExpiresAt = null;
 
+        console.log('MFA verification successful');
         return { success: true };
     } catch (err) {
-        console.error('Exception in verifyMFACode:', err);
+        console.error('Exception in verifyDeviceMFACode:', err);
+        if (err.name === 'AbortError') {
+            return { success: false, error: 'Request timed out. Please try again.' };
+        }
         return { success: false, error: 'Verification failed' };
     }
 }
