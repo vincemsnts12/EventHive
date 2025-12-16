@@ -220,6 +220,31 @@ function setupAuthStateListener() {
         console.log('MFA check passed or not required');
       }
 
+      // ===== UPDATE UI CACHE AFTER MFA =====
+      // This is critical - update the auth cache so dropdown shows logged-in state
+      // Check if user is admin
+      let isAdmin = false;
+      try {
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', userId)
+          .single();
+        isAdmin = profile?.is_admin || false;
+      } catch (e) {
+        console.warn('Could not check admin status');
+      }
+
+      // Save auth state to cache so dropdown updates immediately
+      if (typeof window.saveCachedAuthState === 'function') {
+        window.saveCachedAuthState(true, isAdmin);
+        console.log('Auth cache saved, dropdown state should update');
+      }
+
+      // Load profile avatar
+      if (typeof window.loadProfileAvatar === 'function') {
+        window.loadProfileAvatar();
+      }
       // Check if this is an OAuth login by checking URL or processing flag
       const isOAuthLogin = isProcessingOAuthCallback ||
         window.location.hash.includes('access_token') ||
