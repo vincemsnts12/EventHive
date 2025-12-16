@@ -18,6 +18,7 @@ A concise overview of security features implemented in EventHive.
 10. [Admin Access Control](#10-admin-access-control)
 11. [Login Lockout System](#11-login-lockout-system)
 12. [Password Reset Security](#12-password-reset-security)
+13. [Device MFA (Multi-Factor Authentication)](#13-device-mfa-multi-factor-authentication)
 
 ---
 
@@ -375,6 +376,123 @@ const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
 
 ---
 
+## 13. Device MFA (Multi-Factor Authentication)
+
+**Files:** 
+- `js/eventhive-device-mfa.js` - Core MFA logic
+- `js/backend/security-services.js` - API calls
+- `email-templates/device-verification.html` - Email template
+- `supabase-device-mfa.sql` - Database schema
+
+### Overview
+
+When a user logs in from an unrecognized device or IP address, a 6-digit verification code is sent to their email. The user must enter this code before completing authentication.
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| Device Fingerprinting | Generates unique device ID using browser data |
+| IP Detection | Tracks user's IP via external API |
+| Email Verification | Sends 6-digit code with 10-minute expiry |
+| Trust Device | Optional 7-day trust period to skip MFA |
+
+### Device Fingerprint Generation
+
+```javascript
+async function generateDeviceFingerprint() {
+  const components = [
+    navigator.userAgent,
+    navigator.language,
+    navigator.platform,
+    screen.width + 'x' + screen.height,
+    new Date().getTimezoneOffset(),
+    navigator.hardwareConcurrency || 0
+  ];
+  
+  const data = components.join('|');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+```
+
+### MFA Flow
+
+```
+1. User logs in with email/password
+2. System checks trusted_devices table
+3. If device/IP not trusted → Request MFA code
+4. Email sent with 6-digit code (10 min expiry)
+5. User enters code in inline modal
+6. Code verified → Login completes
+7. Optional: Device trusted for 7 days
+```
+
+### Database Schema
+
+```sql
+-- Stores active MFA verification codes
+CREATE TABLE device_verification_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  code VARCHAR(6) NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Stores trusted devices (skip MFA)
+CREATE TABLE trusted_devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  device_fingerprint TEXT NOT NULL,
+  ip_address INET,
+  trusted_until TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Email Verification Code
+
+```javascript
+async function sendDeviceVerificationEmail(email, code) {
+  // Uses SMTP via Vercel API route
+  const response = await fetch('/api/send-mfa-code', {
+    method: 'POST',
+    body: JSON.stringify({ email, code })
+  });
+}
+```
+
+### Trust Device Feature
+
+When enabled, the device is trusted for 7 days:
+
+```javascript
+async function trustCurrentDevice(userId, deviceFingerprint, ipAddress) {
+  const trustUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  
+  await supabase.from('trusted_devices').upsert({
+    user_id: userId,
+    device_fingerprint: deviceFingerprint,
+    ip_address: ipAddress,
+    trusted_until: trustUntil
+  });
+}
+```
+
+### UI Integration
+
+The MFA form appears inline within the existing login modal, using the same styling:
+
+- Uses `.auth-modal__input` for code input
+- Uses `.auth-modal__submit` for verify button
+- Red accent color (`#B81E20`) matches auth modal
+- Close button allows cancellation
+
+---
+
 ## Summary Table
 
 | Feature | Location | Description |
@@ -390,6 +508,7 @@ const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
 | Admin Check | `is_admin()` | Indexed DB function |
 | Login Lockout | `security-services.js` | 5 min after 8 failures |
 | Password Reset | `eventhive-set-password.js` | Rate-limited, token-based |
+| **Device MFA** | `eventhive-device-mfa.js` | Email code on new device/IP |
 
 ---
 
