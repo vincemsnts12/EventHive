@@ -172,6 +172,7 @@ async function requestDeviceMFACode(userId, email) {
     }
 
     const fingerprint = generateDeviceFingerprint();
+    console.log('Request MFA - fingerprint:', fingerprint.substring(0, 10) + '...');
     const code = generateMFACode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -353,7 +354,14 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
         const fetchTimeout = setTimeout(() => fetchController.abort(), 5000);
 
         const now = new Date().toISOString();
+        console.log('Verify parameters:', {
+            userId: mfaPendingUserId,
+            fingerprint: fingerprint.substring(0, 10) + '...',
+            now: now
+        });
+
         const fetchUrl = `${supabaseUrl}/rest/v1/mfa_codes?user_id=eq.${mfaPendingUserId}&device_fingerprint=eq.${encodeURIComponent(fingerprint)}&verified=eq.false&expires_at=gt.${now}&order=created_at.desc&limit=1`;
+        console.log('Fetching MFA code...');
 
         const fetchResponse = await fetch(fetchUrl, {
             method: 'GET',
@@ -362,15 +370,19 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
         });
         clearTimeout(fetchTimeout);
 
+        console.log('Fetch response status:', fetchResponse.status);
+
         if (!fetchResponse.ok) {
             console.error('Error fetching MFA code:', await fetchResponse.text());
             return { success: false, error: 'Verification failed' };
         }
 
         const records = await fetchResponse.json();
+        console.log('MFA records found:', records.length, records);
         const codeRecord = records[0];
 
         if (!codeRecord) {
+            console.log('No code record found - fingerprint or timing mismatch');
             return { success: false, error: 'Code expired or not found. Please request a new code.' };
         }
 
