@@ -436,7 +436,10 @@ function updateLastActivity() {
 
   // Set new timer
   sessionTimeoutTimer = setTimeout(() => {
-    handleSessionTimeout();
+    // Check if timeout already being handled (prevents duplicates)
+    if (!window.__EH_SESSION_TIMEOUT_IN_PROGRESS) {
+      handleSessionTimeout();
+    }
   }, SESSION_TIMEOUT);
 }
 
@@ -444,9 +447,20 @@ function updateLastActivity() {
  * Check if session has timed out
  */
 async function checkSessionTimeout() {
+  // Skip if timeout already in progress
+  if (window.__EH_SESSION_TIMEOUT_IN_PROGRESS) {
+    return;
+  }
+
   const timeSinceLastActivity = Date.now() - lastActivityTime;
 
   if (timeSinceLastActivity >= SESSION_TIMEOUT) {
+    // Clear the setTimeout timer to prevent duplicate triggers
+    if (sessionTimeoutTimer) {
+      clearTimeout(sessionTimeoutTimer);
+      sessionTimeoutTimer = null;
+    }
+
     // Verify session is still valid before timing out
     if (typeof getSupabaseClient === 'function') {
       const supabase = getSupabaseClient();
@@ -476,6 +490,15 @@ async function handleSessionTimeout() {
   if (window.__EH_SESSION_TIMEOUT_IN_PROGRESS) {
     return;
   }
+
+  // Skip session timeout if MFA modal is showing - user is mid-verification
+  const mfaModal = document.getElementById('mfaModal');
+  if (mfaModal && mfaModal.style.display === 'flex') {
+    console.log('Skipping session timeout - MFA verification in progress');
+    lastActivityTime = Date.now(); // Reset activity time
+    return;
+  }
+
   window.__EH_SESSION_TIMEOUT_IN_PROGRESS = true;
 
   try {
@@ -485,7 +508,7 @@ async function handleSessionTimeout() {
     }, 'Session timed out due to inactivity');
 
     // Show timeout message FIRST (user sees this immediately)
-    alert('Your session has timed out due to inactivity. If you are logged in, please log in again.');
+    alert('Your session has timed out due to inactivity. Please log in again.');
 
     // Show loading overlay with message while processing
     showSessionTimeoutLoading();
@@ -862,123 +885,11 @@ async function recordForgotPasswordRequest(email) {
   }
 }
 
+
 // ===== MULTI-FACTOR AUTHENTICATION (MFA) =====
-
-/**
- * MFA code storage (temporary, in memory)
- * In production, store in secure backend
- */
-const mfaCodes = new Map();
-
-/**
- * Generate random MFA code
- * @returns {string} - 6-digit code
- */
-function generateMFACode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-/**
- * Send MFA code via email
- * @param {string} email - User email
- * @param {string} code - MFA code
- * @returns {Promise<boolean>} - Success status
- */
-async function sendMFACode(email, code) {
-  // In production, this would send via email service
-  // For now, we'll use Supabase's email service or a third-party service
-
-  if (typeof getSupabaseClient !== 'function') {
-    return false;
-  }
-
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return false;
-  }
-
-  try {
-    // Store code temporarily (5 minutes expiry)
-    mfaCodes.set(email, {
-      code: code,
-      expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutes
-    });
-
-    // Log MFA code sent
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_SENT, {
-      email: email
-    }, 'MFA code sent to user');
-
-    // MFA email sending - integrate with email service when ready
-    // await supabase.functions.invoke('send-mfa-email', { body: { email, code } });
-
-    return true;
-  } catch (error) {
-    console.error('Error sending MFA code:', error);
-    return false;
-  }
-}
-
-/**
- * Verify MFA code
- * @param {string} email - User email
- * @param {string} inputCode - Code entered by user
- * @returns {boolean} - True if code is valid
- */
-function verifyMFACode(email, inputCode) {
-  const stored = mfaCodes.get(email);
-
-  if (!stored) {
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
-      email: email,
-      reason: 'No code found'
-    }, 'MFA verification failed: no code found');
-    return false;
-  }
-
-  // Check if code expired
-  if (Date.now() > stored.expiresAt) {
-    mfaCodes.delete(email);
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
-      email: email,
-      reason: 'Code expired'
-    }, 'MFA verification failed: code expired');
-    return false;
-  }
-
-  // Verify code
-  if (stored.code !== inputCode) {
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
-      email: email,
-      reason: 'Invalid code'
-    }, 'MFA verification failed: invalid code');
-    return false;
-  }
-
-  // Code is valid - remove it
-  mfaCodes.delete(email);
-
-  logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_VERIFIED, {
-    email: email
-  }, 'MFA code verified successfully');
-
-  return true;
-}
-
-/**
- * Clean up expired MFA codes
- */
-function cleanupExpiredMFACodes() {
-  const now = Date.now();
-  for (const [email, data] of mfaCodes.entries()) {
-    if (now > data.expiresAt) {
-      mfaCodes.delete(email);
-    }
-  }
-}
-
-// Clean up expired codes every minute
-setInterval(cleanupExpiredMFACodes, 60000);
+// NOTE: MFA is now handled by eventhive-device-mfa.js
+// The device-based MFA system uses Supabase tables and email verification
+// See: js/eventhive-device-mfa.js for the full implementation
 
 // ===== SECURE EVENT REQUEST PIPELINE (Google Forms) =====
 

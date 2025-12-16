@@ -87,12 +87,12 @@
 
 .mfa-code-input {
     width: 100%;
-    max-width: 200px;
-    padding: 20px;
+    max-width: 280px;
+    padding: 20px 15px;
     font-size: 32px;
     font-weight: 700;
     text-align: center;
-    letter-spacing: 12px;
+    letter-spacing: 10px;
     font-family: 'Courier New', monospace;
     background: rgba(255, 255, 255, 0.05);
     border: 2px solid rgba(184, 30, 32, 0.5);

@@ -480,15 +480,20 @@ document.addEventListener('DOMContentLoaded', () => {
               passwordInput.value = '';
 
               // Show appropriate message
-              if (isFirstTimeSignup) {
-                // First-time signup - show welcome message
-                alert('Welcome! You have been successfully authenticated with ' + loginEmail);
-                // Clear flags so it doesn't show again on next login
-                localStorage.removeItem('eventhive_just_signed_up');
-                localStorage.removeItem('eventhive_just_signed_up_email');
-              } else {
-                // Regular login - show login success message
-                alert('Log in successful!');
+              // NOTE: Skip alerts if MFA modal is pending - the auth listener handles MFA flow
+              const mfaModalShowing = document.getElementById('mfaModal')?.style.display === 'flex';
+
+              if (!mfaModalShowing) {
+                if (isFirstTimeSignup) {
+                  // First-time signup - show welcome message
+                  alert('Welcome! You have been successfully authenticated with ' + loginEmail);
+                  // Clear flags so it doesn't show again on next login
+                  localStorage.removeItem('eventhive_just_signed_up');
+                  localStorage.removeItem('eventhive_just_signed_up_email');
+                } else {
+                  // Regular login - show login success message
+                  alert('Log in successful!');
+                }
               }
 
               console.log('Login complete - auth cache and profile cache loaded, 5-minute timer started');

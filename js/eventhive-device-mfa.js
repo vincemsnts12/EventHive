@@ -165,7 +165,7 @@ function generateMFACode() {
  * @param {string} email - User email
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-async function requestMFACode(userId, email) {
+async function requestDeviceMFACode(userId, email) {
     if (!userId || !email) {
         return { success: false, error: 'User ID and email required' };
     }
@@ -236,7 +236,7 @@ async function requestMFACode(userId, email) {
  * @param {boolean} trustDevice - Whether to trust this device for 7 days
  * @returns {Promise<{success: boolean, error?: string, attemptsLeft?: number}>}
  */
-async function verifyMFACode(inputCode, trustDevice = false) {
+async function verifyDeviceMFACode(inputCode, trustDevice = false) {
     if (!mfaPendingUserId) {
         return { success: false, error: 'No pending verification' };
     }
@@ -421,7 +421,7 @@ function setupMFAModalListeners() {
         verifyBtn.textContent = 'Verifying...';
         errorEl.style.display = 'none';
 
-        const result = await verifyMFACode(code, trustDevice);
+        const result = await verifyDeviceMFACode(code, trustDevice);
 
         if (result.success) {
             hideMFAModal();
@@ -443,7 +443,7 @@ function setupMFAModalListeners() {
         resendBtn.textContent = 'Sending...';
         errorEl.style.display = 'none';
 
-        const result = await requestMFACode(mfaPendingUserId, mfaPendingEmail);
+        const result = await requestDeviceMFACode(mfaPendingUserId, mfaPendingEmail);
 
         if (result.success) {
             // Reset countdown
@@ -550,7 +550,7 @@ async function checkAndHandleMFA(userId, email) {
     console.log('New device detected, MFA required');
 
     // Request MFA code
-    const result = await requestMFACode(userId, email);
+    const result = await requestDeviceMFACode(userId, email);
 
     if (!result.success) {
         console.error('Failed to request MFA code:', result.error);
@@ -572,8 +572,8 @@ async function checkAndHandleMFA(userId, email) {
 // Make functions globally available
 window.generateDeviceFingerprint = generateDeviceFingerprint;
 window.isDeviceTrusted = isDeviceTrusted;
-window.requestMFACode = requestMFACode;
-window.verifyMFACode = verifyMFACode;
+window.requestDeviceMFACode = requestDeviceMFACode;
+window.verifyDeviceMFACode = verifyDeviceMFACode;
 window.showMFAModal = showMFAModal;
 window.hideMFAModal = hideMFAModal;
 window.checkAndHandleMFA = checkAndHandleMFA;
