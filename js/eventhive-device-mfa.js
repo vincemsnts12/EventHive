@@ -757,8 +757,9 @@ async function showInlineMFA(userId, email, loginModal) {
             return;
         }
 
-        // Get the modal content container (find the form within the modal)
-        const modalContent = loginModal.querySelector('.login-form, .modal-content, form') || loginModal;
+        // Get the modal content container - use loginModal directly
+        // (Previous approach tried .login-form, .modal-content, form but may not have matched)
+        const modalContent = loginModal;
 
         // Store original content to restore if cancelled
         const originalContent = modalContent.innerHTML;
