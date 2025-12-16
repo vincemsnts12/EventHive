@@ -1,6 +1,6 @@
 # EventHive Security Implementations
 
-This document contains all security-related code snippets from the EventHive repository.
+A concise overview of security features implemented in EventHive.
 
 ---
 
@@ -10,18 +10,14 @@ This document contains all security-related code snippets from the EventHive rep
 2. [Email Domain Restriction](#2-email-domain-restriction)
 3. [Password Validation](#3-password-validation)
 4. [Profanity Filtering](#4-profanity-filtering)
-5. [Security Logging](#5-security-logging)
-6. [Session Management](#6-session-management)
-7. [Multi-Factor Authentication](#7-multi-factor-authentication)
-8. [Authentication State Listener](#8-authentication-state-listener)
-9. [OAuth Callback Security](#9-oauth-callback-security)
-10. [Database RLS Policies](#10-database-rls-policies)
-11. [Admin Check Function](#11-admin-check-function)
-12. [New User Handler (Email Restriction)](#12-new-user-handler)
-13. [Password Reset Security (OAuth Users)](#13-password-reset-security-oauth-users)
-14. [Auth Alert Deduplication](#14-auth-alert-deduplication)
-15. [Login Lockout System](#15-login-lockout-system)
-16. [Forgot Password Rate Limiting](#16-forgot-password-rate-limiting)
+5. [Comment Rate Limiting](#5-comment-rate-limiting)
+6. [Security Logging](#6-security-logging)
+7. [Session Management](#7-session-management)
+8. [Authentication & Auth Cache](#8-authentication--auth-cache)
+9. [Database RLS Policies](#9-database-rls-policies)
+10. [Admin Access Control](#10-admin-access-control)
+11. [Login Lockout System](#11-login-lockout-system)
+12. [Password Reset Security](#12-password-reset-security)
 
 ---
 
@@ -29,113 +25,22 @@ This document contains all security-related code snippets from the EventHive rep
 
 **File:** `js/backend/security-services.js`
 
+All user inputs are validated before database operations:
+
+| Function | Rules |
+|----------|-------|
+| `validateUsername()` | 3-30 chars, alphanumeric + `_.-` |
+| `validateEmail()` | Valid format + `@tup.edu.ph` domain |
+| `validateBio()` | Max 500 chars, auto-truncates |
+| `validateUrl()` | Only `http://` or `https://` protocols |
+| `validateEventTitle()` | 3-255 chars |
+| `validateEventDescription()` | 10-5000 chars |
+
 ```javascript
-// Validate username format
 function validateUsername(username) {
   if (!username || typeof username !== 'string') return false;
   const trimmed = username.trim();
-  // Username: 3-30 characters, alphanumeric and underscores only
-  if (!/^[a-zA-Z0-9_]{3,30}$/.test(trimmed)) {
-    return false;
-  }
-  return trimmed;
-}
-
-// Validate full name format
-function validateFullName(fullName) {
-  if (!fullName || typeof fullName !== 'string') return false;
-  const trimmed = fullName.trim();
-  // Full name: 2-100 characters, letters, spaces, hyphens, apostrophes
-  if (!/^[a-zA-Z\s\-']{2,100}$/.test(trimmed)) {
-    return false;
-  }
-  return trimmed;
-}
-
-// Validate bio text
-function validateBio(bio) {
-  if (!bio || typeof bio !== 'string') return null;
-  const trimmed = bio.trim();
-  // Bio: max 500 characters
-  if (trimmed.length > 500) {
-    return trimmed.substring(0, 500);
-  }
-  return trimmed || null;
-}
-
-// Validate URL format
-function validateUrl(url) {
-  if (!url || typeof url !== 'string') return null;
-  const trimmed = url.trim();
-  if (trimmed.length === 0) return null;
-  try {
-    const urlObj = new URL(trimmed);
-    // Only allow http/https protocols
-    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-      return false;
-    }
-    return trimmed;
-  } catch (e) {
-    // If it's a relative path (starts with /), allow it
-    if (trimmed.startsWith('/') || trimmed.startsWith('./')) {
-      return trimmed;
-    }
-    return false;
-  }
-}
-
-// Validate email format with TUP domain restriction
-function validateEmail(email) {
-  if (!email || typeof email !== 'string') return false;
-  const trimmed = email.trim().toLowerCase();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(trimmed)) {
-    return false;
-  }
-  // Check TUP domain restriction
-  if (!trimmed.endsWith('@tup.edu.ph')) {
-    return false;
-  }
-  return trimmed;
-}
-
-// Validate UUID format
-function validateUUID(uuid) {
-  if (!uuid || typeof uuid !== 'string') return false;
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-}
-
-// Validate event title
-function validateEventTitle(title) {
-  if (!title || typeof title !== 'string') return false;
-  const trimmed = title.trim();
-  // Title: 3-255 characters
-  if (trimmed.length < 3 || trimmed.length > 255) {
-    return false;
-  }
-  return trimmed;
-}
-
-// Validate event description
-function validateEventDescription(description) {
-  if (!description || typeof description !== 'string') return false;
-  const trimmed = description.trim();
-  // Description: 10-5000 characters
-  if (trimmed.length < 10 || trimmed.length > 5000) {
-    return false;
-  }
-  return trimmed;
-}
-
-// Validate event location
-function validateEventLocation(location) {
-  if (!location || typeof location !== 'string') return false;
-  const trimmed = location.trim();
-  // Location: 3-500 characters
-  if (trimmed.length < 3 || trimmed.length > 500) {
-    return false;
-  }
+  if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(trimmed)) return false;
   return trimmed;
 }
 ```
@@ -144,14 +49,32 @@ function validateEventLocation(location) {
 
 ## 2. Email Domain Restriction
 
-**File:** `js/eventhive-supabase.template.js`
+**Enforced at 3 levels:**
+
+1. **Client-side** (`eventhive-pop-up__log&sign.js`)
+2. **Auth listener** (`eventhive-supabase.template.js`)
+3. **Database trigger** (`handle_new_user()`)
 
 ```javascript
-// Only allow TUP email addresses (@tup.edu.ph)
+// Client-side check
 function isAllowedEmailDomain(email) {
   if (!email) return false;
   return email.toLowerCase().endsWith('@tup.edu.ph');
 }
+```
+
+```sql
+-- Database-level enforcement
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.email IS NULL OR LOWER(NEW.email) NOT LIKE '%@tup.edu.ph' THEN
+    RAISE EXCEPTION 'Only @tup.edu.ph emails are allowed.';
+  END IF;
+  -- Create profile...
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
 ---
@@ -160,48 +83,20 @@ function isAllowedEmailDomain(email) {
 
 **File:** `js/backend/security-services.js`
 
+**Requirements:**
+- 8-128 characters
+- At least 1 lowercase, 1 uppercase, 1 number, 1 special character
+- Not a common password (password123, qwerty, etc.)
+
 ```javascript
 function validatePasswordStrength(password) {
   const errors = [];
-  
-  if (!password || typeof password !== 'string') {
-    return { valid: false, errors: ['Password is required'] };
-  }
-  
-  if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
-  }
-  
-  if (password.length > 128) {
-    errors.push('Password must be less than 128 characters');
-  }
-  
-  if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
-  }
-  
-  if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
-  }
-  
-  if (!/[0-9]/.test(password)) {
-    errors.push('Password must contain at least one number');
-  }
-  
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    errors.push('Password must contain at least one special character');
-  }
-  
-  // Check for common passwords
-  const commonPasswords = ['password', '12345678', 'qwerty', 'abc123', 'password123'];
-  if (commonPasswords.some(common => password.toLowerCase().includes(common))) {
-    errors.push('Password is too common');
-  }
-  
-  return {
-    valid: errors.length === 0,
-    errors: errors
-  };
+  if (password.length < 8) errors.push('Min 8 characters');
+  if (!/[a-z]/.test(password)) errors.push('Need lowercase');
+  if (!/[A-Z]/.test(password)) errors.push('Need uppercase');
+  if (!/[0-9]/.test(password)) errors.push('Need number');
+  if (!/[!@#$%^&*]/.test(password)) errors.push('Need special char');
+  return { valid: errors.length === 0, errors };
 }
 ```
 
@@ -209,786 +104,293 @@ function validatePasswordStrength(password) {
 
 ## 4. Profanity Filtering
 
-**File:** `js/backend/security-services.js`
+**File:** `js/eventhive-profanity-filter.js`
+
+### Features:
+- **Leet speak normalization** (`@` → `a`, `0` → `o`, `3` → `e`)
+- **Filipino + English word lists** with severity levels
+- **Visayan/Cebuano support** (puday, yawa, buang)
+- **Whitelist** for false positives (class, passport, therapist)
+- **Server-side backup** via SQL triggers
+
+### Severity Levels:
+
+| Level | Action |
+|-------|--------|
+| Severe | Blocked immediately |
+| Moderate | Blocked with warning |
+| Mild | Confirmation prompt, allows posting |
 
 ```javascript
-const PROFANITY_WORDS = [
-  // Add your profanity list here
-  // This is a basic example - use a proper library in production
-];
+const LEET_MAP = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', 
+  '5': 's', '@': 'a', '$': 's', '!': 'i'
+};
 
-function filterProfanity(text) {
-  if (!text || typeof text !== 'string') return text;
-  
-  let filtered = text;
-  
-  PROFANITY_WORDS.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    filtered = filtered.replace(regex, '*'.repeat(word.length));
-  });
-  
-  return filtered;
-}
+const FILIPINO_PROFANITY = {
+  severe: ['putangina', 'puta', 'tite', 'puke', 'puday', 'dede', ...],
+  moderate: ['gago', 'bobo', 'tanga', 'ulol', ...],
+  mild: ['epal', 'plastik', 'feeling', ...]
+};
+```
 
-function containsProfanity(text) {
-  if (!text || typeof text !== 'string') return false;
-  const filtered = filterProfanity(text);
-  return filtered !== text;
+### Server-Side Enforcement (SQL):
+
+```sql
+CREATE OR REPLACE FUNCTION validate_comment_content()
+RETURNS TRIGGER AS $$
+BEGIN
+  SELECT * INTO check_result FROM check_profanity(NEW.content);
+  IF check_result.has_profanity AND check_result.p_severity = 'severe' THEN
+    RAISE EXCEPTION 'Comment contains inappropriate content.';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 5. Comment Rate Limiting
+
+**File:** `js/backend/security-services.js`
+
+Prevents spam by limiting comment submissions.
+
+**Limits:** 5 comments per minute per user
+
+```javascript
+const COMMENT_RATE_LIMIT = { maxComments: 5, windowMs: 60000 };
+
+function checkCommentRateLimit(userId) {
+  const key = `comment_rate_${userId}`;
+  const data = JSON.parse(localStorage.getItem(key) || '{"count":0,"windowStart":0}');
+  const now = Date.now();
+  
+  if (now - data.windowStart > COMMENT_RATE_LIMIT.windowMs) {
+    return { allowed: true, remaining: COMMENT_RATE_LIMIT.maxComments };
+  }
+  
+  return {
+    allowed: data.count < COMMENT_RATE_LIMIT.maxComments,
+    remaining: Math.max(0, COMMENT_RATE_LIMIT.maxComments - data.count)
+  };
 }
 ```
 
 ---
 
-## 5. Security Logging
+## 6. Security Logging
 
 **File:** `js/backend/security-services.js`
 
-```javascript
-const SECURITY_EVENT_TYPES = {
-  FAILED_LOGIN: 'FAILED_LOGIN',
-  SUCCESSFUL_LOGIN: 'SUCCESSFUL_LOGIN',
-  LOGOUT: 'LOGOUT',
-  SESSION_TIMEOUT: 'SESSION_TIMEOUT',
-  INVALID_INPUT: 'INVALID_INPUT',
-  DATABASE_ERROR: 'DATABASE_ERROR',
-  UNEXPECTED_ERROR: 'UNEXPECTED_ERROR',
-  PROFANITY_FILTERED: 'PROFANITY_FILTERED',
-  COMMENT_CREATED: 'COMMENT_CREATED',
-  COMMENT_DELETED: 'COMMENT_DELETED',
-  PROFILE_UPDATED: 'PROFILE_UPDATED',
-  EVENT_CREATED: 'EVENT_CREATED',
-  EVENT_UPDATED: 'EVENT_UPDATED',
-  EVENT_DELETED: 'EVENT_DELETED',
-  EVENT_APPROVED: 'EVENT_APPROVED',
-  EVENT_REJECTED: 'EVENT_REJECTED',
-  MFA_CODE_SENT: 'MFA_CODE_SENT',
-  MFA_CODE_VERIFIED: 'MFA_CODE_VERIFIED',
-  MFA_CODE_FAILED: 'MFA_CODE_FAILED',
-  PASSWORD_CHANGED: 'PASSWORD_CHANGED',
-  ACCOUNT_LOCKED: 'ACCOUNT_LOCKED',
-  SUSPICIOUS_ACTIVITY: 'SUSPICIOUS_ACTIVITY'
-};
+Logs security events to console (dev) and `security_logs` table (production).
 
+**Event Types:**
+- `FAILED_LOGIN`, `SUCCESSFUL_LOGIN`, `LOGOUT`
+- `SESSION_TIMEOUT`, `ACCOUNT_LOCKED`
+- `PROFANITY_FILTERED`, `COMMENT_RATE_LIMITED`
+- `INVALID_INPUT`, `SUSPICIOUS_ACTIVITY`
+
+```javascript
 function logSecurityEvent(eventType, metadata = {}, message = '') {
   const logEntry = {
     event: eventType,
     timestamp: new Date().toISOString(),
-    metadata: {
-      ...metadata,
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-    },
-    message: message
+    metadata: { ...metadata, userAgent: navigator.userAgent }
   };
-  
-  // Log to console in development
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log('[SECURITY LOG]', logEntry);
-  }
-  
-  // Store in localStorage for client-side tracking (limited storage)
-  try {
-    const logs = JSON.parse(localStorage.getItem('security_logs') || '[]');
-    logs.push(logEntry);
-    
-    // Keep only last 100 logs
-    if (logs.length > 100) {
-      logs.shift();
-    }
-    
-    localStorage.setItem('security_logs', JSON.stringify(logs));
-  } catch (e) {
-    console.error('Failed to store security log:', e);
-  }
-  
-  // Send to backend logging endpoint (if available)
-  sendLogToBackend(logEntry);
-}
-
-async function sendLogToBackend(logEntry) {
-  if (typeof getSupabaseClient === 'function') {
-    try {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const user = await getSafeUser();
-        
-        const metadata = logEntry.metadata || {};
-        const ipAddress = metadata.ip || null;
-        const userAgent = metadata.userAgent || navigator.userAgent;
-        
-        const dbLogEntry = {
-          event_type: logEntry.event,
-          metadata: { ...metadata, userAgent: undefined },
-          message: logEntry.message || '',
-          user_id: user?.id || metadata.userId || null,
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          created_at: logEntry.timestamp || new Date().toISOString()
-        };
-        
-        const { error } = await supabase
-          .from('security_logs')
-          .insert(dbLogEntry);
-        
-        if (error) {
-          // Silently fail in production
-        }
-      }
-    } catch (e) {
-      // Silently fail in production
-    }
-  }
+  // Store locally + send to Supabase security_logs table
 }
 ```
 
 ---
 
-## 6. Session Management
+## 7. Session Management
 
 **File:** `js/backend/security-services.js`
+
+**Features:**
+- 30-minute inactivity timeout
+- Activity tracked via mouse, keyboard, scroll events
+- Auto-logout with cache clearing
 
 ```javascript
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
-let lastActivityTime = Date.now();
-let sessionTimeoutTimer = null;
-
 function initializeSessionManagement() {
-  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-  
-  activityEvents.forEach(event => {
+  ['mousedown', 'keypress', 'scroll', 'click'].forEach(event => {
     document.addEventListener(event, updateLastActivity, true);
   });
-  
-  checkSessionTimeout();
-  setInterval(checkSessionTimeout, 60000); // Check every minute
-}
-
-function updateLastActivity() {
-  lastActivityTime = Date.now();
-  
-  if (sessionTimeoutTimer) {
-    clearTimeout(sessionTimeoutTimer);
-  }
-  
-  sessionTimeoutTimer = setTimeout(() => {
-    handleSessionTimeout();
-  }, SESSION_TIMEOUT);
-}
-
-async function checkSessionTimeout() {
-  const timeSinceLastActivity = Date.now() - lastActivityTime;
-  
-  if (timeSinceLastActivity >= SESSION_TIMEOUT) {
-    if (typeof getSupabaseClient === 'function') {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!session || error) {
-          handleSessionTimeout();
-        } else {
-          lastActivityTime = Date.now();
-        }
-      }
-    } else {
-      handleSessionTimeout();
-    }
-  }
+  setInterval(checkSessionTimeout, 60000);
 }
 
 async function handleSessionTimeout() {
-  if (typeof getSupabaseClient === 'function') {
-    const supabase = getSupabaseClient();
-    
-    if (supabase) {
-      const user = await getSafeUser();
-
-      if (user) {
-        logSecurityEvent(SECURITY_EVENT_TYPES.SESSION_TIMEOUT, {
-          userId: user.id,
-          timeoutDuration: SESSION_TIMEOUT
-        }, 'Session timed out due to inactivity');
-        
-        // Clear all caches
-        try {
-          localStorage.removeItem('eventhive_auth_cache');
-          localStorage.removeItem('eventhive_profile_cache');
-        } catch (e) {
-          console.error('Error clearing caches on timeout:', e);
-        }
-        
-        // Sign out user
-        await supabase.auth.signOut();
-        
-        alert('Your session has timed out due to inactivity. Please log in again.');
-        window.location.href = 'eventhive-homepage.html';
-      }
-    }
-  }
+  localStorage.removeItem('eventhive_auth_cache');
+  await supabase.auth.signOut();
+  alert('Session timed out. Please log in again.');
+  window.location.href = 'eventhive-homepage.html';
 }
 ```
 
 ---
 
-## 7. Multi-Factor Authentication
+## 8. Authentication & Auth Cache
 
-**File:** `js/backend/security-services.js`
+**File:** `js/eventhive-dropdownmenu.js`
+
+### Auth Cache Behavior:
+- **No time-based expiry** - trusts the session
+- Cleared only on logout or `SIGNED_OUT` event
+- Stores: `isLoggedIn`, `isAdmin`, `timestamp`
 
 ```javascript
-const mfaCodes = new Map();
-
-function generateMFACode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-async function sendMFACode(email, code) {
-  if (typeof getSupabaseClient !== 'function') {
-    return false;
-  }
-  
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return false;
-  }
-  
-  try {
-    // Store code temporarily (5 minutes expiry)
-    mfaCodes.set(email, {
-      code: code,
-      expiresAt: Date.now() + (5 * 60 * 1000)
-    });
-    
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_SENT, {
-      email: email
-    }, 'MFA code sent to user');
-    
-    // TODO: Integrate with email service
-    console.log(`[MFA CODE for ${email}]: ${code}`);
-    
-    return true;
-  } catch (error) {
-    console.error('Error sending MFA code:', error);
-    return false;
-  }
-}
-
-function verifyMFACode(email, inputCode) {
-  const stored = mfaCodes.get(email);
-  
-  if (!stored) {
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
-      email: email,
-      reason: 'No code found'
-    }, 'MFA verification failed: no code found');
-    return false;
-  }
-  
-  // Check if code expired
-  if (Date.now() > stored.expiresAt) {
-    mfaCodes.delete(email);
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
-      email: email,
-      reason: 'Code expired'
-    }, 'MFA verification failed: code expired');
-    return false;
-  }
-  
-  // Verify code
-  if (stored.code !== inputCode) {
-    logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_FAILED, {
-      email: email,
-      reason: 'Invalid code'
-    }, 'MFA verification failed: invalid code');
-    return false;
-  }
-  
-  // Code is valid - remove it
-  mfaCodes.delete(email);
-  
-  logSecurityEvent(SECURITY_EVENT_TYPES.MFA_CODE_VERIFIED, {
-    email: email
-  }, 'MFA code verified successfully');
-  
-  return true;
-}
-
-function cleanupExpiredMFACodes() {
-  const now = Date.now();
-  for (const [email, data] of mfaCodes.entries()) {
-    if (now > data.expiresAt) {
-      mfaCodes.delete(email);
+function getCachedAuthState() {
+  const cached = localStorage.getItem('eventhive_auth_cache');
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    // No expiry check - trust session, cleared on logout
+    if (typeof parsed.isLoggedIn !== 'undefined') {
+      return parsed;
     }
   }
-}
-
-// Clean up expired codes every minute
-setInterval(cleanupExpiredMFACodes, 60000);
-```
-
----
-
-## 8. Authentication State Listener
-
-**File:** `js/eventhive-supabase.template.js`
-
-```javascript
-function setupAuthStateListener() {
-  if (authStateListenerInitialized) {
-    console.log('Auth state listener already initialized, skipping duplicate setup');
-    return;
-  }
-  
-  if (!supabaseClient) {
-    supabaseClient = initSupabase();
-    if (!supabaseClient) return;
-  }
-
-  authStateListenerInitialized = true;
-  const processedUserIds = new Set();
-  
-  supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session?.user?.email) {
-      const userId = session?.user?.id;
-      const email = session.user.email;
-      
-      // Prevent duplicate processing
-      if (processedUserIds.has(userId)) {
-        return;
-      }
-      processedUserIds.add(userId);
-      
-      // Enforce email domain restriction
-      if (!isAllowedEmailDomain(email)) {
-        console.warn('Non-TUP email attempted sign-in:', email);
-        try {
-          await supabaseClient.auth.signOut();
-        } catch (err) {
-          console.error('Error signing out non-TUP user:', err);
-        }
-        alert('Access Denied: Only TUP email addresses (@tup.edu.ph) are allowed.');
-        processedUserIds.delete(userId);
-        return;
-      }
-      
-      // Check if email is verified
-      if (!session.user.email_confirmed_at) {
-        try {
-          await supabaseClient.auth.signOut();
-        } catch (err) {
-          console.error('Error signing out unverified user:', err);
-        }
-        alert('Please verify before logging in.');
-        processedUserIds.delete(userId);
-        return;
-      }
-      
-      // ... rest of login handling
-    } else if (event === 'SIGNED_OUT') {
-      lastAuthenticatedUserId = null;
-      processedUserIds.clear();
-      try {
-        localStorage.clear();
-      } catch (e) {
-        console.error('Error clearing localStorage on sign out:', e);
-      }
-    }
-  });
+  return null;
 }
 ```
 
----
-
-## 9. OAuth Callback Security
-
-**File:** `js/eventhive-supabase.template.js`
-
-```javascript
-async function handleOAuthCallback() {
-  if (!supabaseClient) {
-    supabaseClient = initSupabase();
-    if (!supabaseClient) return;
-  }
-
-  try {
-    isProcessingOAuthCallback = true;
-
-    // Early check: provider returned an error
-    const searchParams = new URLSearchParams(window.location.search);
-    const hashParams = (window.location.hash || '').startsWith('#') 
-      ? new URLSearchParams(window.location.hash.slice(1)) : null;
-    const oauthError = searchParams.get('error') || (hashParams && hashParams.get('error'));
-    const oauthErrorDesc = searchParams.get('error_description') || 
-      (hashParams && hashParams.get('error_description'));
-    
-    if (oauthError) {
-      const safeDescription = oauthErrorDesc 
-        ? decodeURIComponent(oauthErrorDesc).replace(/[^\w\s\-.,:;()<>@!?'"/\\]/g, '') 
-        : '';
-      
-      let userMsg = 'Authentication failed. Please try signing in again.';
-      
-      // Check if error is related to database/email domain restriction
-      if (safeDescription && (
-        safeDescription.toLowerCase().includes('database error') || 
-        safeDescription.toLowerCase().includes('tup university') ||
-        safeDescription.toLowerCase().includes('email domain')
-      )) {
-        userMsg = 'Use the email provided by the TUP University';
-      }
-      
-      alert(userMsg);
-      window.history.replaceState({}, document.title, window.location.pathname);
-      return;
-    }
-    
-    // Process session and enforce email domain restriction
-    // ... (see full implementation in source file)
-    
-  } catch (err) {
-    console.error('Error handling OAuth callback:', err);
-  }
-
-  // Clean up URL after processing
-  if (window.location.search) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-  
-  setTimeout(() => {
-    isProcessingOAuthCallback = false;
-  }, 500);
-}
-```
+### Auth State Listener:
+- Handles `SIGNED_IN` and `SIGNED_OUT` events
+- Enforces TUP email domain on OAuth logins
+- Prevents duplicate alert processing
 
 ---
 
-## 10. Database RLS Policies
+## 9. Database RLS Policies
 
-**File:** `supabase-nuclear-reset.sql`
+**File:** Various SQL files
+
+All tables have Row Level Security enabled:
+
+| Table | Guest | User | Admin |
+|-------|-------|------|-------|
+| events | Read | Read | Full CRUD |
+| comments | Read | Create/Delete own | Delete any |
+| event_likes | - | Create/Delete | Create/Delete |
+| profiles | Read | Update own | Update any |
+| security_logs | - | Insert | Full access |
 
 ```sql
--- PERMISSION MATRIX:
--- ┌───────────────────┬────────┬───────────────┬─────────┐
--- │ Action            │ Guest  │ Authenticated │ Admin   │
--- ├───────────────────┼────────┼───────────────┼─────────┤
--- │ View Events       │ ✅     │ ✅            │ ✅      │
--- │ Like/Unlike       │ ❌     │ ✅            │ ✅      │
--- │ Comment           │ ❌     │ ✅            │ ✅      │
--- │ Delete Comment    │ ❌     │ ✅ (own only) │ ✅ (own)│
--- │ Create Event      │ ❌     │ ❌            │ ✅      │
--- │ Update Event      │ ❌     │ ❌            │ ✅      │
--- │ Delete Event      │ ❌     │ ❌            │ ✅      │
--- │ Manage Images     │ ❌     │ ❌            │ ✅      │
--- │ Manage Orgs       │ ❌     │ ❌            │ ✅      │
--- │ View Sec Logs     │ ❌     │ ❌            │ ✅      │
--- └───────────────────┴────────┴───────────────┴─────────┘
-
--- Enable RLS on all tables
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE colleges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_images ENABLE ROW LEVEL SECURITY;
-ALTER TABLE event_likes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE security_logs ENABLE ROW LEVEL SECURITY;
-
--- EVENTS POLICIES
-CREATE POLICY "Events are viewable by everyone"
-  ON events FOR SELECT
-  USING (true);
-
-CREATE POLICY "Admins can update events"
-  ON events FOR UPDATE
-  USING (is_admin())
-  WITH CHECK (is_admin());
-
-CREATE POLICY "Admins can delete events"
-  ON events FOR DELETE
-  USING (is_admin());
-
--- COMMENTS POLICIES
-CREATE POLICY "Comments are viewable by everyone"
-  ON comments FOR SELECT
-  USING (true);
-
-CREATE POLICY "Authenticated users can create comments"
-  ON comments FOR INSERT
-  WITH CHECK (
-    auth.role() = 'authenticated' 
-    AND auth.uid() = user_id
-  );
-
+-- Example: Users can only delete their own comments
 CREATE POLICY "Users can delete own comments"
   ON comments FOR DELETE
   USING (auth.uid() = user_id);
-
--- SECURITY_LOGS POLICIES
-CREATE POLICY "Admins can view security logs"
-  ON security_logs FOR SELECT
-  USING (is_admin());
-
-CREATE POLICY "Authenticated users can insert security logs"
-  ON security_logs FOR INSERT
-  WITH CHECK (auth.role() = 'authenticated');
 ```
 
 ---
 
-## 11. Admin Check Function
+## 10. Admin Access Control
 
-**File:** `supabase-nuclear-reset.sql`
+**Database Function:** `is_admin()`
+
+Fast, indexed lookup for admin status.
 
 ```sql
--- This function is SECURITY DEFINER and uses the index for fast lookups
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
-DECLARE
-  admin_status BOOLEAN;
 BEGIN
-  -- Quick return if not authenticated
-  IF auth.uid() IS NULL THEN
-    RETURN FALSE;
-  END IF;
-  
-  -- Use indexed lookup - this is fast because of idx_profiles_id_is_admin
-  SELECT is_admin INTO admin_status
-  FROM profiles
-  WHERE id = auth.uid();
-  
-  -- Return false if no profile found or not admin
+  IF auth.uid() IS NULL THEN RETURN FALSE; END IF;
+  SELECT is_admin INTO admin_status FROM profiles WHERE id = auth.uid();
   RETURN COALESCE(admin_status, FALSE);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
--- Critical index for fast admin lookups
-CREATE INDEX idx_profiles_is_admin ON profiles(is_admin) WHERE is_admin = TRUE;
+-- Index for fast lookups
 CREATE INDEX idx_profiles_id_is_admin ON profiles(id, is_admin);
+```
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION is_admin() TO authenticated;
-GRANT EXECUTE ON FUNCTION is_admin() TO anon;
+**Client-Side:**
+
+```javascript
+// js/eventhive-admin-init.js
+const cachedAuth = window.getCachedAuthState();
+if (cachedAuth?.isAdmin) {
+  hasAdminAccess = true;  // Fast path
+} else {
+  hasAdminAccess = await window.checkIsAdmin();  // Server verification
+}
+if (!hasAdminAccess) {
+  window.location.href = 'eventhive-homepage.html';
+}
 ```
 
 ---
 
-## 12. New User Handler
+## 11. Login Lockout System
 
-**File:** `supabase-nuclear-reset.sql`
+**File:** `js/backend/security-services.js`
 
-```sql
--- Auto-creates profile when user signs up
--- Enforces TUP email domain restriction at database level
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Enforce email domain restriction: Only allow @tup.edu.ph emails
-  IF NEW.email IS NULL OR LOWER(NEW.email) NOT LIKE '%@tup.edu.ph' THEN
-    RAISE EXCEPTION 'Email domain not allowed. Only @tup.edu.ph email addresses are permitted.';
-  END IF;
-  
-  INSERT INTO public.profiles (id, email, username, full_name, avatar_url, is_admin)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
-    NEW.raw_user_meta_data->>'avatar_url',
-    FALSE
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+**Rules:**
+- 8 failed attempts → 5-minute lockout
+- Server-side tracking (cannot bypass by clearing localStorage)
+- Countdown timer displayed
 
--- Create trigger on auth.users
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+```javascript
+async function checkLoginLockout(email) {
+  // Query security_logs for recent ACCOUNT_LOCKED events
+  const { data } = await supabase
+    .from('security_logs')
+    .select('created_at')
+    .eq('event_type', 'ACCOUNT_LOCKED')
+    .ilike('metadata->>email', email)
+    .gte('created_at', fiveMinutesAgo);
+    
+  if (data?.length > 0) {
+    return { locked: true, remainingSeconds: calculateRemaining(data[0]) };
+  }
+  return { locked: false };
+}
 ```
 
 ---
 
-## 13. Password Reset Security (OAuth Users)
+## 12. Password Reset Security
 
 **Files:** `js/eventhive-set-password.js`, `js/eventhive-profile-edit.js`
 
-OAuth users (Google sign-in) can set a password to enable email/password login. The password reset flow includes:
+**Features:**
+- Rate limited: 3 requests per email per hour
+- OAuth users can set password for email/password login
+- Direct API call with captured tokens (bypasses session issues)
 
-### Password Setup Email Request
 ```javascript
-// js/eventhive-profile-edit.js - Forgot password button for OAuth users
-const { error } = await supabase.auth.resetPasswordForEmail(emailToUse, {
-  redirectTo: window.location.origin + '/eventhive-set-password.html'
-});
-```
-
-### Token Capture and Session Handling
-```javascript
-// js/eventhive-set-password.js - Capture hash tokens immediately at script load
-(function() {
-    const originalHash = window.location.hash;
-    const hashParams = parseHash(originalHash);
-    
-    // Store tokens before any other script can process them
-    const capturedAccessToken = hashParams.access_token;
-    const capturedRefreshToken = hashParams.refresh_token || '';
-    
-    // Direct API call for password update (bypasses session issues)
-    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'apikey': supabaseKey
-        },
-        body: JSON.stringify({ password: newPassword })
-    });
-})();
-```
-
-### Auth Listener Skip on Password Reset Page
-```javascript
-// js/eventhive-supabase.template.js - Skip complex auth processing on set-password page
-if (event === 'SIGNED_IN' && session?.user?.email) {
-  const isSetPasswordPage = window.location.pathname.includes('set-password');
-  if (isSetPasswordPage) {
-    console.log('On set-password page - skipping auth listener processing');
-    return;  // Let set-password.js handle the session
-  }
-  // ... rest of auth processing
-}
-```
-
-### has_password Flag
-```javascript
-// Update profile after password set
-await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
-    method: 'PATCH',
-    headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'apikey': supabaseKey,
-        'Prefer': 'return=minimal'
-    },
-    body: JSON.stringify({ has_password: true })
+// Direct password update with captured token
+const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${capturedAccessToken}`,
+    'apikey': supabaseKey
+  },
+  body: JSON.stringify({ password: newPassword })
 });
 ```
 
 ---
 
-## 14. Auth Alert Deduplication
+## Summary Table
 
-**Files:** `js/eventhive-supabase.template.js`, `js/eventhive-pop-up__log&sign.js`
-
-Prevents duplicate "Log in successful!" alerts when logging in with email/password.
-
-### Problem
-Two separate code paths could show login success alerts:
-1. `eventhive-pop-up__log&sign.js` - Form submission handler
-2. `eventhive-supabase.template.js` - Auth state change listener
-
-### Solution
-The auth state listener only shows alerts for OAuth logins (Google sign-in). Email/password logins show their own alert in the form handler.
-
-```javascript
-// js/eventhive-supabase.template.js
-} else if (isNewUserLogin && !isFirstTimeSignup) {
-  const storedUserId = localStorage.getItem('eventhive_last_authenticated_user_id');
-  if (!storedUserId || storedUserId !== userId) {
-    lastAuthenticatedUserId = userId;
-    localStorage.setItem('eventhive_last_authenticated_user_id', userId);
-    
-    // ONLY show alert for OAuth logins here
-    // Email/password logins already show alert in eventhive-pop-up__log&sign.js
-    if (isOAuthLogin) {
-      alert('Log in successful!');
-    }
-  }
-```
+| Feature | Location | Description |
+|---------|----------|-------------|
+| Input Validation | `security-services.js` | Sanitizes all user inputs |
+| Email Restriction | Client + DB | `@tup.edu.ph` only |
+| Password Policy | `security-services.js` | 8+ chars, mixed case, special |
+| Profanity Filter | `eventhive-profanity-filter.js` | Filipino + English, leet speak |
+| Comment Rate Limit | `security-services.js` | 5/minute |
+| Session Timeout | `security-services.js` | 30 min inactivity |
+| Auth Cache | `eventhive-dropdownmenu.js` | No expiry, session-based |
+| RLS Policies | Supabase | Row-level access control |
+| Admin Check | `is_admin()` | Indexed DB function |
+| Login Lockout | `security-services.js` | 5 min after 8 failures |
+| Password Reset | `eventhive-set-password.js` | Rate-limited, token-based |
 
 ---
 
-## 15. Login Lockout System
-
-**Files:** `js/backend/security-services.js`, `js/eventhive-pop-up__log&sign.js`
-
-Prevents brute-force attacks by locking accounts after failed login attempts.
-
-### Configuration
-- **8 failed attempts** → 5-minute lockout
-- **Server-side storage** using `security_logs` table (cannot be bypassed by clearing localStorage)
-- Countdown timer displayed to user
-- Lockouts expire automatically after 5 minutes
-
-### How It Works
-1. Each failed login inserts a `FAILED_LOGIN` event into `security_logs`
-2. On login attempt, server is queried for recent failed attempts
-3. If 8+ failures in last 5 minutes, an `ACCOUNT_LOCKED` event is logged
-4. Lock status is checked by querying for recent `ACCOUNT_LOCKED` events
-
-### Functions (async - use await)
-```javascript
-// Check if login is locked (async)
-const status = await checkLoginLockout(email);
-if (status.locked) {
-  // Show lockout message with status.remainingSeconds
-}
-
-// Record failed attempt (async)
-const result = await recordFailedLogin(email);
-if (result.locked) {
-  // Account is now locked - start countdown
-}
-
-// Clear attempts on successful login (async)
-await clearLoginAttempts(email);
-
-// Format time for display (sync)
-const timeStr = formatLockoutTime(seconds); // Returns "4:32"
-```
-
----
-
-## 16. Forgot Password Rate Limiting
-
-**Files:** `js/backend/security-services.js`, `js/eventhive-pop-up__log&sign.js`
-
-Prevents email spam by limiting password reset requests.
-
-### Configuration
-- **Max 3 requests** per email per hour
-- Uses existing password reset flow (Supabase `resetPasswordForEmail`)
-- Redirects to `eventhive-set-password.html`
-
-### Functions
-```javascript
-// Check if request is allowed
-const rateLimit = checkForgotPasswordRateLimit(email);
-if (!rateLimit.allowed) {
-  // Show rate limit message with rateLimit.nextAllowedTime
-}
-
-// Record a request
-recordForgotPasswordRequest(email);
-```
-
----
-
-## Summary
-
-| Security Feature | Location | Description |
-|-----------------|----------|-------------|
-| Input Validation | `security-services.js` | Validates usernames, emails, URLs, event data |
-| Email Restriction | Client + Database | `@tup.edu.ph` domain only |
-| Password Policy | `security-services.js` | Enforces complexity requirements |
-| Profanity Filter | `security-services.js` | Filters inappropriate content |
-| Security Logging | Client + Supabase | Logs security events to `security_logs` table |
-| Session Timeout | `security-services.js` | Auto-logout after 30 min inactivity |
-| MFA | `security-services.js` | 6-digit code verification (TODO: email integration) |
-| RLS Policies | Supabase | Row-level security for all tables |
-| Admin Function | Supabase | Fast indexed `is_admin()` check |
-| Password Reset | `eventhive-set-password.js` | Secure password setup for OAuth users |
-| Alert Deduplication | `eventhive-supabase.template.js` | Prevents duplicate login alerts |
-| Login Lockout | `security-services.js` | 5-min lockout after 8 failed attempts |
-| Forgot Password | `eventhive-pop-up__log&sign.js` | Rate-limited (3/hour) password reset |
-
+*© EventHive Group 2 - TUP Manila*
