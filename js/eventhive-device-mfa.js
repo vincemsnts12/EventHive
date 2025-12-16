@@ -765,50 +765,54 @@ async function showInlineMFA(userId, email, loginModal) {
         const originalContent = modalContent.innerHTML;
         window.__EH_ORIGINAL_MODAL_CONTENT = originalContent;
 
-        // Replace with MFA form - Light theme for white login modal
+        // Replace with MFA form - Matches auth modal design
         modalContent.innerHTML = `
-            <div class="mfa-inline-content" style="padding: 25px 20px; text-align: center;">
-                <div style="font-size: 50px; margin-bottom: 15px;">🔐</div>
-                <h2 style="margin: 0 0 10px 0; color: #1f2937; font-size: 20px; font-weight: 600;">Verify Your Device</h2>
-                <p style="margin: 0 0 25px 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
+            <div class="auth-modal-container" style="border: none; box-shadow: none; padding: 30px 25px;">
+                <!-- Header matching auth modal -->
+                <div class="auth-modal-header">
+                    <h2 class="auth-modal__title">Verify Your Device</h2>
+                    <button type="button" class="auth-modal__closebtn" id="inlineCancelMFABtn">&times;</button>
+                </div>
+                
+                <!-- Description -->
+                <p style="margin: 0 0 20px 0; color: #666; font-size: 14px; text-align: center; line-height: 1.5;">
                     We noticed you're signing in from a new device.<br>
                     A 6-digit code has been sent to your email.
                 </p>
                 
-                <input type="text" id="inlineMfaCodeInput" 
-                    placeholder="Enter code"
-                    maxlength="6" 
-                    autocomplete="one-time-code"
-                    inputmode="numeric"
-                    style="display: block; width: 100%; max-width: 200px; margin: 0 auto 15px auto;
-                           font-size: 24px; letter-spacing: 8px; text-align: center; padding: 14px 16px;
-                           border: 2px solid #d1d5db; border-radius: 10px; background: #f9fafb;
-                           color: #111827; font-family: monospace; outline: none; box-sizing: border-box;">
+                <!-- MFA Form -->
+                <div class="auth-modal-form">
+                    <label class="auth-modal__label" for="inlineMfaCodeInput">Verification Code</label>
+                    <input type="text" id="inlineMfaCodeInput" 
+                        class="auth-modal__input"
+                        placeholder="Enter 6-digit code"
+                        maxlength="6" 
+                        autocomplete="one-time-code"
+                        inputmode="numeric"
+                        style="font-size: 20px; letter-spacing: 6px; text-align: center; font-family: monospace;">
+                    
+                    <div id="inlineMfaError" style="color: #B81E20; margin: 5px 0; font-size: 13px; display: none; text-align: center;"></div>
+                    
+                    <label style="display: flex; align-items: center; gap: 8px; margin: 10px 0; color: #333; cursor: pointer; font-size: 14px;">
+                        <input type="checkbox" id="inlineTrustDeviceCheckbox" style="width: 16px; height: 16px; accent-color: #B81E20;">
+                        Trust this device for 7 days
+                    </label>
+                    
+                    <button type="button" id="inlineVerifyMFABtn" class="auth-modal__submit">
+                        Verify Code
+                    </button>
+                </div>
                 
-                <div id="inlineMfaError" style="color: #dc2626; margin: 0 0 15px 0; font-size: 13px; display: none;"></div>
+                <!-- Divider -->
+                <div class="auth-modal__divider">
+                    <span>Need help?</span>
+                </div>
                 
-                <label style="display: flex; align-items: center; justify-content: center; gap: 8px; 
-                              margin: 0 0 20px 0; color: #4b5563; cursor: pointer; font-size: 14px;">
-                    <input type="checkbox" id="inlineTrustDeviceCheckbox" style="width: 16px; height: 16px; accent-color: #6366f1;">
-                    Trust this device for 7 days
-                </label>
-                
-                <button type="button" id="inlineVerifyMFABtn" style="display: block; width: 100%; padding: 12px 20px;
-                        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none; border-radius: 8px;
-                        color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin: 0 0 10px 0;">
-                    Verify Code
-                </button>
-                
-                <button type="button" id="inlineCancelMFABtn" style="display: block; width: 100%; padding: 10px 20px;
-                        background: transparent; border: 1px solid #d1d5db; border-radius: 8px;
-                        color: #6b7280; font-size: 14px; cursor: pointer;">
-                    Cancel
-                </button>
-                
-                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                    <p id="inlineMfaExpiry" style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">Code expires in 10:00</p>
-                    <button type="button" id="inlineResendMFABtn" style="background: none; border: none; color: #6366f1;
-                            cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0;">
+                <!-- Footer actions -->
+                <div style="text-align: center;">
+                    <p id="inlineMfaExpiry" style="color: #666; font-size: 13px; margin: 0 0 10px 0;">Code expires in 10:00</p>
+                    <button type="button" id="inlineResendMFABtn" style="background: none; border: none; color: #B81E20;
+                            cursor: pointer; font-size: 14px; text-decoration: underline; padding: 0;">
                         Resend Code
                     </button>
                 </div>
