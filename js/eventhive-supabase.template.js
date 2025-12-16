@@ -196,8 +196,14 @@ function setupAuthStateListener() {
       const isNewUserLogin = lastAuthenticatedUserId !== userId;
 
       // ===== DEVICE MFA CHECK =====
-      // Check if this is a new/untrusted device and require MFA
-      if (typeof checkAndHandleMFA === 'function' && isNewUserLogin) {
+      // Check if MFA was just verified (after reload from MFA modal)
+      const mfaJustVerified = sessionStorage.getItem('eventhive_mfa_just_verified');
+      if (mfaJustVerified) {
+        console.log('MFA was just verified, clearing flag and continuing');
+        sessionStorage.removeItem('eventhive_mfa_just_verified');
+        // Continue with login flow - MFA already passed
+      } else if (typeof checkAndHandleMFA === 'function' && isNewUserLogin) {
+        // Check if this is a new/untrusted device and require MFA
         const mfaPassed = await checkAndHandleMFA(userId, email);
         if (!mfaPassed) {
           // MFA modal is showing, don't continue with login flow

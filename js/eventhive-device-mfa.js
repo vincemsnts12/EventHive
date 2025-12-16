@@ -562,8 +562,19 @@ function setupMFAModalListeners() {
         console.log('verifyDeviceMFACode returned:', result);
 
         if (result.success) {
+            console.log('MFA verification successful, updating UI...');
+
+            // Set flag to indicate MFA was completed
+            sessionStorage.setItem('eventhive_mfa_just_verified', 'true');
+
+            // Hide modal first
             hideMFAModal();
-            // Refresh the page or update UI to show logged-in state
+
+            // Show success message
+            alert('Device verified successfully!');
+
+            // Force a full page reload to reinitialize auth state
+            // The flag above tells the auth flow that MFA is done
             window.location.reload();
         } else {
             errorEl.textContent = result.error || 'Verification failed';
