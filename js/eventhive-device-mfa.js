@@ -469,9 +469,9 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
 }
 
 // ============================================================
-// MFA MODAL UI
+// NOTE: Old standalone MFA modal was removed.
+// MFA is now handled inline within the login modal.
 // ============================================================
-
 /**
  * Create and inject the MFA modal into the page
  */
@@ -958,13 +958,13 @@ function restoreLoginModal() {
 // ============================================================
 
 // Make functions globally available
+// Core functions still in use:
 window.generateDeviceFingerprint = generateDeviceFingerprint;
 window.isDeviceTrusted = isDeviceTrusted;
 window.requestDeviceMFACode = requestDeviceMFACode;
 window.verifyDeviceMFACode = verifyDeviceMFACode;
-window.showMFAModal = showMFAModal;
-window.hideMFAModal = hideMFAModal;
-window.checkAndHandleMFA = checkAndHandleMFA;
+// Inline MFA for login modal:
 window.showInlineMFA = showInlineMFA;
+// NOTE: showMFAModal, hideMFAModal, checkAndHandleMFA are deprecated/removed
 
 console.log('EventHive Device MFA module loaded');

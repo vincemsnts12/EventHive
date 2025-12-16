@@ -391,6 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const trusted = await isDeviceTrusted(loginUserId);
                 if (!trusted) {
                   console.log('New device detected, MFA required - showing inline MFA');
+                  // IMPORTANT: Hide loading spinner before showing MFA form
+                  if (typeof hideLoading === 'function') hideLoading();
                   // Keep modal open but show MFA content instead
                   if (typeof showInlineMFA === 'function') {
                     // This will handle MFA flow and only return when successful
