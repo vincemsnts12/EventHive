@@ -195,6 +195,20 @@ function setupAuthStateListener() {
       // Only show message if user changed (not just a token refresh)
       const isNewUserLogin = lastAuthenticatedUserId !== userId;
 
+      // ===== DEVICE MFA CHECK =====
+      // Check if this is a new/untrusted device and require MFA
+      if (typeof checkAndHandleMFA === 'function' && isNewUserLogin) {
+        const mfaPassed = await checkAndHandleMFA(userId, email);
+        if (!mfaPassed) {
+          // MFA modal is showing, don't continue with login flow
+          // User will be redirected/reloaded after successful MFA verification
+          console.log('MFA required, pausing login flow');
+          processedUserIds.delete(userId); // Allow reprocessing after MFA
+          return;
+        }
+        console.log('MFA check passed or not required');
+      }
+
       // Check if this is an OAuth login by checking URL or processing flag
       const isOAuthLogin = isProcessingOAuthCallback ||
         window.location.hash.includes('access_token') ||

@@ -6,9 +6,10 @@
     "build": "node build.js",
     "vercel-build": "node build.js"
   },
+  "dependencies": {
+    "nodemailer": "^6.9.8"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC"
 }
-
-
