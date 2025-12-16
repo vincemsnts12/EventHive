@@ -184,16 +184,24 @@ async function requestDeviceMFACode(userId, email) {
         return { success: false, error: 'Configuration error' };
     }
 
-    // Get session token
-    const supabase = getSupabaseClient();
+    // Get session token from localStorage (avoid async hang)
     let authToken = supabaseKey;
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-            authToken = session.access_token;
+        const keys = Object.keys(localStorage);
+        for (const key of keys) {
+            if (key.startsWith('sb-') && key.includes('-auth-token')) {
+                const stored = localStorage.getItem(key);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed?.access_token) {
+                        authToken = parsed.access_token;
+                        break;
+                    }
+                }
+            }
         }
     } catch (e) {
-        console.warn('Could not get session token, using anon key');
+        console.warn('Could not get session token from localStorage');
     }
 
     const headers = {
@@ -298,26 +306,40 @@ async function verifyDeviceMFACode(inputCode, trustDevice = false) {
     console.log('Starting verification for user:', mfaPendingUserId);
 
     const fingerprint = generateDeviceFingerprint();
+    console.log('Fingerprint generated');
 
     // Get Supabase config
     const supabaseUrl = window.__EH_SUPABASE_URL;
     const supabaseKey = window.__EH_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
+        console.log('Missing Supabase config');
         return { success: false, error: 'Configuration error' };
     }
+    console.log('Supabase config found');
 
-    // Get session token
-    const supabase = getSupabaseClient();
+    // Get session token from localStorage (avoid async hang)
     let authToken = supabaseKey;
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-            authToken = session.access_token;
+        // Try to get token from localStorage (Supabase stores it there)
+        const keys = Object.keys(localStorage);
+        for (const key of keys) {
+            if (key.startsWith('sb-') && key.includes('-auth-token')) {
+                const stored = localStorage.getItem(key);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed?.access_token) {
+                        authToken = parsed.access_token;
+                        console.log('Found auth token in localStorage');
+                        break;
+                    }
+                }
+            }
         }
     } catch (e) {
-        console.warn('Could not get session token, using anon key');
+        console.warn('Could not get session token from localStorage:', e);
     }
+    console.log('Auth token ready');
 
     const headers = {
         'apikey': supabaseKey,
