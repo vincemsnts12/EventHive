@@ -283,13 +283,19 @@ async function requestDeviceMFACode(userId, email) {
  * @returns {Promise<{success: boolean, error?: string, attemptsLeft?: number}>}
  */
 async function verifyDeviceMFACode(inputCode, trustDevice = false) {
+    console.log('verifyDeviceMFACode called with code:', inputCode ? inputCode.substring(0, 3) + '***' : 'empty');
+
     if (!mfaPendingUserId) {
+        console.log('No pending user ID');
         return { success: false, error: 'No pending verification' };
     }
 
     if (!inputCode || !/^\d{6}$/.test(inputCode)) {
+        console.log('Invalid code format');
         return { success: false, error: 'Please enter a valid 6-digit code' };
     }
+
+    console.log('Starting verification for user:', mfaPendingUserId);
 
     const fingerprint = generateDeviceFingerprint();
 
@@ -507,14 +513,19 @@ function setupMFAModalListeners() {
 
     // Verify button
     verifyBtn.addEventListener('click', async () => {
+        console.log('Verify button clicked');
         const code = codeInput.value.trim();
         const trustDevice = document.getElementById('trustDeviceCheckbox').checked;
+
+        console.log('Code entered:', code ? code.length + ' digits' : 'empty');
 
         verifyBtn.disabled = true;
         verifyBtn.textContent = 'Verifying...';
         errorEl.style.display = 'none';
 
+        console.log('Calling verifyDeviceMFACode...');
         const result = await verifyDeviceMFACode(code, trustDevice);
+        console.log('verifyDeviceMFACode returned:', result);
 
         if (result.success) {
             hideMFAModal();
